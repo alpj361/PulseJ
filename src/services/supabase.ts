@@ -15,12 +15,29 @@
 import { createClient } from '@supabase/supabase-js';
 
 // Use environment variables for Supabase configuration
-// These will be set in Netlify dashboard for production
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Create a mock client for development if Supabase is not configured
+const createMockClient = () => {
+  console.warn('Supabase credentials not found. Using mock client for development.');
+  return {
+    from: () => ({
+      insert: async () => ({ data: null, error: null }),
+      select: async () => ({ data: null, error: null }),
+      order: () => ({
+        limit: () => ({
+          single: async () => ({ data: null, error: null })
+        })
+      })
+    })
+  };
+};
 
 // Create and export the Supabase client
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : createMockClient();
 
 /**
  * Database schema for reference:
@@ -38,9 +55,9 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
  * Insert trend data into Supabase
  */
 export async function insertTrendData(data: any): Promise<void> {
-  // Check if Supabase URL and key are configured
+  // Check if Supabase is properly configured
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.log('Supabase not configured, skipping database operation');
+    console.warn('Supabase not configured, skipping database operation');
     return;
   }
   
@@ -67,9 +84,9 @@ export async function insertTrendData(data: any): Promise<void> {
  * Get the latest trend data from Supabase
  */
 export async function getLatestTrendData(): Promise<any | null> {
-  // Check if Supabase URL and key are configured
+  // Check if Supabase is properly configured
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.log('Supabase not configured, returning null');
+    console.warn('Supabase not configured, using mock data');
     return null;
   }
   
@@ -87,4 +104,4 @@ export async function getLatestTrendData(): Promise<any | null> {
     console.error('Error fetching latest trend data:', error);
     return null;
   }
-} 
+}
