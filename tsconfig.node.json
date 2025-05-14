@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "composite": true,
     "target": "ES2022",
     "lib": ["ES2023"],
     "module": "ESNext",
@@ -7,10 +8,11 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
+    "noEmit": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "noEmit": true,
+    "declaration": false,
 
     /* Linting */
     "strict": true,

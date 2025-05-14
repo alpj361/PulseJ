@@ -1,0 +1,29 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# Development configuration
+[dev]
+  command = "npm run dev"  # Explicitly tell Netlify which command to run
+  port = 3000             # Port to use for the dev server
+  targetPort = 5173       # Vite's default port that Netlify should proxy to
+  autoLaunch = true       # Open browser automatically
+
+# Production environment settings
+[context.production.environment]
+  # These will be replaced with actual values in the Netlify dashboard
+  VITE_VPS_API_URL = "https://your-vps-scraper-url.com/api"
+  # This is used by the serverless function directly, not exposed to frontend
+  VPS_API_URL = "https://your-vps-scraper-url.com/api/trending"
+  # OPENROUTER_API_KEY should be set in Netlify environment variables, not here
+
+# Development environment settings (for branch deploys)
+[context.branch-deploy.environment]
+  VITE_VPS_API_URL = "https://dev-your-vps-scraper-url.com/api"
+  VPS_API_URL = "https://dev-your-vps-scraper-url.com/api/trending"
+
+# Function configuration
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["node-fetch"] 
