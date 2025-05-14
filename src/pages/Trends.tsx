@@ -170,7 +170,7 @@ const Trends: React.FC = () => {
           <div className="flex items-center mb-4">
           <BarChartIcon className="h-5 w-5 text-blue-500 mr-2" />
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
-              News Distribution
+              Topic Distribution
             </h3>
           </div>
           <BarChart data={categoryData} />
