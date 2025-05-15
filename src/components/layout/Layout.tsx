@@ -27,10 +27,10 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <div className="flex flex-1 overflow-hidden">
         {/* Mobile sidebar toggle */}
         <button
-          className="md:hidden fixed z-20 bottom-4 right-4 bg-blue-500 text-white p-3 rounded-full shadow-lg"
+          className="md:hidden fixed z-20 bottom-4 right-4 glass rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300"
           onClick={toggleSidebar}
         >
-          {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
+          {sidebarOpen ? <X size={24} className="text-gray-700 dark:text-gray-300" /> : <Menu size={24} className="text-gray-700 dark:text-gray-300" />}
         </button>
 
         {/* Sidebar */}
@@ -43,8 +43,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-          <div className="container mx-auto px-4 py-8">
+        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 transition-theme">
+          <div className="container mx-auto px-4 py-8 stagger-children">
             {children}
           </div>
         </main>
@@ -52,5 +52,3 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     </div>
   );
 };
-
-export default Layout;
