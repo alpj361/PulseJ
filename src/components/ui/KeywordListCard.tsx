@@ -52,3 +52,5 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
     </div>
   );
 };
+
+export default KeywordListCard
