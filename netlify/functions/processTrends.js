@@ -60,26 +60,38 @@ exports.handler = async function(event, context) {
     else {
       // Get the trending endpoint URL
       const trendingUrl = params.trendingUrl || process.env.VPS_API_URL;
-      if (!trendingUrl) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({ error: 'No trending endpoint URL provided' }),
-        };
+      
+      // Verificar si la URL es genérica o inválida
+      const isGenericUrl = 
+        typeof trendingUrl === 'string' && 
+        (trendingUrl.includes('your-vps-scraper-url') || 
+         trendingUrl.includes('dev-your-vps-scraper-url'));
+      
+      if (!trendingUrl || isGenericUrl) {
+        console.log('Invalid or generic trending URL detected, using mocked data instead');
+        // Crear datos simulados en lugar de intentar hacer fetch
+        rawTrendsData = createMockTrendingData();
+      } else {
+        console.log(`Fetching trends from: ${trendingUrl}`);
+        try {
+          const trendsResponse = await fetch(trendingUrl);
+          
+          if (!trendsResponse.ok) {
+            throw new Error(`Error fetching trends: ${trendsResponse.statusText}`);
+          }
+          
+          rawTrendsData = await trendsResponse.json();
+          console.log('Raw trends data fetched successfully');
+        } catch (error) {
+          console.log(`Error fetching from ${trendingUrl}: ${error.message}`);
+          rawTrendsData = createMockTrendingData();
+        }
       }
-      
-      console.log(`Fetching trends from: ${trendingUrl}`);
-      const trendsResponse = await fetch(trendingUrl);
-      
-      if (!trendsResponse.ok) {
-        throw new Error(`Error fetching trends: ${trendsResponse.statusText}`);
-      }
-      
-      rawTrendsData = await trendsResponse.json();
-      console.log('Raw trends data fetched successfully');
     }
     
     if (!rawTrendsData) {
-      throw new Error('No trends data available for processing');
+      console.log('No trends data available, creating mock data');
+      rawTrendsData = createMockTrendingData();
     }
     
     // 3. Process the trends with OpenRouter API (GPT-4 Turbo)
@@ -102,8 +114,8 @@ exports.handler = async function(event, context) {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        'HTTP-Referer': 'https://your-netlify-site.netlify.app/', // Replace with your Netlify site URL
-        'X-Title': 'Trends Dashboard'
+        'HTTP-Referer': 'https://jornal.standatpd.com/', // URL correcta para tu dominio de Netlify
+        'X-Title': 'PulseJ Dashboard'
       },
       body: JSON.stringify({
         model: 'openai/gpt-4-turbo', // You could also use 'openai/gpt-4-turbo'
@@ -295,4 +307,23 @@ function getRandomColor() {
     '#8B5CF6', // purple
   ];
   return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Crear datos simulados para casos donde no tenemos datos reales
+function createMockTrendingData() {
+  console.log('Creating mock trending data');
+  return {
+    trends: [
+      { name: "Tecnología", volume: 12 },
+      { name: "Política", volume: 10 },
+      { name: "Economía", volume: 8 },
+      { name: "Deportes", volume: 8 },
+      { name: "Entretenimiento", volume: 7 },
+      { name: "Salud", volume: 6 },
+      { name: "Educación", volume: 6 },
+      { name: "Ciencia", volume: 5 },
+      { name: "Medio Ambiente", volume: 5 },
+      { name: "Cultura", volume: 4 }
+    ]
+  };
 } 

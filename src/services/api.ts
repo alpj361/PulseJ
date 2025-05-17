@@ -21,9 +21,16 @@ export interface TrendResponse {
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
+// Verificar que la URL no sea el valor genérico del archivo netlify.toml
+const isGenericUrl = VPS_API_URL.includes('your-vps-scraper-url') || 
+                     VPS_API_URL.includes('dev-your-vps-scraper-url');
+
+// URL real a usar
+const API_URL_TO_USE = !isGenericUrl && VPS_API_URL ? VPS_API_URL : '';
+
 // Check if the API URL is configured
-if (!VPS_API_URL) {
-  console.warn('VPS API URL is not configured. Set VITE_VPS_API_URL environment variable. Using mock data.');
+if (!API_URL_TO_USE) {
+  console.warn('VPS API URL is not configured or contains generic values. Set VITE_VPS_API_URL environment variable. Using mock data.');
 }
 
 /**
@@ -88,7 +95,7 @@ export async function fetchRawTrendsFromVPS(): Promise<any> {
   try {
     console.log('Iniciando fetchRawTrendsFromVPS');
     // Ensure we have an API URL
-    if (!VPS_API_URL) {
+    if (!API_URL_TO_USE) {
       console.warn('VPS API URL is not configured, using mock data');
       // Return a simple mock structure that represents raw data
       console.log('Retornando datos mock para VPS raw trends');
@@ -101,8 +108,8 @@ export async function fetchRawTrendsFromVPS(): Promise<any> {
       };
     }
     
-    console.log(`Realizando fetch a ${VPS_API_URL}/trending`);
-    const response = await fetch(`${VPS_API_URL}/trending`);
+    console.log(`Realizando fetch a ${API_URL_TO_USE}/trending`);
+    const response = await fetch(`${API_URL_TO_USE}/trending`);
     
     if (!response.ok) {
       throw new Error(`Error fetching trends: ${response.statusText}`);
@@ -144,7 +151,7 @@ export async function processTrendsWithAI(rawTrendsData: any): Promise<TrendResp
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        trendingUrl: `${VPS_API_URL}/trends`,
+        trendingUrl: `${API_URL_TO_USE}/trends`,
         rawData: rawTrendsData
       }),
     });

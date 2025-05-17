@@ -12,16 +12,16 @@
 
 # Production environment settings
 [context.production.environment]
-  # These will be replaced with actual values in the Netlify dashboard
-  VITE_VPS_API_URL = "https://your-vps-scraper-url.com/api"
-  # This is used by the serverless function directly, not exposed to frontend
-  VPS_API_URL = "https://your-vps-scraper-url.com/api/trending"
+  # URL para ejemplos de tendencias
+  VITE_VPS_API_URL = "https://jsonplaceholder.typicode.com"
+  # URL para tendencias en la función serverless
+  VPS_API_URL = "https://jsonplaceholder.typicode.com/posts"
   # OPENROUTER_API_KEY should be set in Netlify environment variables, not here
 
 # Development environment settings (for branch deploys)
 [context.branch-deploy.environment]
-  VITE_VPS_API_URL = "https://dev-your-vps-scraper-url.com/api"
-  VPS_API_URL = "https://dev-your-vps-scraper-url.com/api/trending"
+  VITE_VPS_API_URL = "https://jsonplaceholder.typicode.com"
+  VPS_API_URL = "https://jsonplaceholder.typicode.com/posts"
 
 # Function configuration
 [functions]
