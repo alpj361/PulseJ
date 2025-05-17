@@ -132,16 +132,11 @@ export async function processTrendsWithAI(rawTrendsData: any): Promise<TrendResp
   try {
     console.log('Iniciando processTrendsWithAI');
     
-    // En desarrollo, siempre usar datos mock para simplificar
-    if (import.meta.env.DEV) {
-      console.warn('Ejecutando en entorno de desarrollo, usando datos mock');
-      console.log('Retornando datos mock desde processTrendsWithAI por estar en DEV');
-      // Forzar un pequeño delay para simular procesamiento
-      await new Promise(resolve => setTimeout(resolve, 500));
-      return createMockTrendData();
+    // Verificar si tenemos las variables de entorno necesarias para usar API real
+    if (!import.meta.env.VITE_HAS_NETLIFY_FUNCTIONS && !import.meta.env.PROD) {
+      console.warn('No se detectaron las funciones de Netlify. Configura VITE_HAS_NETLIFY_FUNCTIONS=true si deseas usar funciones reales en desarrollo.');
     }
     
-    // Solo en producción intentamos usar la función Netlify
     console.log('Llamando a la función Netlify processTrends');
     const response = await fetch('/.netlify/functions/processTrends', {
       method: 'POST',
