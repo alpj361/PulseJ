@@ -23,7 +23,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ news }) => {
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200">
       <div className="p-5">
         <div className="flex justify-between items-start gap-4">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white leading-tight">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white leading-tight" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
             {news.title}
           </h3>
           <button 

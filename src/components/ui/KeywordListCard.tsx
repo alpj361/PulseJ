@@ -14,7 +14,7 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
   return (
     <div className="glass rounded-2xl overflow-hidden border border-gray-100/20 dark:border-gray-700/20 transition-all duration-300 hover:shadow-lg">
       <div className="px-6 py-4 border-b border-gray-100/20 dark:border-gray-700/20">
-        <h3 className="font-semibold text-gray-800 dark:text-white flex items-center">
+        <h3 className="font-semibold text-gray-800 dark:text-white flex items-center" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
           <TrendingUp size={18} className="mr-2 text-blue-500" />
           {title}
         </h3>

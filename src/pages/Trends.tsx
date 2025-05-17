@@ -117,7 +117,7 @@ const Trends: React.FC = () => {
       </header>
 
       <section className="glass rounded-2xl p-6 border border-gray-100/20 dark:border-gray-700/20 transition-all duration-300">
-        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center justify-between" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
           <span className="flex items-center">
             <TrendingUp className="h-5 w-5 text-blue-500 mr-2" />
             Palabras Clave Tendencia
@@ -140,7 +140,7 @@ const Trends: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <section className="lg:col-span-2 glass rounded-2xl p-6 border border-gray-100/20 dark:border-gray-700/20">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
             <BarChartIcon className="h-5 w-5 text-blue-500 mr-2" />
             Distribución por Tema
           </h2>
