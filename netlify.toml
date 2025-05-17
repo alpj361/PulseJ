@@ -12,16 +12,19 @@
 
 # Production environment settings
 [context.production.environment]
-  # URL para ejemplos de tendencias
-  VITE_VPS_API_URL = "https://jsonplaceholder.typicode.com"
-  # URL para tendencias en la función serverless
-  VPS_API_URL = "https://jsonplaceholder.typicode.com/posts"
-  # OPENROUTER_API_KEY should be set in Netlify environment variables, not here
+  OPENROUTER_API_KEY = ""
+  VITE_SUPABASE_ANON_KEY = ""
+  VITE_SUPABASE_URL = ""
+  VITE_VPS_API_URL = ""
+  VPS_API_URL = ""
 
 # Development environment settings (for branch deploys)
 [context.branch-deploy.environment]
-  VITE_VPS_API_URL = "https://jsonplaceholder.typicode.com"
-  VPS_API_URL = "https://jsonplaceholder.typicode.com/posts"
+  OPENROUTER_API_KEY = ""
+  VITE_SUPABASE_ANON_KEY = ""
+  VITE_SUPABASE_URL = ""
+  VITE_VPS_API_URL = ""
+  VPS_API_URL = ""
 
 # Function configuration
 [functions]
