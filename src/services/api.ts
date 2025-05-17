@@ -33,6 +33,9 @@ if (!API_URL_TO_USE) {
   console.warn('VPS API URL is not configured or contains generic values. Set VITE_VPS_API_URL environment variable. Using mock data.');
 }
 
+// Cambia esta URL por la de tu backend en Render
+const RENDER_API_URL = 'https://extractorw.onrender.com/api/processTrends';
+
 /**
  * Creates mock trending data for development when APIs are not available
  * Genera datos ligeramente diferentes cada vez para simular actualización
@@ -247,33 +250,25 @@ async function testFetch() {
  */
 export async function fetchAndStoreTrends(): Promise<TrendResponse> {
   try {
-    console.log('INICIO: fetchAndStoreTrends');
-    
-    // Prueba si fetch está funcionando
-    const fetchWorks = await testFetch();
-    console.log('¿Fetch funciona correctamente?', fetchWorks);
-    
-    // 1. Fetch and process the trends data
-    console.log('Intentando obtener datos de tendencias desde VPS');
-    const trendsData = await fetchTrendsFromVPS();
-    console.log('Datos de tendencias obtenidos:', trendsData);
-    
-    // 2. Store the processed data in Supabase (but don't break if it fails)
-    try {
-      console.log('Intentando almacenar tendencias en Supabase');
-      await storeTrendsInSupabase(trendsData);
-      console.log('Datos almacenados correctamente en Supabase');
-    } catch (err) {
-      console.error('Failed to store trends in Supabase, but continuing:', err);
+    console.log('INICIO: fetchAndStoreTrends (Render backend)');
+    // Aquí puedes enviar datos crudos si los tienes, o dejar rawData vacío para que el backend los obtenga
+    const response = await fetch(RENDER_API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawData: null })
+    });
+    if (!response.ok) {
+      throw new Error('Error al llamar al backend de Render');
     }
-    
-    // 3. Return the data for UI display
-    console.log('Devolviendo datos para la UI');
-    return trendsData;
+    const data = await response.json();
+    // Validación básica
+    if (!data.wordCloudData || !data.topKeywords || !data.categoryData) {
+      throw new Error('Respuesta del backend de Render no tiene el formato esperado');
+    }
+    return data;
   } catch (error) {
-    console.error('Fatal error in fetchAndStoreTrends:', error);
-    // Final fallback - return mock data
-    console.log('Usando datos mockup como fallback');
+    console.error('Error en fetchAndStoreTrends (Render):', error);
+    // Aquí puedes retornar datos mock si lo deseas
     return createMockTrendData();
   }
 }
