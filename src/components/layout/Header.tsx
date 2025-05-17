@@ -11,8 +11,10 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm py-4 px-6 transition-colors duration-200">
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-3">
-          <ActivitySquare className="h-8 w-8 text-blue-500" />
-          <h1 className="text-xl font-bold text-gray-800 dark:text-white">Pulse Journal</h1>
+          <ActivitySquare className="h-8 w-8 text-blue-500 transition-all duration-300 hover:rotate-90" />
+          <h1 className="text-xl font-light tracking-wider text-gray-800 dark:text-white font-['Helvetica_Neue'] uppercase">
+            Pulse Journal
+          </h1>
         </div>
         
         <div className="flex items-center space-x-4">
