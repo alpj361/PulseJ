@@ -1,11 +1,33 @@
 // Netlify serverless function to process trends with OpenRouter API (GPT-4 Turbo)
-const fetch = require('node-fetch');
+// Importación dinámica de node-fetch para compatibilidad ESM/CommonJS
+let nodeFetch;
+
+// Auto-detect la disponibilidad de fetch nativo vs. node-fetch
+async function getFetch() {
+  // Si el entorno ya tiene fetch nativo (Node.js 18+)
+  if (typeof fetch === 'function') {
+    return fetch;
+  }
+  
+  // Caso contrario, importa node-fetch dinámicamente
+  if (!nodeFetch) {
+    const module = await import('node-fetch');
+    nodeFetch = module.default;
+  }
+  return nodeFetch;
+}
 
 // Environment variables (set these in your Netlify dashboard)
 // OPENROUTER_API_KEY: Your OpenRouter API key
 // VPS_API_URL: Your VPS trending endpoint
 
 exports.handler = async function(event, context) {
+  // Log Node.js version for debugging
+  console.log(`Running on Node.js ${process.version}`);
+  
+  // Inicializa fetch
+  const fetch = await getFetch();
+  
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {

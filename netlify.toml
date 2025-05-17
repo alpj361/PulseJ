@@ -26,4 +26,8 @@
 # Function configuration
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["node-fetch"] 
+  external_node_modules = ["node-fetch"]
+
+# Runtime configuration - Node.js 18
+[build.environment]
+  NODE_VERSION = "18" 

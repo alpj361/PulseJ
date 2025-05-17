@@ -8,11 +8,17 @@
 
     /* Bundler mode */
     "moduleResolution": "bundler",
-    "noEmit": true,
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "declaration": false,
+    
+    /* Required for typescript project references */
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "esModuleInterop": true,
 
     /* Linting */
     "strict": true,
