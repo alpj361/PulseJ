@@ -19,7 +19,9 @@ const Trends: React.FC = () => {
   useEffect(() => {
     const loadLatestTrends = async () => {
       try {
+        console.log('Intentando cargar las últimas tendencias...');
         const latestData = await getLatestTrends();
+        console.log('Datos de tendencias recibidos:', latestData);
         if (latestData) {
           setWordCloudData(latestData.wordCloudData);
           setTopKeywords(latestData.topKeywords);
@@ -37,21 +39,34 @@ const Trends: React.FC = () => {
   }, []);
 
   const fetchTrendingData = async () => {
+    console.log('Botón Buscar Tendencias clickeado');
     setIsLoading(true);
     setError(null);
     
-    try {
-      const data = await fetchAndStoreTrends();
-      setWordCloudData(data.wordCloudData);
-      setTopKeywords(data.topKeywords);
-      setCategoryData(data.categoryData);
-      setLastUpdated(new Date(data.timestamp) || new Date());
-    } catch (err) {
-      console.error('Error fetching trend data:', err);
-      setError('Error al obtener datos de tendencias. Por favor, intente nuevamente.');
-    } finally {
-      setIsLoading(false);
-    }
+    setTimeout(async () => {
+      try {
+        console.log('Llamando a fetchAndStoreTrends()...');
+        const data = await fetchAndStoreTrends();
+        console.log('Datos recibidos de fetchAndStoreTrends:', data);
+        
+        if (!data || !data.wordCloudData || !data.topKeywords || !data.categoryData) {
+          console.error('Datos recibidos con estructura inválida:', data);
+          setError('Los datos recibidos no tienen el formato esperado. Por favor, intente de nuevo.');
+        } else {
+          setWordCloudData(data.wordCloudData);
+          setTopKeywords(data.topKeywords);
+          setCategoryData(data.categoryData);
+          setLastUpdated(new Date(data.timestamp) || new Date());
+          console.log('Estado actualizado con nuevos datos');
+        }
+      } catch (err) {
+        console.error('Error fetching trend data:', err);
+        setError('Error al obtener datos de tendencias. Por favor, intente nuevamente.');
+      } finally {
+        console.log('Finalizando carga, isLoading establecido a false');
+        setIsLoading(false);
+      }
+    }, 100);
   };
 
   const handleWordClick = (word: string, value: number) => {
@@ -78,7 +93,12 @@ const Trends: React.FC = () => {
         </div>
         <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
           <button
-            onClick={fetchTrendingData}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              console.log('Evento de click en botón detectado');
+              fetchTrendingData();
+            }}
             disabled={isLoading}
             className="flex items-center px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl transition-all duration-300 transform hover:scale-[1.02] disabled:opacity-70 disabled:hover:scale-100 shadow-sm hover:shadow-md"
           >

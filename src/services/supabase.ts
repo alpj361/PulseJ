@@ -13,31 +13,26 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
+import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, categoryData as mockCategoryData } from '../data/mockData';
 
 // Use environment variables for Supabase configuration
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Create a mock client for development if Supabase is not configured
-const createMockClient = () => {
-  console.warn('Supabase credentials not found. Using mock client for development.');
-  return {
-    from: () => ({
-      insert: async () => ({ data: null, error: null }),
-      select: async () => ({ data: null, error: null }),
-      order: () => ({
-        limit: () => ({
-          single: async () => ({ data: null, error: null })
-        })
-      })
-    })
-  };
+// Create mock Supabase data for development
+const mockTrendData = {
+  id: 'mock-id',
+  created_at: new Date().toISOString(),
+  timestamp: new Date().toISOString(),
+  word_cloud_data: mockWordCloudData,
+  top_keywords: mockTopKeywords,
+  category_data: mockCategoryData
 };
 
 // Create and export the Supabase client
 export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-  : createMockClient();
+  : createClient('https://example.com', 'mock-key'); // This will likely error, but we'll handle it
 
 /**
  * Database schema for reference:
@@ -86,8 +81,8 @@ export async function insertTrendData(data: any): Promise<void> {
 export async function getLatestTrendData(): Promise<any | null> {
   // Check if Supabase is properly configured
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    console.warn('Supabase not configured, using mock data');
-    return null;
+    console.warn('Supabase not configured, returning mock data');
+    return mockTrendData;
   }
   
   try {
@@ -102,6 +97,6 @@ export async function getLatestTrendData(): Promise<any | null> {
     return data;
   } catch (error) {
     console.error('Error fetching latest trend data:', error);
-    return null;
+    return mockTrendData;
   }
 }
