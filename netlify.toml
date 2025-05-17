@@ -10,22 +10,6 @@
   targetPort = 5173       # Vite's default port that Netlify should proxy to
   autoLaunch = true       # Open browser automatically
 
-# Production environment settings
-[context.production.environment]
-  OPENROUTER_API_KEY = ""
-  VITE_SUPABASE_ANON_KEY = ""
-  VITE_SUPABASE_URL = ""
-  VITE_VPS_API_URL = ""
-  VPS_API_URL = ""
-
-# Development environment settings (for branch deploys)
-[context.branch-deploy.environment]
-  OPENROUTER_API_KEY = ""
-  VITE_SUPABASE_ANON_KEY = ""
-  VITE_SUPABASE_URL = ""
-  VITE_VPS_API_URL = ""
-  VPS_API_URL = ""
-
 # Function configuration
 [functions]
   node_bundler = "esbuild"
