@@ -85,15 +85,15 @@ exports.handler = async function(event, context) {
     // 3. Process the trends with OpenRouter API (GPT-4 Turbo)
     console.log('Preparing to call OpenRouter AI...');
     
-    // Creamos una promesa que se resuelve después de 8 segundos (para evitar el timeout de Netlify)
+    // Creamos una promesa que se resuelve después de 5 segundos (para evitar el timeout de Netlify)
     const timeoutPromise = new Promise(resolve => {
       setTimeout(() => {
         console.log('AI processing timed out, using fallback data');
         resolve({
           ok: false,
-          statusText: 'Operation timed out after 8 seconds'
+          statusText: 'Operation timed out after 5 seconds'
         });
-      }, 8000);
+      }, 5000);
     });
     
     // Llamada real a OpenRouter
