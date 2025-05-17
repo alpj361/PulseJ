@@ -83,7 +83,21 @@ exports.handler = async function(event, context) {
     }
     
     // 3. Process the trends with OpenRouter API (GPT-4 Turbo)
-    const openrouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    console.log('Preparing to call OpenRouter AI...');
+    
+    // Creamos una promesa que se resuelve después de 8 segundos (para evitar el timeout de Netlify)
+    const timeoutPromise = new Promise(resolve => {
+      setTimeout(() => {
+        console.log('AI processing timed out, using fallback data');
+        resolve({
+          ok: false,
+          statusText: 'Operation timed out after 8 seconds'
+        });
+      }, 8000);
+    });
+    
+    // Llamada real a OpenRouter
+    const openRouterPromise = fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -119,23 +133,24 @@ exports.handler = async function(event, context) {
       })
     });
     
-    if (!openrouterResponse.ok) {
-      const errorText = await openrouterResponse.text();
-      throw new Error(`OpenRouter API error: ${errorText}`);
-    }
+    // Usamos Promise.race para tomar el resultado más rápido entre la llamada real y el timeout
+    const openrouterResponse = await Promise.race([openRouterPromise, timeoutPromise]);
+    console.log(`OpenRouter response received, status: ${openrouterResponse.ok ? 'OK' : 'Error'}`);
     
-    const aiResponse = await openrouterResponse.json();
-    
-    // Extract the JSON from the model's response
     let processedData;
-    try {
-      const content = aiResponse.choices[0].message.content;
-      processedData = JSON.parse(content);
-      console.log('Successfully processed trends data with AI');
-    } catch (err) {
-      console.error('Error parsing AI response:', err);
-      // Fallback: If AI returns invalid JSON, create a simple processed version
+    if (!openrouterResponse.ok) {
+      console.log('Using fallback data processing...');
       processedData = createFallbackData(rawTrendsData);
+    } else {
+      try {
+        const aiResponse = await openrouterResponse.json();
+        const content = aiResponse.choices[0].message.content;
+        processedData = JSON.parse(content);
+        console.log('Successfully processed trends data with AI');
+      } catch (err) {
+        console.error('Error parsing AI response:', err);
+        processedData = createFallbackData(rawTrendsData);
+      }
     }
     
     // 4. Return the processed data
@@ -161,24 +176,67 @@ exports.handler = async function(event, context) {
 
 // Fallback function if the AI fails to generate valid JSON
 function createFallbackData(rawTrendsData) {
+  console.log('Creating fallback data from raw input');
   const timestamp = new Date().toISOString();
   
   // Create a simple processed version based on the raw data structure
-  // This is a very basic implementation that would need to be adjusted
-  // based on your actual raw data structure
   let wordCloudData = [];
   let topKeywords = [];
   let categoryData = [];
   
-  // If raw data has a trends array or similar, process it
-  if (Array.isArray(rawTrendsData)) {
-    // Simple case: array of trend objects
-    topKeywords = rawTrendsData.slice(0, 20).map(item => ({
-      keyword: item.name || item.text || item.trend || 'Unknown',
-      count: item.count || item.volume || item.value || 1
-    }));
+  try {
+    // Fast path: extract some basic data without mucho procesamiento
+    let keywords = [];
     
-    // Generate word cloud data from topKeywords
+    // If raw data has a trends array or similar, process it
+    if (Array.isArray(rawTrendsData)) {
+      keywords = rawTrendsData.slice(0, 20).map(item => ({
+        keyword: item.name || item.text || item.trend || 'Unknown',
+        count: item.count || item.volume || item.value || 1
+      }));
+    } else if (rawTrendsData.trends) {
+      keywords = Array.isArray(rawTrendsData.trends) 
+        ? rawTrendsData.trends.slice(0, 20).map(item => ({
+            keyword: item.name || item.text || item.trend || 'Unknown',
+            count: item.count || item.volume || item.value || 1
+          }))
+        : [];
+    } else if (rawTrendsData.keywords) {
+      keywords = Array.isArray(rawTrendsData.keywords)
+        ? rawTrendsData.keywords.slice(0, 20)
+        : [];
+    } else {
+      // Fallback to hardcoded data if nothing works
+      keywords = [
+        { keyword: "Tecnología", count: 12 },
+        { keyword: "Política", count: 10 },
+        { keyword: "Economía", count: 8 },
+        { keyword: "Deportes", count: 8 },
+        { keyword: "Entretenimiento", count: 7 },
+        { keyword: "Salud", count: 6 },
+        { keyword: "Educación", count: 6 },
+        { keyword: "Ciencia", count: 5 },
+        { keyword: "Medio Ambiente", count: 5 },
+        { keyword: "Cultura", count: 4 }
+      ];
+    }
+    
+    // Si tenemos menos de 5 keywords, agregar algunas genéricas
+    if (keywords.length < 5) {
+      const defaultKeywords = [
+        { keyword: "Tendencias", count: 10 },
+        { keyword: "Actualidad", count: 8 },
+        { keyword: "Noticias", count: 7 },
+        { keyword: "Eventos", count: 6 },
+        { keyword: "Tecnología", count: 5 }
+      ];
+      keywords = [...keywords, ...defaultKeywords].slice(0, 20);
+    }
+    
+    // Sort by count descending
+    topKeywords = keywords.sort((a, b) => b.count - a.count);
+    
+    // Generate word cloud data directly from topKeywords
     wordCloudData = topKeywords.map(item => ({
       text: item.keyword,
       value: Math.min(Math.max(item.count * 10, 20), 100),
@@ -186,15 +244,36 @@ function createFallbackData(rawTrendsData) {
     }));
     
     // Generate simple category data
-    const categories = ['Technology', 'Entertainment', 'Politics', 'Sports', 'Business'];
+    const categories = ['Tecnología', 'Entretenimiento', 'Política', 'Deportes', 'Negocios', 'Ciencia', 'Salud'];
     categoryData = categories.map(category => ({
       category,
       count: Math.floor(Math.random() * 20) + 5
     }));
-  } else if (rawTrendsData.trends || rawTrendsData.keywords) {
-    // Handle object with trends/keywords property
-    const trendsList = rawTrendsData.trends || rawTrendsData.keywords || [];
-    return createFallbackData(trendsList);
+    
+  } catch (err) {
+    console.error('Error creating fallback data:', err);
+    // Ultimate fallback - hardcoded data
+    topKeywords = [
+      { keyword: "Tecnología", count: 12 },
+      { keyword: "Política", count: 10 },
+      { keyword: "Economía", count: 8 },
+      { keyword: "Deportes", count: 8 },
+      { keyword: "Entretenimiento", count: 7 }
+    ];
+    
+    wordCloudData = topKeywords.map(item => ({
+      text: item.keyword,
+      value: item.count * 10,
+      color: getRandomColor()
+    }));
+    
+    categoryData = [
+      { category: "Tecnología", count: 15 },
+      { category: "Política", count: 12 },
+      { category: "Economía", count: 10 },
+      { category: "Deportes", count: 8 },
+      { category: "Entretenimiento", count: 6 }
+    ];
   }
   
   return {

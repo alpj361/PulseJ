@@ -27,6 +27,7 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["node-fetch"]
+  timeout = 30
 
 # Runtime configuration - Node.js 18
 [build.environment]
