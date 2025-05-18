@@ -35,10 +35,10 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
                   <span className="text-gray-800 dark:text-gray-200 font-medium">
                     {keyword.keyword}
                   </span>
+                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 font-normal">
+                    {keyword.count >= 1000 ? `${(keyword.count/1000).toFixed(1)}K` : keyword.count} menciones
+                  </span>
                 </div>
-                <span className="glass text-blue-600 dark:text-blue-400 text-xs font-medium px-2.5 py-1 rounded-full">
-                  {keyword.count}
-                </span>
               </div>
             </li>
           ))}

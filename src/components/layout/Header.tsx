@@ -1,7 +1,7 @@
 import React from 'react';
-import { ActivitySquare, Moon, Sun } from 'lucide-react';
+import { ActivitySquare, Moon, Sun, Cog } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 interface HeaderProps {
   toggleDarkMode: () => void;
@@ -33,6 +33,17 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
               <span className="text-sm text-gray-600 dark:text-gray-300 mr-2 hidden sm:inline" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
                 {user.email}
               </span>
+              <Link
+                to="/settings"
+                className="p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors duration-200 flex items-center text-sm border border-transparent hover:border-blue-400 mr-2"
+                aria-label="Configuración"
+                title="Configuración"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-5 w-5 text-blue-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.01c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.01 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.01 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.01c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.572-1.01c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.01-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.01-2.572c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.01z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="p-2 rounded-full hover:bg-red-100 dark:hover:bg-red-900 transition-colors duration-200 flex items-center text-sm border border-transparent hover:border-red-400"

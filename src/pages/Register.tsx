@@ -8,9 +8,11 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [googleWarning, setGoogleWarning] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -35,7 +37,7 @@ export default function Register() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -44,6 +46,11 @@ export default function Register() {
       });
 
       if (error) throw error;
+      
+      // Si el registro fue exitoso, guardar el número en profiles
+      if (data.user) {
+        await supabase.from('profiles').upsert({ id: data.user.id, phone });
+      }
       
       setSuccess('Se ha enviado un enlace de confirmación a tu correo electrónico.');
       
@@ -58,6 +65,12 @@ export default function Register() {
     }
   };
 
+  const handleGoogleRegister = async () => {
+    setGoogleWarning(true);
+    // Aquí puedes iniciar el flujo de Google si lo deseas
+    await supabase.auth.signInWithOAuth({ provider: 'google' });
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
@@ -65,7 +78,7 @@ export default function Register() {
           <div className="flex justify-center">
             <Logo />
           </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
             Crear una cuenta
           </h2>
           <p className="mt-2 text-sm text-gray-600">
@@ -75,6 +88,12 @@ export default function Register() {
             </Link>
           </p>
         </div>
+        
+        {googleWarning && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md text-sm mb-2">
+            Si te registras con Google, se usará el número asociado a tu cuenta de Google, o deberás agregarlo manualmente en Settings.
+          </div>
+        )}
         
         {error && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
@@ -104,6 +123,22 @@ export default function Register() {
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
                 placeholder="Correo electrónico"
+              />
+            </div>
+            <div>
+              <label htmlFor="phone" className="sr-only">
+                Número de teléfono
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                type="tel"
+                autoComplete="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                placeholder="Número de teléfono"
               />
             </div>
             <div>
@@ -162,9 +197,13 @@ export default function Register() {
           </div>
 
           <div className="mt-6">
-            <Link to="/login" className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-              Google (en la página de login)
-            </Link>
+            <button
+              type="button"
+              onClick={handleGoogleRegister}
+              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Google
+            </button>
           </div>
         </div>
       </div>

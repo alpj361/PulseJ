@@ -87,9 +87,15 @@ const Trends: React.FC = () => {
   return (
     <div className="space-y-8 animate-fade-in">
       <header className="glass rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-gray-100/20 dark:border-gray-700/20">
-        <div className="flex items-center">
-          <LayoutDashboard className="h-7 w-7 text-blue-500 mr-3" />
-          <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Resumen de Tendencias</h1>
+        <div className="flex flex-col">
+          <div className="flex items-center">
+            <LayoutDashboard className="h-7 w-7 text-blue-500 mr-3" />
+            <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Resumen de Tendencias</h1>
+          </div>
+          <div className="flex items-center mt-1 text-gray-500 dark:text-gray-400 text-sm">
+            <svg className="h-4 w-4 mr-1 text-blue-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 11c1.104 0 2-.896 2-2s-.896-2-2-2-2 .896-2 2 .896 2 2 2zm0 0c-4.418 0-8 2.239-8 5v2a1 1 0 001 1h14a1 1 0 001-1v-2c0-2.761-3.582-5-8-5z" /></svg>
+            <span>Ubicación: Guatemala</span>
+          </div>
         </div>
         <div className="flex flex-col md:flex-row items-end md:items-center gap-4">
           <button
@@ -142,9 +148,9 @@ const Trends: React.FC = () => {
         <section className="lg:col-span-2 glass rounded-2xl p-6 border border-gray-100/20 dark:border-gray-700/20">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-6 flex items-center" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
             <BarChartIcon className="h-5 w-5 text-blue-500 mr-2" />
-            Distribución por Tema
+            Distribución por Categoría
           </h2>
-          <BarChart data={categoryData} />
+          <BarChart data={categoryData} title="Distribución por Categoría" />
         </section>
 
         <section className="lg:col-span-1">
@@ -153,6 +159,14 @@ const Trends: React.FC = () => {
             title="Temas Principales" 
           />
         </section>
+      </div>
+
+      {/* Card Sobre... */}
+      <div className="glass rounded-2xl p-6 border border-gray-100/20 dark:border-gray-700/20 mt-8">
+        <h2 className="text-xl font-semibold text-gray-800 dark:text-white mb-4" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
+          Sobre...
+        </h2>
+        <p className="text-gray-400">Aquí aparecerá una breve descripción de cada tendencia. (Próximamente)</p>
       </div>
 
       {error && (

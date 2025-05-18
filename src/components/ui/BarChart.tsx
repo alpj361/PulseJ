@@ -6,7 +6,7 @@ interface BarChartProps {
   title?: string;
 }
 
-const BarChart: React.FC<BarChartProps> = ({ data, title = 'News by Category' }) => {
+const BarChart: React.FC<BarChartProps> = ({ data, title = 'Distribución por Categoría' }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -26,10 +26,10 @@ const BarChart: React.FC<BarChartProps> = ({ data, title = 'News by Category' })
     ctx.clearRect(0, 0, width, height);
 
     // Draw title
-    ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#333';
-    ctx.font = 'bold 16px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(title, width / 2, 20);
+    // ctx.fillStyle = document.documentElement.classList.contains('dark') ? '#fff' : '#333';
+    // ctx.font = 'bold 16px sans-serif';
+    // ctx.textAlign = 'center';
+    // ctx.fillText(title, width / 2, 20);
 
     // Sort data by count (highest first)
     const sortedData = [...data].sort((a, b) => b.count - a.count);
