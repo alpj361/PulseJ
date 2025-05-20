@@ -5,7 +5,7 @@ const Sources: React.FC = () => {
   return (
     <ComingSoon
       title="News Sources"
-      description="This feature will allow you to view and manage your news sources, configure scraping settings, and set up notifications for new content."
+      description="Esta función te permitirá ver y gestionar tus fuentes de noticias y configurar notificaciones para nuevo contenido."
     />
   );
 };

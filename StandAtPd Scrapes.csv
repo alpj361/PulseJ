@@ -1,0 +1,30 @@
+id,created_at,user_id,wa_number,type,value,summary,raw_data
+2c41bbd2-586c-47c4-bbec-90abb63d17f7,2025-05-19 09:28:57.898627+00,85c93b4b-455e-450b-9d01-e18f9e8dfaaa,50230685510,Hashtag,"[
+{
+""id"": ""1924382797461897258"",
+""tipo"": ""tweet"",
+""contenido"": ""Acto de presentación de la #marcharepublicana2025 en #Barcelona #hastaquesevayan"",
+""sentimiento"": ""neutral"",
+""fecha"": ""2025-05-19T08:33:06.000Z"",
+""usuario"": ""MarchaRepublicana@Republica16J"",
+""fuente"": ""X""
+},
+{
+""id"": ""1924273998377972004"",
+""tipo"": ""tweet"",
+""contenido"": ""EntucaDOS: En el Monumental el Barcelona de Segundo Castillo ganó 2x0 al Emelec de Celico con goles de Octavio Rivero que pintó de amarillo el Clásico del Astillero en el Centenario de #BarcelonaSC para cerrar la Fecha 13 de #LigaProEcuabet como líder. #Barcelona ahora va por IDV"",
+""sentimiento"": ""positivo"",
+""fecha"": ""2025-05-19T01:20:47.000Z"",
+""usuario"": ""Mauricio Ortega @MauricioOrtegaE"",
+""fuente"": ""X""
+},
+{
+""id"": ""1924252251842904551"",
+""tipo"": ""tweet"",
+""contenido"": ""𝟒𝐊 | 𝐕𝐈𝐒𝐂𝐀 𝐁𝐀𝐑𝐂𝐀 #Wallpapers | #Barcelona | #barcavillarreal"",
+""sentimiento"": ""neutral"",
+""fecha"": ""2025-05-18T23:54:22.000Z"",
+""usuario"": ""KHALID | خالد@X_1KH1_"",
+""fuente"": ""X""
+}
+]",,"""{\""status\"":\""success\"",\""hashtag\"":\""barcelona\"",\""tweet_count\"":10,\""tweets\"":[{\""tweet_id\"":\""1924382797461897258\"",\""username\"":\""MarchaRepublicana@Republica16J·52m\"",\""text\"":\""Acto de presentación de la #marcharepublicana2025 en #Barcelona #hastaquesevayan\"",\""timestamp\"":\""2025-05-19T08:33:06.000Z\""},{\""tweet_id\"":\""1924273998377972004\"",\""username\"":\""Mauricio Ortega @MauricioOrtegaE·8h\"",\""text\"":\""EntucaDOS: En el Monumental el Barcelona de Segundo Castillo ganó 2x0 al Emelec de Celico con goles de Octavio Rivero que pintó de amarillo el Clásico del Astillero en el Centenario de #BarcelonaSC para cerrar la Fecha 13 de #LigaProEcuabet como líder. #Barcelona ahora va por IDV\"",\""timestamp\"":\""2025-05-19T01:20:47.000Z\""},{\""tweet_id\"":\""1924252251842904551\"",\""username\"":\""KHALID | خالد@X_1KH1_·9h\"",\""text\"":\""𝟒𝐊 | 𝐕𝐈𝐒𝐂𝐀 𝐁𝐀𝐑𝐂𝐀 #Wallpapers | #Barcelona | #barcavillarreal\"",\""timestamp\"":\""2025-05-18T23:54:22.000Z\""},{\""tweet_id\"":\""1924236343078527224\"",\""username\"":\""@DinoSquad@tx19832025·10h\"",\""text\"":\""¡Se viene el “Clásico del Astillero”! Emelec hizo un banderazo previo a su partido ante Barcelona SC. Mientras que los toreros, llegaron para provocar y recordar el mal momento del “Bombillo”. #Barcelona #BarcelonaSC #Emelec\"",\""timestamp\"":\""2025-05-18T22:51:09.000Z\""},{\""tweet_id\"":\""1924234321025511611\"",\""username\"":\""Nawaf Abdullah @7nawafvr·10h\"",\""text\"":\""4k | ¡CAMPEONES, CAMPEONES, OLÉ, OLÉ, OLÉ! • #Barcelona | #Wallpapers\"",\""timestamp\"":\""2025-05-18T22:43:07.000Z\""},{\""tweet_id\"":\""1924233265642148160\"",\""username\"":\""Nawaf Abdullah @7nawafvr·10h\"",\""text\"":\""4k | MÉS QUE UN CLUB • #Barcelona | #Wallpapers\"",\""timestamp\"":\""2025-05-18T22:38:55.000Z\""},{\""tweet_id\"":\""1924203199797309770\"",\""username\"":\""Nawaf Abdullah @7nawafvr·12h\"",\""text\"":\""4k | The Trilogy • #Barcelona | #Wallpapers\"",\""timestamp\"":\""2025-05-18T20:39:27.000Z\""},{\""tweet_id\"":\""1924201733384720745\"",\""username\"":\""Rio@3iiirs·12h\"",\""text\"":\""⁴ᵏ #Barcelona : treble winners\"",\""timestamp\"":\""2025-05-18T20:33:37.000Z\""},{\""tweet_id\"":\""1924198653289222353\"",\""username\"":\""𝗚 𝗔 𝗩 𝗜@GAVI4K·13h\"",\""text\"":\""4k | LA LIGA CHAMPIONS! • #Barcelona | #Wallpapers\"",\""timestamp\"":\""2025-05-18T20:21:23.000Z\""},{\""tweet_id\"":\""1924198048378306568\"",\""username\"":\""Nawaf Abdullah @7nawafvr·13h\"",\""text\"":\""4k | LA LIGA CHAMPIONS! • #Barcelona | #Wallpapers\"",\""timestamp\"":\""2025-05-18T20:18:59.000Z\""}]}%"""

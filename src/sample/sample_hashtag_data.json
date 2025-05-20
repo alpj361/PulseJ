@@ -1,0 +1,47 @@
+{
+  "meta": {
+    "hashtag": "barcelona",
+    "count": 3,
+    "sentiment_summary": {
+      "positive": 1,
+      "negative": 0,
+      "neutral": 2
+    },
+    "date_captured": "2025-05-19T09:00:00Z",
+    "trending_score": 65,
+    "related_topics": ["marcharepublicana", "ligaproecuabet", "futbol"]
+  },
+  "tweets": [
+    {
+      "id": "1924382797461897258", 
+      "tipo": "tweet",
+      "contenido": "Acto de presentación de la #marcharepublicana2025 en #Barcelona #hastaquesevayan",
+      "sentimiento": "neutral",
+      "fecha": "2025-05-19T08:33:06.000Z", 
+      "usuario": "MarchaRepublicana@Republica16J",
+      "fuente": "X"
+    },
+    {
+      "id": "1924273998377972004",
+      "tipo": "tweet", 
+      "contenido": "EntucaDOS: En el Monumental el Barcelona de Segundo Castillo ganó 2x0 al Emelec de Celico con goles de Octavio Rivero que pintó de amarillo el Clásico del Astillero en el Centenario de #BarcelonaSC para cerrar la Fecha 13 de #LigaProEcuabet como líder. #Barcelona ahora va por IDV",
+      "sentimiento": "positivo",
+      "fecha": "2025-05-19T01:20:47.000Z",
+      "usuario": "Mauricio Ortega@MauricioOrtegaE",
+      "fuente": "X",
+      "engagement": {
+        "likes": 45,
+        "retweets": 12
+      }
+    },
+    {
+      "id": "1924252251842904551",
+      "tipo": "tweet",
+      "contenido": "𝟒𝐊 | 𝐕𝐈𝐒𝐂𝐀 𝐁𝐀𝐑𝐂𝐀 #Wallpapers | #Barcelona | #barcavillarreal", 
+      "sentimiento": "neutral",
+      "fecha": "2025-05-18T23:54:22.000Z",
+      "usuario": "KHALID | خالد@X_1KH1_",
+      "fuente": "X"
+    }
+  ]
+} 

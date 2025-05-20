@@ -1,91 +1,265 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { BarChart3, Database, Layers, LineChart, Lock } from 'lucide-react';
+import React, { useState, useEffect, useContext } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import { 
+  BarChart3, 
+  TrendingUp,
+  ActivitySquare,
+  Search
+} from 'lucide-react';
+import { LanguageContext } from '../../context/LanguageContext';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Divider,
+  Chip,
+  FormControl,
+  Select,
+  MenuItem,
+  SelectChangeEvent,
+  Paper
+} from '@mui/material';
 
-interface SidebarProps {
-  closeSidebar: () => void;
-}
-
-interface NavItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  disabled?: boolean;
-  closeSidebar: () => void;
-}
-
-const NavItem: React.FC<NavItemProps> = ({ to, icon, label, disabled = false, closeSidebar }) => {
-  if (disabled) {
-    return (
-      <div className="flex items-center px-4 py-3 text-gray-400 cursor-not-allowed group relative">
-        <div className="mr-3">{icon}</div>
-        <span>{label}</span>
-        <span className="absolute right-2 text-xs font-medium bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-full">
-          Coming Soon
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        `flex items-center px-4 py-3 ${
-          isActive
-            ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-500 dark:text-blue-400 font-medium'
-            : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-        } transition-colors duration-200`
-      }
-      onClick={closeSidebar}
-    >
-      <div className="mr-3">{icon}</div>
-      <span>{label}</span>
-    </NavLink>
-  );
+const translations = {
+  es: {
+    dashboard: 'Dashboard',
+    trends: 'Tendencias',
+    recent: 'Actividad reciente',
+    sources: 'Fuentes',
+    analytics: 'Analítica',
+    comingSoon: 'Próximamente',
+    version: 'Pulse Journal v1.0',
+  },
+  en: {
+    dashboard: 'Dashboard',
+    trends: 'Trends',
+    recent: 'Recent Activity',
+    sources: 'Sources',
+    analytics: 'Analytics',
+    comingSoon: 'Coming Soon',
+    version: 'Pulse Journal v1.0',
+  },
 };
 
+interface SidebarProps {
+  closeSidebar?: () => void;
+}
+
+interface NavItem {
+  icon: React.ReactNode;
+  label: string;
+  path: string;
+  disabled?: boolean;
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
+  const { language, setLanguage } = useContext(LanguageContext);
+
+  const handleLanguageChange = (e: SelectChangeEvent<string>) => {
+    setLanguage(e.target.value as 'es' | 'en');
+    localStorage.setItem('lang', e.target.value);
+  };
+
+  const t = translations[language];
+
+  const mainNavItems: NavItem[] = [
+    {
+      icon: <BarChart3 size={20} />,
+      label: t.trends,
+      path: '/'
+    },
+    {
+      icon: <ActivitySquare size={20} />,
+      label: t.recent,
+      path: '/recent'
+    },
+    {
+      icon: <Search size={20} />,
+      label: t.sources,
+      path: '/sources',
+      disabled: true
+    },
+    {
+      icon: <TrendingUp size={20} />,
+      label: t.analytics,
+      path: '/analytics',
+      disabled: true
+    }
+  ];
+
   return (
-    <div className="h-full w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col transition-colors duration-200">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-        <h2 className="text-lg font-semibold text-gray-800 dark:text-white">Dashboard</h2>
-      </div>
-      <nav className="flex-1 overflow-y-auto py-4">
-        <NavItem
-          to="/"
-          icon={<BarChart3 size={20} />}
-          label="Trends"
-          closeSidebar={closeSidebar}
-        />
-        <NavItem
-          to="/recent"
-          icon={<Layers size={20} />}
-          label="Recent Scrapes"
-          closeSidebar={closeSidebar}
-        />
-        <NavItem
-          to="/sources"
-          icon={<Database size={20} />}
-          label="Sources"
-          disabled={true}
-          closeSidebar={closeSidebar}
-        />
-        <NavItem
-          to="/analytics"
-          icon={<LineChart size={20} />}
-          label="Analytics"
-          disabled={true}
-          closeSidebar={closeSidebar}
-        />
-      </nav>
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-500 dark:text-gray-400">
-        <div className="flex items-center">
-          <Lock size={14} className="mr-1" />
-          <span>Pulse Journal v1.0</span>
-        </div>
-      </div>
-    </div>
+    <Box
+      sx={{
+        width: 240,
+        height: '100vh',
+        bgcolor: 'background.paper',
+        borderRight: 1,
+        borderColor: 'divider',
+        overflowY: 'auto',
+        pt: 2,
+        pb: 6
+      }}
+    >
+      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+        <Typography variant="h6" color="text.primary" fontWeight="medium">
+          {t.dashboard}
+        </Typography>
+      </Box>
+      
+      <List component="nav" sx={{ flex: 1, overflow: 'auto', py: 1 }}>
+        {mainNavItems.map((item) => (
+          <ListItem 
+            key={item.path} 
+            disablePadding 
+            onClick={item.disabled ? undefined : closeSidebar}
+            sx={{ 
+              color: item.disabled ? 'text.disabled' : 'inherit',
+              pointerEvents: item.disabled ? 'none' : 'auto'
+            }}
+          >
+            {item.disabled ? (
+              <Box 
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '0 20px 20px 0',
+                  mr: 2,
+                  ml: 1,
+                  mb: 0.5,
+                  py: 1.25,
+                  px: 2,
+                  position: 'relative',
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 36, color: 'text.disabled' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                    color: 'text.disabled'
+                  }}
+                />
+                <Chip
+                  label={t.comingSoon}
+                  size="small"
+                  sx={{
+                    ml: 1,
+                    fontSize: '0.6rem',
+                    height: 20,
+                    bgcolor: 'action.disabledBackground',
+                    color: 'text.disabled'
+                  }}
+                />
+              </Box>
+            ) : (
+              <ListItemButton
+                component={NavLink}
+                to={item.path}
+                sx={{
+                  borderRadius: '0 20px 20px 0',
+                  mr: 2,
+                  ml: 1,
+                  mb: 0.5,
+                  py: 1.25,
+                  '&.active': {
+                    bgcolor: 'action.selected',
+                    '& .MuiListItemIcon-root': {
+                      color: 'primary.main',
+                    },
+                    '& .MuiListItemText-primary': {
+                      fontWeight: 'bold',
+                      color: 'primary.main',
+                    },
+                    '& .indicator': {
+                      backgroundColor: 'primary.main',
+                      opacity: 1,
+                      transform: 'scaleY(1)',
+                    }
+                  },
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                    '& .indicator': {
+                      backgroundColor: 'primary.lighter',
+                      opacity: 0.5,
+                      transform: 'scaleY(0.7)',
+                    }
+                  },
+                  transition: 'all 0.2s',
+                  position: 'relative',
+                }}
+              >
+                <Box 
+                  className="indicator"
+                  sx={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 6,
+                    bottom: 6,
+                    width: 3,
+                    opacity: 0,
+                    borderRadius: 4,
+                    transform: 'scaleY(0.3)',
+                    transition: 'all 0.3s ease',
+                    backgroundColor: 'transparent',
+                  }}
+                />
+                <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.label}
+                  primaryTypographyProps={{
+                    fontSize: '0.875rem',
+                    fontWeight: 'medium'
+                  }}
+                />
+              </ListItemButton>
+            )}
+          </ListItem>
+        ))}
+      </List>
+
+      <Box
+        sx={{
+          p: 2,
+          borderTop: 1,
+          borderColor: 'divider',
+          fontSize: '0.875rem',
+          color: 'text.secondary',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
+          <Typography variant="caption">{t.version}</Typography>
+        </Box>
+        
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography variant="caption" sx={{ mr: 1 }}>🌐</Typography>
+          <FormControl size="small" variant="outlined" fullWidth>
+            <Select
+              value={language}
+              onChange={handleLanguageChange}
+              sx={{ 
+                fontSize: '0.75rem',
+                height: 28,
+                '& fieldset': { 
+                  borderColor: 'divider' 
+                },
+              }}
+            >
+              <MenuItem value="es">Español</MenuItem>
+              <MenuItem value="en">English</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      </Box>
+    </Box>
   );
 };
 

@@ -1,8 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import Logo from '../components/common/Logo';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
+  Divider,
+  Alert,
+  Link,
+  CircularProgress
+} from '@mui/material';
+import GoogleIcon from '@mui/icons-material/Google';
 
 export default function Register() {
   const [email, setEmail] = useState('');
@@ -72,141 +84,144 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-r from-blue-500 to-indigo-600 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-10 rounded-xl shadow-lg">
-        <div className="text-center">
-          <div className="flex justify-center">
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(to right, #3b82f6, #4f46e5)',
+        py: 6,
+        px: { xs: 2, sm: 4 }
+      }}
+    >
+      <Paper
+        elevation={4}
+        sx={{
+          maxWidth: 'md',
+          width: '100%',
+          p: { xs: 3, sm: 5 },
+          borderRadius: 2,
+          bgcolor: 'background.paper'
+        }}
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
             <Logo />
-          </div>
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
+          </Box>
+          <Typography
+            variant="h4"
+            component="h1"
+            fontWeight="bold"
+            gutterBottom
+            sx={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}
+          >
             Crear una cuenta
-          </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          </Typography>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
             O{' '}
-            <Link to="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            <Link component={RouterLink} to="/login" color="primary" underline="hover">
               inicia sesión si ya tienes cuenta
             </Link>
-          </p>
-        </div>
-        
+          </Typography>
+        </Box>
+
         {googleWarning && (
-          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-md text-sm mb-2">
+          <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
             Si te registras con Google, se usará el número asociado a tu cuenta de Google, o deberás agregarlo manualmente en Settings.
-          </div>
+          </Alert>
         )}
         
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+          <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
             {error}
-          </div>
+          </Alert>
         )}
         
         {success && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md text-sm">
+          <Alert severity="success" sx={{ mt: 2, mb: 2 }}>
             {success}
-          </div>
+          </Alert>
         )}
-        
-        <form className="mt-8 space-y-6" onSubmit={handleRegister}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="email-address" className="sr-only">
-                Correo electrónico
-              </label>
-              <input
-                id="email-address"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Correo electrónico"
-              />
-            </div>
-            <div>
-              <label htmlFor="phone" className="sr-only">
-                Número de teléfono
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                type="tel"
-                autoComplete="tel"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Número de teléfono"
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Contraseña
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Contraseña"
-              />
-            </div>
-            <div>
-              <label htmlFor="confirm-password" className="sr-only">
-                Confirmar contraseña
-              </label>
-              <input
-                id="confirm-password"
-                name="confirm-password"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Confirmar contraseña"
-              />
-            </div>
-          </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              {loading ? 'Registrando...' : 'Registrarse'}
-            </button>
-          </div>
-        </form>
+        <Box component="form" onSubmit={handleRegister} sx={{ mt: 4 }}>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email-address"
+            label="Correo electrónico"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="phone"
+            label="Número de teléfono"
+            name="phone"
+            autoComplete="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Contraseña"
+            type="password"
+            id="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="confirm-password"
+            label="Confirmar contraseña"
+            type="password"
+            id="confirm-password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+          />
+          <Button
+            type="submit"
+            fullWidth
+            variant="contained"
+            color="primary"
+            disabled={loading}
+            sx={{ mt: 3, mb: 2, py: 1.5 }}
+          >
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Registrarse'}
+          </Button>
+        </Box>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">O regístrate con</span>
-            </div>
-          </div>
+        <Box sx={{ mt: 4, position: 'relative' }}>
+          <Divider sx={{ my: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              O regístrate con
+            </Typography>
+          </Divider>
 
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={handleGoogleRegister}
-              className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Google
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleRegister}
+            sx={{ mt: 2, py: 1.5 }}
+          >
+            Google
+          </Button>
+        </Box>
+      </Paper>
+    </Box>
   );
 } 

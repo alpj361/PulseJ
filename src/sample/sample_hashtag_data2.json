@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "hashtag": "futbol",
+    "count": 5,
+    "total_tweets": 5,
+    "sentiment_summary": {
+      "positivo": 3,
+      "negativo": 1, 
+      "neutral": 1
+    },
+    "date_captured": "2025-05-19T10:15:00Z",
+    "trending_score": 78,
+    "related_topics": ["barcelona", "realmadrid", "laliga", "champions"]
+  },
+  "tweets": [
+    {
+      "id": "1924583797461897258", 
+      "tipo": "tweet",
+      "contenido": "¡MESSI GOAT! El mejor jugador de todos los tiempos vuelve a demostrar por qué es el #1 del #futbol mundial 🐐🔥",
+      "sentimiento": "positivo",
+      "fecha": "2025-05-19T09:33:06.000Z", 
+      "usuario": "MessiFan@MessiForever10",
+      "fuente": "X",
+      "engagement": {
+        "likes": 1243,
+        "retweets": 432,
+        "replies": 89
+      }
+    },
+    {
+      "id": "1924573998377972004",
+      "tipo": "tweet", 
+      "contenido": "El #futbol español necesita una renovación urgente. Los escándalos arbitrales están dañando la imagen del deporte.",
+      "sentimiento": "negativo",
+      "fecha": "2025-05-19T08:20:47.000Z",
+      "usuario": "Deportivo Total@DeporTotal",
+      "fuente": "X",
+      "engagement": {
+        "likes": 321,
+        "retweets": 112
+      }
+    },
+    {
+      "id": "1924552251842904551",
+      "tipo": "tweet",
+      "contenido": "Análisis táctico del partido de ayer: El mediocentro fue clave para el control del juego #futbol #tactica", 
+      "sentimiento": "neutral",
+      "fecha": "2025-05-19T06:54:22.000Z",
+      "usuario": "Analista Táctico@TacticaFutbol",
+      "fuente": "X"
+    },
+    {
+      "id": "1924452251842904551",
+      "tipo": "tweet",
+      "contenido": "¡Golazo increíble! No te pierdas esta obra de arte en el #futbol europeo de esta semana 😍⚽", 
+      "sentimiento": "positivo",
+      "fecha": "2025-05-19T05:30:22.000Z",
+      "usuario": "Goles Semanales@GolesTop",
+      "fuente": "X",
+      "engagement": {
+        "likes": 854,
+        "retweets": 412,
+        "views": 28500
+      }
+    },
+    {
+      "id": "1924352251842904551",
+      "tipo": "tweet",
+      "contenido": "La nueva generación del #futbol español promete mucho. Estos jóvenes van a dar que hablar en los próximos años.", 
+      "sentimiento": "positivo",
+      "fecha": "2025-05-19T04:15:22.000Z",
+      "usuario": "La Cantera@CanteroESP",
+      "fuente": "X"
+    }
+  ]
+} 

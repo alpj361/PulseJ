@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
 import { Menu, X } from 'lucide-react';
+import { LanguageProvider } from '../../context/LanguageContext';
+import { Box, IconButton, useMediaQuery, useTheme, CssBaseline } from '@mui/material';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +12,8 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -21,36 +25,72 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className={`min-h-screen flex flex-col ${darkMode ? 'dark' : ''}`}>
-      <Header toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
-      
-      <div className="flex flex-1 overflow-hidden">
-        {/* Mobile sidebar toggle */}
-        <button
-          className="md:hidden fixed z-20 bottom-4 right-4 glass rounded-full p-3 shadow-lg hover:shadow-xl transition-all duration-300"
-          onClick={toggleSidebar}
-        >
-          {sidebarOpen ? <X size={24} className="text-gray-700 dark:text-gray-300" /> : <Menu size={24} className="text-gray-700 dark:text-gray-300" />}
-        </button>
+    <LanguageProvider>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+        <Header toggleDarkMode={toggleDarkMode} darkMode={darkMode} />
+        
+        <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+          {/* Mobile sidebar toggle */}
+          {isMobile && (
+            <IconButton
+              onClick={toggleSidebar}
+              sx={{
+                position: 'fixed',
+                bottom: 16,
+                right: 16,
+                zIndex: 20,
+                backgroundColor: 'background.paper',
+                boxShadow: 3,
+                '&:hover': {
+                  boxShadow: 6,
+                },
+                transition: 'all 0.3s',
+              }}
+            >
+              {sidebarOpen ? 
+                <X size={24} color={darkMode ? "#cbd5e1" : "#374151"} /> : 
+                <Menu size={24} color={darkMode ? "#cbd5e1" : "#374151"} />
+              }
+            </IconButton>
+          )}
 
-        {/* Sidebar */}
-        <div
-          className={`md:relative fixed inset-y-0 left-0 transform ${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } md:translate-x-0 z-10 transition-transform duration-300 ease-in-out`}
-        >
-          <Sidebar closeSidebar={() => setSidebarOpen(false)} />
-        </div>
+          {/* Sidebar */}
+          <Box
+            sx={{
+              position: { xs: 'fixed', md: 'relative' },
+              top: 0,
+              bottom: 0,
+              left: 0,
+              transform: {
+                xs: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+                md: 'translateX(0)',
+              },
+              zIndex: 10,
+              transition: 'transform 0.3s ease-in-out',
+              height: '100%',
+            }}
+          >
+            <Sidebar closeSidebar={() => setSidebarOpen(false)} />
+          </Box>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-900 transition-theme">
-          <div className="container mx-auto px-4 py-8 stagger-children">
-            {children}
-          </div>
-        </main>
-      </div>
-    </div>
+          {/* Main content */}
+          <Box 
+            component="main" 
+            sx={{ 
+              flex: 1, 
+              overflow: 'auto', 
+              bgcolor: darkMode ? 'grey.900' : 'grey.50',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            <Box sx={{ maxWidth: 'lg', mx: 'auto', px: 3, py: 4 }}>
+              {children}
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+    </LanguageProvider>
   );
 };
 
-export default Layout
+export default Layout;

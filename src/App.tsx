@@ -1,14 +1,16 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Trends from './pages/Trends';
-import RecentScrapes from './pages/RecentScrapes';
+import { Trends } from './pages/Trends';
+import RecentActivity from './pages/RecentActivity';
 import Sources from './pages/Sources';
 import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
+import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Box, CircularProgress } from '@mui/material';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -16,9 +18,14 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh' 
+      }}>
+        <CircularProgress color="primary" size={48} />
+      </Box>
     );
   }
   
@@ -34,6 +41,13 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           
+          {/* Ruta de prueba para el nuevo formato JSON */}
+          <Route path="/test-hashtag" element={
+            <Layout>
+              <TestHashtagCard />
+            </Layout>
+          } />
+          
           {/* Rutas protegidas */}
           <Route path="/" element={
             <ProtectedRoute>
@@ -45,7 +59,7 @@ function App() {
           <Route path="/recent" element={
             <ProtectedRoute>
               <Layout>
-                <RecentScrapes />
+                <RecentActivity />
               </Layout>
             </ProtectedRoute>
           } />

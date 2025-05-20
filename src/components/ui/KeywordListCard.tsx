@@ -1,6 +1,23 @@
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
 import { KeywordCount } from '../../types';
+import { 
+  Box, 
+  Paper, 
+  Typography, 
+  List, 
+  ListItem, 
+  Button, 
+  Avatar, 
+  Chip,
+  Divider,
+  useTheme
+} from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import NumberOneIcon from '@mui/icons-material/LooksOne';
+import NumberTwoIcon from '@mui/icons-material/LooksTwo';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import TagIcon from '@mui/icons-material/Tag';
 
 interface KeywordListCardProps {
   keywords: KeywordCount[];
@@ -11,46 +28,186 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
   keywords,
   title = 'Temas Principales'
 }) => {
+  const theme = useTheme();
+  
+  // Función para seleccionar el icono según la posición
+  const getRankIcon = (index: number) => {
+    switch(index) {
+      case 0: return <NumberOneIcon fontSize="small" />;
+      case 1: return <NumberTwoIcon fontSize="small" />;
+      default: return index + 1;
+    }
+  };
+  
+  // Función para obtener color según la posición
+  const getRankColor = (index: number): string => {
+    const colors = [
+      theme.palette.primary.main,    // #1
+      theme.palette.info.main,       // #2
+      theme.palette.secondary.main,  // #3
+      '#8b5cf6',                     // #4
+      '#ec4899',                     // #5
+      '#f97316',                     // #6
+      '#84cc16',                     // #7
+      '#06b6d4'                      // #8+
+    ];
+    return colors[Math.min(index, colors.length - 1)];
+  };
+
   return (
-    <div className="glass rounded-2xl overflow-hidden border border-gray-100/20 dark:border-gray-700/20 transition-all duration-300 hover:shadow-lg">
-      <div className="px-6 py-4 border-b border-gray-100/20 dark:border-gray-700/20">
-        <h3 className="font-semibold text-gray-800 dark:text-white flex items-center" style={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}>
-          <TrendingUp size={18} className="mr-2 text-blue-500" />
+    <Paper
+      elevation={0}
+      sx={{
+        borderRadius: 4,
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'divider',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        transition: 'all 0.3s ease',
+        '&:hover': {
+          boxShadow: 6,
+          transform: 'translateY(-3px)'
+        }
+      }}
+    >
+      <Box
+        sx={{
+          px: 3,
+          py: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+          display: 'flex',
+          alignItems: 'center'
+        }}
+      >
+        <TrendingUp 
+          size={20} 
+          color={theme.palette.primary.main} 
+          style={{ marginRight: 8 }}
+        />
+        <Typography 
+          variant="h6" 
+          color="text.primary" 
+          fontWeight="medium"
+          fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
+        >
           {title}
-        </h3>
-      </div>
+        </Typography>
+      </Box>
       
-      <div className="p-4">
-        <ul className="divide-y divide-gray-100/10 dark:divide-gray-700/10 stagger-children">
-          {keywords.slice(0, 10).map((keyword, index) => (
-            <li 
-              key={keyword.keyword} 
-              className="py-3 px-3 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition-all duration-300 rounded-xl group"
+      <List sx={{ flexGrow: 1, py: 1 }}>
+        {keywords.slice(0, 8).map((keyword, index) => (
+          <React.Fragment key={keyword.keyword}>
+            <ListItem
+              sx={{
+                py: 1,
+                px: 2,
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  transform: 'translateX(4px)'
+                },
+                borderRadius: 2,
+                mx: 1,
+                my: 0.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5
+              }}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <span className="flex items-center justify-center w-7 h-7 bg-blue-500/10 text-blue-500 rounded-full text-sm font-medium transition-all duration-300 group-hover:bg-blue-500 group-hover:text-white">
-                    {index + 1}
-                  </span>
-                  <span className="text-gray-800 dark:text-gray-200 font-medium">
-                    {keyword.keyword}
-                  </span>
-                  <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 font-normal">
-                    {keyword.count >= 1000 ? `${(keyword.count/1000).toFixed(1)}K` : keyword.count} menciones
-                  </span>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: alpha(getRankColor(index), 0.15),
+                  color: getRankColor(index),
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    bgcolor: alpha(getRankColor(index), 0.25),
+                  }
+                }}
+              >
+                {getRankIcon(index)}
+              </Avatar>
+              
+              <Box sx={{ flexGrow: 1, overflow: 'hidden' }}>
+                <Typography 
+                  variant="body1" 
+                  fontWeight="medium"
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    color: 'text.primary',
+                    fontSize: '0.95rem'
+                  }}
+                >
+                  {keyword.keyword}
+                </Typography>
+                
+                <Chip
+                  icon={<TagIcon sx={{ fontSize: '0.8rem !important' }} />}
+                  label={`${keyword.count >= 1000 ? `${(keyword.count/1000).toFixed(1)}K` : keyword.count} menciones`}
+                  size="small"
+                  sx={{ 
+                    height: 20,
+                    '& .MuiChip-label': { 
+                      px: 1, 
+                      fontSize: '0.7rem',
+                      color: 'text.secondary'
+                    },
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    mt: 0.5
+                  }}
+                />
+              </Box>
+            </ListItem>
+            {index < keywords.length - 1 && index < 7 && (
+              <Divider 
+                variant="middle" 
+                sx={{ 
+                  opacity: 0.6,
+                  mx: 3,
+                  borderStyle: 'dashed'
+                }} 
+              />
+            )}
+          </React.Fragment>
+        ))}
+      </List>
       
-      <div className="px-6 py-4 border-t border-gray-100/20 dark:border-gray-700/20">
-        <button className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 text-sm font-medium transition-colors duration-300">
-          Ver todos los temas →
-        </button>
-      </div>
-    </div>
+      <Box
+        sx={{
+          p: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          justifyContent: 'center'
+        }}
+      >
+        <Button
+          color="primary"
+          endIcon={<ArrowForwardIcon />}
+          sx={{ 
+            textTransform: 'none',
+            fontWeight: 'medium',
+            fontSize: '0.85rem',
+            '&:hover': {
+              background: 'transparent',
+              transform: 'translateX(3px)'
+            },
+            transition: 'transform 0.3s ease'
+          }}
+        >
+          Ver todos los temas
+        </Button>
+      </Box>
+    </Paper>
   );
 };
 
