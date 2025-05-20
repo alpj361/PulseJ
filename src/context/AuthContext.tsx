@@ -39,7 +39,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Función para cerrar sesión
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      // Primero intentamos logout normal
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Error en signOut de Supabase:", error);
+    } finally {
+      // Incluso si hay error, limpiamos el estado local
+      setSession(null);
+      setUser(null);
+      
+      // Limpiamos cualquier token de localStorage para asegurar logout completo
+      localStorage.removeItem('supabase.auth.token');
+      
+      // Limpiamos todas las cookies relacionadas con Supabase (ruta / y dominio actual)
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
+      });
+    }
   };
 
   // Valor del contexto

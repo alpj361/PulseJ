@@ -26,14 +26,14 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
 
   const handleLogout = async () => {
     try {
-      // Navigate first, then sign out to prevent reloading trends
-      navigate('/login');
-      // Use setTimeout to ensure navigation completes before signOut
-      setTimeout(async () => {
-        await signOut();
-      }, 100);
+      // Llamar a signOut y luego hacer una redirección con recarga completa
+      await signOut();
     } catch (error) {
       console.error("Error during logout:", error);
+    } finally {
+      // Siempre redirigimos, incluso si hay error en signOut
+      // Usar location.href hace una recarga completa de la página
+      window.location.href = '/login';
     }
   };
 
