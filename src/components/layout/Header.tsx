@@ -25,8 +25,16 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut();
-    navigate('/login');
+    try {
+      // Navigate first, then sign out to prevent reloading trends
+      navigate('/login');
+      // Use setTimeout to ensure navigation completes before signOut
+      setTimeout(async () => {
+        await signOut();
+      }, 100);
+    } catch (error) {
+      console.error("Error during logout:", error);
+    }
   };
 
   return (
