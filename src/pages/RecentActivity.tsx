@@ -14,12 +14,17 @@ import {
   Container,
   Link,
   useTheme,
-  alpha
+  alpha,
+  Divider
 } from '@mui/material';
 import { 
   WhatsApp as WhatsAppIcon,
   Timeline as TimelineIcon,
-  History as HistoryIcon
+  History as HistoryIcon,
+  Tag as TagIcon,
+  Person as PersonIcon,
+  Newspaper as NewspaperIcon,
+  TrendingUp as TrendingUpIcon
 } from '@mui/icons-material';
 
 const translations = {
@@ -28,24 +33,36 @@ const translations = {
     loading: 'Cargando actividad...',
     noActivity: 'No tienes actividad reciente.',
     whatsappBot: 'WhatsApp Bot',
-    chatWithBot: 'Chatear con el Bot',
+    chatWithBot: 'Chatea',
     yourNumber: 'Tu número:',
     error: 'No se pudo cargar tu actividad reciente.',
     presentations: 'Presentaciones',
     comparisons: 'Comparativas',
     comingSoon: 'Próximamente',
+    statistics: 'Estadísticas de Extracción',
+    hashtags: 'Hashtags',
+    users: 'Usuarios',
+    news: 'Noticias',
+    commonThemes: 'Temas Comunes',
+    noThemes: 'No hay temas comunes aún'
   },
   en: {
     title: 'Recent Activity',
     loading: 'Loading activity...',
     noActivity: 'You have no recent activity.',
     whatsappBot: 'WhatsApp Bot',
-    chatWithBot: 'Chat with the Bot',
+    chatWithBot: 'Chat',
     yourNumber: 'Your number:',
     error: 'Could not load your recent activity.',
     presentations: 'Presentations',
     comparisons: 'Comparisons',
     comingSoon: 'Coming Soon',
+    statistics: 'Extraction Statistics',
+    hashtags: 'Hashtags',
+    users: 'Users',
+    news: 'News',
+    commonThemes: 'Common Themes',
+    noThemes: 'No common themes yet'
   },
 };
 
@@ -59,6 +76,11 @@ interface Activity {
   sentimiento: 'positivo' | 'negativo' | 'neutral';
 }
 
+interface ThemeCount {
+  theme: string;
+  count: number;
+}
+
 export default function RecentActivity() {
   const { user } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -68,6 +90,78 @@ export default function RecentActivity() {
   const { language } = useContext(LanguageContext);
   const t = translations[language];
   const theme = useTheme();
+
+  // Calculate statistics from activities
+  const getStatistics = () => {
+    const hashtagCount = activities.filter(a => a.type === 'Hashtag').length;
+    const userCount = activities.filter(a => a.type === 'Usuario').length;
+    const newsCount = activities.filter(a => a.type === 'News').length;
+    
+    // Extract common themes (based on value frequency)
+    const valueFrequency: Record<string, number> = {};
+    activities.forEach(activity => {
+      // Check if the value is a JSON string
+      try {
+        // Try to parse as JSON
+        const jsonData = JSON.parse(activity.value);
+        
+        // Extract theme name from JSON structure
+        if (jsonData.meta && jsonData.meta.hashtag) {
+          // If it's a hashtag JSON format
+          const theme = jsonData.meta.hashtag.toLowerCase();
+          if (valueFrequency[theme]) {
+            valueFrequency[theme]++;
+          } else {
+            valueFrequency[theme] = 1;
+          }
+          
+          // Also add related topics if available
+          if (jsonData.meta.related_topics && Array.isArray(jsonData.meta.related_topics)) {
+            jsonData.meta.related_topics.forEach((topic: string) => {
+              const relatedTopic = topic.toLowerCase();
+              if (valueFrequency[relatedTopic]) {
+                valueFrequency[relatedTopic]++;
+              } else {
+                valueFrequency[relatedTopic] = 1;
+              }
+            });
+          }
+        } else {
+          // Not the expected JSON format, use the raw value
+          const value = activity.value.toLowerCase();
+          if (valueFrequency[value]) {
+            valueFrequency[value]++;
+          } else {
+            valueFrequency[value] = 1;
+          }
+        }
+      } catch (e) {
+        // Not JSON, use the raw value
+        const value = activity.value.toLowerCase();
+        if (valueFrequency[value]) {
+          valueFrequency[value]++;
+        } else {
+          valueFrequency[value] = 1;
+        }
+      }
+    });
+    
+    // Sort by frequency and get top 5
+    const commonThemes: ThemeCount[] = Object.entries(valueFrequency)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([theme, count]) => ({ 
+        theme, 
+        count 
+      }));
+    
+    return {
+      hashtagCount,
+      userCount,
+      newsCount,
+      commonThemes
+    };
+  };
 
   useEffect(() => {
     const fetchPhoneAndActivity = async () => {
@@ -98,13 +192,15 @@ export default function RecentActivity() {
     fetchPhoneAndActivity();
   }, [user]);
 
+  const statistics = getStatistics();
+
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* WhatsApp Bot Section */}
       <Paper 
         elevation={0} 
         sx={{ 
-          p: 3, 
+          p: 2.5, 
           mb: 3, 
           display: 'flex',
           flexDirection: { xs: 'column', md: 'row' },
@@ -115,129 +211,71 @@ export default function RecentActivity() {
           border: '1px solid',
           borderColor: alpha(theme.palette.success.main, 0.2),
           transition: 'all 0.3s ease',
-          backgroundImage: 'url("data:image/svg+xml,%3Csvg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"%3E%3Cpath d="M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM34 90c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm56-76c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zM12 86c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm28-65c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm23-11c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-6 60c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm29 22c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zM32 63c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm57-13c2.76 0 5-2.24 5-5s-2.24-5-5-5-5 2.24-5 5 2.24 5 5 5zm-9-21c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM60 91c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM35 41c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2zM12 60c1.105 0 2-.895 2-2s-.895-2-2-2-2 .895-2 2 .895 2 2 2z" fill="%2325D366" fill-opacity="0.05" fill-rule="evenodd"/%3E%3C/svg%3E")',
-          backgroundSize: '300px',
-          backgroundPosition: 'right center',
-          backgroundRepeat: 'no-repeat',
-          overflow: 'hidden',
-          position: 'relative',
           '&:hover': {
-            boxShadow: '0 6px 20px rgba(0, 0, 0, 0.08)',
-            borderColor: alpha(theme.palette.success.main, 0.4),
-            '& .whatsapp-btn': {
-              transform: 'translateY(-3px) scale(1.02)',
-              boxShadow: '0 10px 20px rgba(37, 211, 102, 0.25)',
-            },
-            '& .whatsapp-icon': {
-              transform: 'rotate(-10deg) scale(1.1)',
-            }
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
+            borderColor: alpha(theme.palette.success.main, 0.3),
           }
         }}
       >
-        {/* Subtle animated dots in background */}
-        <Box sx={{
-          position: 'absolute',
-          right: 0,
-          bottom: 0,
-          width: { xs: 100, md: 120 },
-          height: { xs: 100, md: 120 },
-          background: 'radial-gradient(circle, rgba(37, 211, 102, 0.1) 10%, transparent 10.5%) 0 0, radial-gradient(circle, rgba(37, 211, 102, 0.1) 10%, transparent 10.5%) 8px 8px',
-          backgroundSize: '16px 16px',
-          zIndex: 0,
-          opacity: 0.5,
-          animation: 'pulseBackground 4s ease-in-out infinite alternate',
-          '@keyframes pulseBackground': {
-            '0%': { opacity: 0.3 },
-            '100%': { opacity: 0.7 }
-          }
-        }} />
-
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 3, md: 0 }, position: 'relative', zIndex: 1 }}>
-          {/* WhatsApp Logo with wrapper and effect */}
-          <Box 
-            sx={{ 
-              mr: 2.5,
+        <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 2, md: 0 } }}>
+          <Box
+            sx={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              width: 52,
-              height: 52,
+              mr: 2,
+              backgroundColor: theme.palette.success.main,
+              color: '#fff',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-              boxShadow: '0 6px 16px rgba(37, 211, 102, 0.25)',
+              width: 38,
+              height: 38,
+              justifyContent: 'center',
               transition: 'all 0.3s ease',
+              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                boxShadow: '0 3px 8px rgba(0, 0, 0, 0.15)',
+              }
             }}
           >
-            <WhatsAppIcon 
-              className="whatsapp-icon"
-              sx={{ 
-                color: 'white', 
-                fontSize: 30,
-                transition: 'transform 0.3s ease',
-              }} 
-            />
+            <WhatsAppIcon sx={{ fontSize: 22 }} />
           </Box>
-
-          <Box>
-            {/* Title with enhanced styling */}
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                fontWeight: 600, 
-                color: '#075E54',
-                mb: 0.5,
-                textShadow: '0 1px 2px rgba(7, 94, 84, 0.1)'
-              }}
-            >
-              WhatsApp
-            </Typography>
-            
-            {/* Button with improved design */}
-            <Button 
-              className="whatsapp-btn"
-              variant="contained" 
-              size="large"
-              href={`https://wa.me/${WHATSAPP_BOT_NUMBER}?text=Hola%20Bot%2C%20quiero%20consultar%20actividad%20reciente...`}
-              target="_blank"
-              rel="noopener noreferrer"
-              sx={{
-                mt: 1,
-                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                color: 'white',
-                fontWeight: 'bold',
-                boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)',
-                borderRadius: '50px',
-                px: 3,
-                py: 1,
-                transition: 'all 0.3s ease',
-                textTransform: 'none',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #1ED75F 0%, #0E7F73 100%)',
-                }
-              }}
-            >
-              {t.chatWithBot}
-            </Button>
-          </Box>
+          <Typography
+            variant="subtitle1"
+            sx={{
+              fontWeight: 'medium',
+              mr: 2,
+              color: theme.palette.success.dark
+            }}
+          >
+            {t.whatsappBot}
+          </Typography>
+          <Button 
+            variant="contained" 
+            color="success"
+            href={`https://wa.me/${WHATSAPP_BOT_NUMBER}?text=Hola%20Bot%2C%20quiero%20consultar%20actividad%20reciente...`}
+            target="_blank"
+            rel="noopener noreferrer"
+            sx={{
+              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
+              }
+            }}
+          >
+            {t.chatWithBot}
+          </Button>
         </Box>
-
-        {/* Phone Number Info */}
         <Typography 
           variant="body2" 
           sx={{ 
-            color: '#128C7E',
-            bgcolor: alpha(theme.palette.success.main, 0.12),
-            py: 1,
-            px: 2.5,
-            borderRadius: 6,
-            fontWeight: 'medium',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            border: '1px dashed',
-            borderColor: alpha(theme.palette.success.main, 0.3),
-            position: 'relative',
-            zIndex: 1
+            color: theme.palette.success.dark,
+            bgcolor: alpha(theme.palette.success.main, 0.1),
+            py: 0.75,
+            px: 2,
+            borderRadius: 2,
+            fontWeight: 'medium'
           }}
         >
           {userPhone && (
@@ -356,52 +394,225 @@ export default function RecentActivity() {
             </Typography>
           </Box>
         ) : (
-          <Grid 
-            container 
-            spacing={3} 
-            sx={{ 
-              mt: 1,
-              '& .MuiGrid-item': {
-                display: 'flex',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'scale(1.01)'
-                }
-              }
-            }}
-          >
-            {activities.map((activity, index) => (
-              <Grid 
-                item 
-                xs={12} 
-                sm={6} 
-                md={4} 
-                key={activity.id}
-                sx={{
-                  animation: 'fadeInUp 0.5s ease forwards',
-                  opacity: 0,
-                  animationDelay: `${index * 0.1}s`,
-                  '@keyframes fadeInUp': {
-                    '0%': {
-                      opacity: 0,
-                      transform: 'translateY(20px)'
-                    },
-                    '100%': {
-                      opacity: 1,
-                      transform: 'translateY(0)'
-                    }
+          <>
+            <Grid 
+              container 
+              spacing={3} 
+              sx={{ 
+                mt: 1,
+                '& .MuiGrid-item': {
+                  display: 'flex',
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    transform: 'scale(1.01)'
                   }
+                }
+              }}
+            >
+              {activities.map((activity, index) => (
+                <Grid 
+                  item 
+                  xs={12} 
+                  sm={6} 
+                  md={4} 
+                  key={activity.id}
+                  sx={{
+                    animation: 'fadeInUp 0.5s ease forwards',
+                    opacity: 0,
+                    animationDelay: `${index * 0.1}s`,
+                    '@keyframes fadeInUp': {
+                      '0%': {
+                        opacity: 0,
+                        transform: 'translateY(20px)'
+                      },
+                      '100%': {
+                        opacity: 1,
+                        transform: 'translateY(0)'
+                      }
+                    }
+                  }}
+                >
+                  <ActivityCard
+                    value={activity.value}
+                    type={activity.type}
+                    created_at={activity.created_at}
+                    sentimiento={activity.sentimiento}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+
+            {/* Statistics Section */}
+            <Box sx={{ mt: 4 }}>
+              <Divider sx={{ mb: 3 }} />
+              <Typography 
+                variant="h6" 
+                component="h3" 
+                sx={{ 
+                  mb: 3,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  color: 'text.primary',
+                  fontWeight: 'medium' 
                 }}
               >
-                <ActivityCard
-                  value={activity.value}
-                  type={activity.type}
-                  created_at={activity.created_at}
-                  sentimiento={activity.sentimiento}
+                <TrendingUpIcon 
+                  sx={{ 
+                    color: theme.palette.primary.main,
+                    fontSize: 24
+                  }} 
                 />
+                {t.statistics}
+              </Typography>
+
+              <Grid container spacing={3}>
+                {/* Activity Type Counts */}
+                <Grid item xs={12} md={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      border: '1px solid',
+                      borderColor: alpha(theme.palette.primary.main, 0.1),
+                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
+                    }}
+                  >
+                    <Grid container spacing={2}>
+                      <Grid item xs={4}>
+                        <Box sx={{ 
+                          textAlign: 'center', 
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.info.main, 0.1),
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <TagIcon color="info" />
+                          <Typography variant="h6" color="info.main" fontWeight="bold">
+                            {statistics.hashtagCount}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t.hashtags}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Box sx={{ 
+                          textAlign: 'center', 
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.success.main, 0.1),
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <PersonIcon color="success" />
+                          <Typography variant="h6" color="success.main" fontWeight="bold">
+                            {statistics.userCount}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t.users}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                      <Grid item xs={4}>
+                        <Box sx={{ 
+                          textAlign: 'center', 
+                          p: 1.5,
+                          borderRadius: 2,
+                          backgroundColor: alpha(theme.palette.warning.main, 0.1),
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 1
+                        }}>
+                          <NewspaperIcon color="warning" />
+                          <Typography variant="h6" color="warning.main" fontWeight="bold">
+                            {statistics.newsCount}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {t.news}
+                          </Typography>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                </Grid>
+
+                {/* Common Themes */}
+                <Grid item xs={12} md={6}>
+                  <Paper
+                    elevation={0}
+                    sx={{
+                      p: 3,
+                      borderRadius: 3,
+                      border: '1px solid',
+                      borderColor: alpha(theme.palette.secondary.main, 0.1),
+                      backgroundColor: alpha(theme.palette.secondary.main, 0.02),
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}
+                  >
+                    <Typography 
+                      variant="subtitle1" 
+                      fontWeight="medium" 
+                      color="secondary.main" 
+                      sx={{ mb: 2 }}
+                    >
+                      {t.commonThemes}
+                    </Typography>
+                    
+                    {statistics.commonThemes.length > 0 ? (
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexWrap: 'wrap', 
+                        gap: 1,
+                        '& > *': {
+                          flexGrow: 0
+                        }
+                      }}>
+                        {statistics.commonThemes.map((item, index) => {
+                          // Format the theme name - capitalize first letter of each word
+                          const formattedTheme = item.theme
+                            .split(' ')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                            
+                          return (
+                            <Chip 
+                              key={index}
+                              label={`${formattedTheme} (${item.count})`}
+                              color="secondary"
+                              variant="outlined"
+                              size="small"
+                              sx={{ 
+                                fontWeight: 'medium',
+                                transition: 'all 0.2s ease',
+                                '&:hover': {
+                                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
+                                  transform: 'translateY(-2px)'
+                                }
+                              }}
+                            />
+                          );
+                        })}
+                      </Box>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                        {t.noThemes}
+                      </Typography>
+                    )}
+                  </Paper>
+                </Grid>
               </Grid>
-            ))}
-          </Grid>
+            </Box>
+          </>
         )}
       </Paper>
 
