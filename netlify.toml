@@ -24,4 +24,10 @@
   from = "/api/processTrends*"
   to = "/.netlify/functions/processTrends/:splat"
   status = 200
-  force = true 
+  force = true
+
+# SPA redirect rule - This ensures that all routes are handled by index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200 
