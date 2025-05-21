@@ -99,7 +99,7 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
       </Box>
       
       <List sx={{ flexGrow: 1, py: 1 }}>
-        {keywords.slice(0, 8).map((keyword, index) => (
+        {keywords.slice(0, 10).map((keyword, index) => (
           <React.Fragment key={keyword.keyword}>
             <ListItem
               sx={{
@@ -167,7 +167,7 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
                 />
               </Box>
             </ListItem>
-            {index < keywords.length - 1 && index < 7 && (
+            {index < keywords.length - 1 && index < 9 && (
               <Divider 
                 variant="middle" 
                 sx={{ 

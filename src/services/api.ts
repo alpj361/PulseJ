@@ -285,9 +285,26 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
       return createMockTrendData();
     }
     
+    // Asegurar que hay exactamente 10 keywords
+    const topKeywords = [...(data.top_keywords || [])];
+    
+    // Si hay menos de 10 keywords, completar con mock data
+    if (topKeywords.length < 10) {
+      console.log(`Completando keywords: tenemos ${topKeywords.length}, necesitamos 10`);
+      
+      const mockKeywords = mockTopKeywords.slice(0, 10 - topKeywords.length);
+      topKeywords.push(...mockKeywords);
+    }
+    
+    // Si hay más de 10, quedarnos con los 10 primeros
+    if (topKeywords.length > 10) {
+      console.log(`Recortando keywords: tenemos ${topKeywords.length}, necesitamos 10`);
+      topKeywords.length = 10;
+    }
+    
     return {
       wordCloudData: data.word_cloud_data,
-      topKeywords: data.top_keywords,
+      topKeywords: topKeywords,
       categoryData: data.category_data,
       timestamp: data.timestamp
     };

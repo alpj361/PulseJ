@@ -69,16 +69,28 @@ const WordCloud: React.FC<WordCloudProps> = ({
       
       // Measure text
       const metrics = ctx.measureText(word.text);
-      const wordWidth = metrics.width;
-      const wordHeight = fontSize;
+      let wordWidth = metrics.width;
+      let wordHeight = fontSize;
       
       // Try to place word
       let placed = false;
       let attempts = 0;
-      const maxAttempts = 200; // Increased max attempts for better placement
+      const maxAttempts = 500; // Incrementado de 200 a 500 intentos
+      
+      // Si no conseguimos colocarlo en los primeros intentos, reduciremos el tamaño
+      let reducedFontSize = fontSize;
       
       while (!placed && attempts < maxAttempts) {
         attempts++;
+        
+        // Reducir el tamaño de la fuente si llevamos muchos intentos sin éxito
+        if (attempts > 200 && reducedFontSize > 10) {
+          reducedFontSize = Math.max(10, reducedFontSize * 0.9);
+          ctx.font = `${reducedFontSize}px sans-serif`;
+          const newMetrics = ctx.measureText(word.text);
+          wordWidth = newMetrics.width;
+          wordHeight = reducedFontSize;
+        }
         
         // Generate position in spiral pattern around center with more spacing
         const angle = attempts * 0.1;

@@ -94,6 +94,34 @@ export async function getLatestTrendData(): Promise<any | null> {
       .single();
     
     if (error) throw error;
+    
+    // Verificar si los datos tienen la estructura completa
+    if (!data.top_keywords || data.top_keywords.length < 10) {
+      console.warn(`Los datos recuperados tienen ${data.top_keywords?.length || 0} keywords, se esperaban 10`);
+      
+      // Si tenemos datos crudos, procesar localmente
+      if (data.raw_data) {
+        console.log('Usando raw_data para generar topKeywords completos');
+        
+        // Ordenar por alguna métrica relevante (p.ej. volume)
+        const rawItems = data.raw_data.trends || [];
+        const sortedItems = [...rawItems].sort((a, b) => (b.volume || 0) - (a.volume || 0));
+        
+        // Tomar top 10 o repetir si hay menos
+        const top10 = sortedItems.slice(0, 10);
+        while (top10.length < 10) {
+          // Si hay menos de 10, repetir los más importantes
+          top10.push(top10[top10.length % Math.max(1, top10.length)]);
+        }
+        
+        // Crear estructura para topKeywords
+        data.top_keywords = top10.map(item => ({
+          keyword: item.name || item.keyword || 'Unknown',
+          count: item.volume || item.count || 1
+        }));
+      }
+    }
+    
     return data;
   } catch (error) {
     console.error('Error fetching latest trend data:', error);
