@@ -273,6 +273,37 @@ export const Trends = () => {
     setTimeout(poll, 10000);
   };
 
+  // Eliminar función de polling automático
+  // Agregar función para reintentar consulta manualmente
+  const retryFetchDetails = async () => {
+    if (!lastProcessingTimestamp) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://extractorw.onrender.com/api'}/processingStatus/${encodeURIComponent(lastProcessingTimestamp)}`);
+      if (response.ok) {
+        const statusData = await response.json();
+        if (statusData.status === 'complete' && statusData.has_about && statusData.has_statistics) {
+          if (statusData.data.about && Array.isArray(statusData.data.about)) {
+            setAboutInfo(statusData.data.about);
+          }
+          if (statusData.data.statistics) {
+            setStatistics(statusData.data.statistics);
+          }
+          setIsPollingForDetails(false);
+        } else {
+          setError('El análisis con IA aún está en proceso. Intenta de nuevo en 1-2 minutos.');
+        }
+      } else {
+        setError('No se pudo consultar el estado del procesamiento.');
+      }
+    } catch (error) {
+      setError('Error al consultar el estado del procesamiento.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (initialLoading) {
     return (
       <Box
@@ -877,15 +908,12 @@ export const Trends = () => {
           </Box>
           Información Detallada de Tendencias
         </Typography>
-        
         {aboutInfo && aboutInfo.length > 0 ? (
           <Grid container spacing={3}>
             {aboutInfo.map((about, index) => {
-              // Asegurar que tenemos un keyword válido
               const keyword = topKeywords && topKeywords[index] 
                 ? topKeywords[index].keyword 
                 : `Tendencia ${index + 1}`;
-              
               return (
                 <Grid item xs={12} md={6} lg={4} key={index}>
                   <AboutCard 
@@ -908,31 +936,13 @@ export const Trends = () => {
               gap: 2
             }}
           >
-            {isPollingForDetails ? (
-              <>
-                <CircularProgress size={32} />
-                <Typography color="text.secondary">
-                  Obteniendo información detallada con IA...
-                </Typography>
-                <Typography variant="caption" color="text.disabled">
-                  Esto puede tomar 1-2 minutos
-                </Typography>
-              </>
-            ) : hasData ? (
-              <>
-                <TrendingUp size={48} color={theme.palette.text.disabled} />
-                <Typography color="text.secondary">
-                  Información detallada se cargará automáticamente tras buscar tendencias
-                </Typography>
-              </>
-            ) : (
-              <>
-                <Search size={48} color={theme.palette.text.disabled} />
-                <Typography color="text.secondary">
-                  {t.noDetailsAvailable}
-                </Typography>
-              </>
-            )}
+            <CircularProgress size={32} />
+            <Typography color="text.secondary">
+              El análisis con IA está en proceso. Vuelve a intentar en 1-2 minutos.
+            </Typography>
+            <Button variant="outlined" onClick={retryFetchDetails} disabled={isLoading} sx={{ mt: 2 }}>
+              Reintentar
+            </Button>
           </Box>
         )}
       </Paper>
