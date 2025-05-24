@@ -13,12 +13,19 @@ import {
   Alert,
   Link,
   CircularProgress,
-  InputAdornment
+  InputAdornment,
+  Stepper,
+  Step,
+  StepLabel
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 export default function Register() {
+  const [step, setStep] = useState(1); // 1: código, 2: registro completo
+  const [validatedCode, setValidatedCode] = useState('');
   const [email, setEmail] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
   const [password, setPassword] = useState('');
@@ -27,7 +34,6 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [googleWarning, setGoogleWarning] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -57,11 +63,10 @@ export default function Register() {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleCodeValidation = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setSuccess(null);
 
     // Validar código de invitación
     if (!invitationCode.trim()) {
@@ -76,6 +81,19 @@ export default function Register() {
       setLoading(false);
       return;
     }
+
+    // Si es válido, guardar el código y avanzar al paso 2
+    setValidatedCode(invitationCode);
+    setStep(2);
+    setLoading(false);
+    setError(null);
+  };
+
+  const handleEmailRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     // Validar que las contraseñas coincidan
     if (password !== confirmPassword) {
@@ -100,7 +118,7 @@ export default function Register() {
         await supabase.from('profiles').upsert({ 
           id: data.user.id, 
           phone,
-          invitation_code: invitationCode 
+          invitation_code: validatedCode 
         });
 
         // TODO: Marcar código de invitación como usado
@@ -108,7 +126,7 @@ export default function Register() {
           await supabase
             .from('invitation_codes')
             .update({ used: true, used_by: data.user.id, used_at: new Date().toISOString() })
-            .eq('code', invitationCode);
+            .eq('code', validatedCode);
         } catch (codeError) {
           console.log('Error marcando código como usado:', codeError);
         }
@@ -128,11 +146,140 @@ export default function Register() {
   };
 
   const handleGoogleRegister = async () => {
-    setGoogleWarning(true);
-    // Aquí puedes iniciar el flujo de Google si lo deseas
-    await supabase.auth.signInWithOAuth({ provider: 'google' });
+    // El código ya está validado, proceder con Google
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({ 
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/login?code=${validatedCode}`
+        }
+      });
+      if (error) throw error;
+    } catch (error: any) {
+      setError('Error al registrarse con Google: ' + error.message);
+    }
   };
 
+  const goBackToStep1 = () => {
+    setStep(1);
+    setValidatedCode('');
+    setError(null);
+  };
+
+  // Renderizar paso 1: Validación de código
+  if (step === 1) {
+    return (
+      <Box
+        sx={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'linear-gradient(to right, #3b82f6, #4f46e5)',
+          py: 6,
+          px: { xs: 2, sm: 4 }
+        }}
+      >
+        <Paper
+          elevation={4}
+          sx={{
+            maxWidth: 'sm',
+            width: '100%',
+            p: { xs: 3, sm: 5 },
+            borderRadius: 2,
+            bgcolor: 'background.paper'
+          }}
+        >
+          <Box sx={{ textAlign: 'center' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+              <Logo />
+            </Box>
+            <Typography
+              variant="h4"
+              component="h1"
+              fontWeight="bold"
+              gutterBottom
+              sx={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}
+            >
+              Acceso por Invitación
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Ingresa tu código único para continuar con el registro
+            </Typography>
+          </Box>
+
+          {/* Stepper */}
+          <Stepper activeStep={0} sx={{ mt: 3, mb: 4 }}>
+            <Step>
+              <StepLabel>Código de Invitación</StepLabel>
+            </Step>
+            <Step>
+              <StepLabel>Crear Cuenta</StepLabel>
+            </Step>
+          </Stepper>
+          
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleCodeValidation}>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="invitation-code"
+              label="Código de invitación único"
+              name="invitationCode"
+              placeholder="Ej: JOURNALIST2024"
+              value={invitationCode}
+              onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+              autoFocus
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <VpnKeyIcon color="primary" />
+                  </InputAdornment>
+                ),
+              }}
+              helperText="Solicita tu código de invitación al administrador"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&.Mui-focused fieldset': {
+                    borderColor: 'primary.main',
+                  },
+                },
+              }}
+            />
+            
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              color="primary"
+              disabled={loading}
+              endIcon={<ArrowForwardIcon />}
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+            >
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Siguiente'}
+            </Button>
+          </Box>
+
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              ¿Ya tienes cuenta?{' '}
+              <Link component={RouterLink} to="/login" color="primary" underline="hover">
+                Iniciar sesión
+              </Link>
+            </Typography>
+          </Box>
+        </Paper>
+      </Box>
+    );
+  }
+
+  // Renderizar paso 2: Registro completo
   return (
     <Box
       sx={{
@@ -166,35 +313,57 @@ export default function Register() {
             gutterBottom
             sx={{ fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif' }}
           >
-            Crear una cuenta
+            Crear tu cuenta
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Necesitas un código de invitación para registrarte •{' '}
-            <Link component={RouterLink} to="/login" color="primary" underline="hover">
-              ¿Ya tienes cuenta?
-            </Link>
+            Código validado: <strong>{validatedCode}</strong>
           </Typography>
         </Box>
 
-        {googleWarning && (
-          <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
-            Si te registras with Google, también necesitarás proporcionar un código de invitación válido.
-          </Alert>
-        )}
+        {/* Stepper */}
+        <Stepper activeStep={1} sx={{ mt: 3, mb: 4 }}>
+          <Step completed>
+            <StepLabel>Código de Invitación</StepLabel>
+          </Step>
+          <Step>
+            <StepLabel>Crear Cuenta</StepLabel>
+          </Step>
+        </Stepper>
         
         {error && (
-          <Alert severity="error" sx={{ mt: 2, mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
         
         {success && (
-          <Alert severity="success" sx={{ mt: 2, mb: 2 }}>
+          <Alert severity="success" sx={{ mb: 2 }}>
             {success}
           </Alert>
         )}
 
-        <Box component="form" onSubmit={handleRegister} sx={{ mt: 4 }}>
+        {/* Opciones de registro */}
+        <Box sx={{ mb: 4 }}>
+          <Button
+            fullWidth
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleRegister}
+            disabled={loading}
+            sx={{ mb: 2, py: 1.5 }}
+          >
+            Continuar con Google
+          </Button>
+
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              O regístrate con email
+            </Typography>
+          </Divider>
+        </Box>
+
+        {/* Formulario de email */}
+        <Box component="form" onSubmit={handleEmailRegister}>
           <TextField
             margin="normal"
             required
@@ -203,36 +372,8 @@ export default function Register() {
             label="Correo electrónico"
             name="email"
             autoComplete="email"
-            autoFocus
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-          />
-          
-          <TextField
-            margin="normal"
-            required
-            fullWidth
-            id="invitation-code"
-            label="Código de invitación único"
-            name="invitationCode"
-            placeholder="Ej: JOURNALIST2024"
-            value={invitationCode}
-            onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <VpnKeyIcon color="primary" />
-                </InputAdornment>
-              ),
-            }}
-            helperText="Solicita tu código de invitación al administrador"
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
-                },
-              },
-            }}
           />
           
           <TextField
@@ -278,25 +419,20 @@ export default function Register() {
             disabled={loading}
             sx={{ mt: 3, mb: 2, py: 1.5 }}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Registrarse'}
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Crear cuenta'}
           </Button>
         </Box>
 
-        <Box sx={{ mt: 4, position: 'relative' }}>
-          <Divider sx={{ my: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              O regístrate con
-            </Typography>
-          </Divider>
-
+        {/* Botón para volver atrás */}
+        <Box sx={{ textAlign: 'center', mt: 3 }}>
           <Button
-            fullWidth
-            variant="outlined"
-            startIcon={<GoogleIcon />}
-            onClick={handleGoogleRegister}
-            sx={{ mt: 2, py: 1.5 }}
+            startIcon={<ArrowBackIcon />}
+            onClick={goBackToStep1}
+            color="secondary"
+            variant="text"
+            size="small"
           >
-            Google
+            Cambiar código de invitación
           </Button>
         </Box>
       </Paper>
