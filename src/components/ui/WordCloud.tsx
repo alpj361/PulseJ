@@ -4,7 +4,6 @@ import {
   Paper, 
   Typography, 
   Chip, 
-  Tooltip, 
   Fade,
   Dialog,
   DialogTitle,
@@ -29,14 +28,6 @@ interface WordCloudProps {
   onWordClick?: (word: WordCloudItem) => void;
 }
 
-interface Star {
-  x: number;
-  y: number;
-  radius: number;
-  alpha: number;
-  twinkleSpeed: number;
-}
-
 interface OrbitingWord extends WordCloudItem {
   orbitRadius: number;
   angle: number;
@@ -47,17 +38,17 @@ interface OrbitingWord extends WordCloudItem {
 }
 
 const categories = [
-  { name: 'Política', color: '#3b82f6', glow: '#60a5fa' },
-  { name: 'Deportes', color: '#22d3ee', glow: '#67e8f9' },
-  { name: 'Entretenimiento', color: '#a78bfa', glow: '#c4b5fd' },
-  { name: 'Tecnología', color: '#f59e0b', glow: '#fbbf24' },
-  { name: 'Economía', color: '#10b981', glow: '#34d399' },
-  { name: 'Salud', color: '#ef4444', glow: '#f87171' },
-  { name: 'Educación', color: '#8b5cf6', glow: '#a78bfa' },
-  { name: 'Otros', color: '#6b7280', glow: '#9ca3af' }
+  { name: 'Política', color: '#1e40af', glow: '#3b82f6' },
+  { name: 'Deportes', color: '#0f766e', glow: '#14b8a6' },
+  { name: 'Entretenimiento', color: '#7c2d92', glow: '#a855f7' },
+  { name: 'Tecnología', color: '#c2410c', glow: '#ea580c' },
+  { name: 'Economía', color: '#065f46', glow: '#059669' },
+  { name: 'Salud', color: '#b91c1c', glow: '#dc2626' },
+  { name: 'Educación', color: '#6b21a8', glow: '#9333ea' },
+  { name: 'Otros', color: '#374151', glow: '#6b7280' }
 ];
 
-const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({ 
+const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({ 
   data, 
   width = 800, 
   height = 500, 
@@ -67,38 +58,26 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>();
   
-  const [stars, setStars] = useState<Star[]>([]);
   const [orbitingWords, setOrbitingWords] = useState<OrbitingWord[]>([]);
   const [hoveredWord, setHoveredWord] = useState<OrbitingWord | null>(null);
   const [selectedWord, setSelectedWord] = useState<WordCloudItem | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
 
-  // Generar estrellas
-  const generateStars = useCallback((count: number): Star[] => {
-    return Array.from({ length: count }, () => ({
-      x: Math.random() * width,
-      y: Math.random() * height,
-      radius: Math.random() * 2 + 0.5,
-      alpha: Math.random() * 0.8 + 0.2,
-      twinkleSpeed: Math.random() * 0.02 + 0.01
-    }));
-  }, [width, height]);
-
   // Preparar palabras para órbitas
   const prepareOrbitingWords = useCallback((words: WordCloudItem[]): OrbitingWord[] => {
     const sorted = [...words]
       .sort((a, b) => b.value - a.value)
-      .slice(0, 16); // Máximo 16 palabras
+      .slice(0, 12); // Máximo 12 palabras para claridad
 
-    const baseRadius = 140;
-    const maxRadius = 280;
+    const baseRadius = 120;
+    const maxRadius = 250;
     
     return sorted.map((word, i) => {
       const progress = i / Math.max(1, sorted.length - 1);
       const orbitRadius = baseRadius + progress * (maxRadius - baseRadius);
-      const angle = (i * (2 * Math.PI / sorted.length)) + Math.random() * 0.5;
-      const fontSize = Math.max(14, 28 - (i * 1.2));
+      const angle = (i * (2 * Math.PI / sorted.length)) + (i * 0.3);
+      const fontSize = Math.max(16, 32 - (i * 1.8));
       
       return {
         ...word,
@@ -118,114 +97,119 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
     return { color: cat.color, glow: cat.glow };
   };
 
-  // Dibujar estrellas con parpadeo
-  const drawStars = (ctx: CanvasRenderingContext2D, stars: Star[]) => {
-    stars.forEach(star => {
-      ctx.save();
-      ctx.globalAlpha = star.alpha;
-      ctx.beginPath();
-      ctx.arc(star.x, star.y, star.radius, 0, 2 * Math.PI);
-      ctx.fillStyle = '#ffffff';
-      ctx.shadowColor = '#ffffff';
-      ctx.shadowBlur = star.radius * 3;
-      ctx.fill();
-      ctx.restore();
-
-      // Efecto parpadeo
-      star.alpha += Math.sin(Date.now() * star.twinkleSpeed) * 0.1;
-      star.alpha = Math.max(0.1, Math.min(1, star.alpha));
-    });
-  };
-
-  // Dibujar globo terráqueo 3D
-  const drawGlobe = (ctx: CanvasRenderingContext2D, rotation: number) => {
+  // Dibujar globo terráqueo profesional
+  const drawProfessionalGlobe = (ctx: CanvasRenderingContext2D, rotation: number) => {
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = 85;
+    const radius = 75;
 
-    // Sombra del globo
+    // Sombra sutil del globo
     ctx.save();
     ctx.beginPath();
-    ctx.arc(centerX + 10, centerY + 15, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.filter = 'blur(15px)';
+    ctx.arc(centerX + 5, centerY + 8, radius, 0, 2 * Math.PI);
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.filter = 'blur(10px)';
     ctx.fill();
     ctx.restore();
 
-    // Globo base con gradiente
+    // Base del globo con gradiente profesional
     const globeGradient = ctx.createRadialGradient(
-      centerX - 30, centerY - 30, 0,
+      centerX - 25, centerY - 25, 0,
       centerX, centerY, radius
     );
-    globeGradient.addColorStop(0, '#60a5fa');
-    globeGradient.addColorStop(0.3, '#3b82f6');
-    globeGradient.addColorStop(0.7, '#1e40af');
+    globeGradient.addColorStop(0, '#3b82f6');
+    globeGradient.addColorStop(0.4, '#1d4ed8');
+    globeGradient.addColorStop(0.8, '#1e40af');
     globeGradient.addColorStop(1, '#1e3a8a');
 
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
     ctx.fillStyle = globeGradient;
-    ctx.shadowColor = '#3b82f6';
-    ctx.shadowBlur = 25;
+    ctx.shadowColor = 'rgba(59, 130, 246, 0.3)';
+    ctx.shadowBlur = 15;
     ctx.fill();
     ctx.restore();
 
-    // Continentes (simulados con curvas)
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = '#10b981';
-    
-    // Continente 1
-    ctx.beginPath();
-    ctx.ellipse(centerX - 20, centerY - 10, 25, 15, rotation * 0.1, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Continente 2
-    ctx.beginPath();
-    ctx.ellipse(centerX + 15, centerY + 20, 20, 12, rotation * 0.1, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    ctx.restore();
-
-    // Brillo
+    // Continentes detallados y realistas
     ctx.save();
     ctx.globalAlpha = 0.4;
+    ctx.fillStyle = '#065f46';
+    
+    // América del Norte
+    ctx.beginPath();
+    ctx.ellipse(centerX - 35, centerY - 15, 18, 12, rotation * 0.05, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // América del Sur
+    ctx.beginPath();
+    ctx.ellipse(centerX - 25, centerY + 25, 12, 20, rotation * 0.05, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Europa/África
+    ctx.beginPath();
+    ctx.ellipse(centerX + 10, centerY - 5, 15, 25, rotation * 0.05, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Asia
+    ctx.beginPath();
+    ctx.ellipse(centerX + 35, centerY - 10, 20, 18, rotation * 0.05, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    ctx.restore();
+
+    // Líneas de latitud y longitud sutiles
+    ctx.save();
+    ctx.globalAlpha = 0.1;
+    ctx.strokeStyle = '#1e40af';
+    ctx.lineWidth = 1;
+    
+    // Ecuador
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radius, radius * 0.3, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    // Trópicos
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY - 25, radius, radius * 0.2, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY + 25, radius, radius * 0.2, 0, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    // Meridiano principal
+    ctx.beginPath();
+    ctx.ellipse(centerX, centerY, radius * 0.1, radius, rotation * 0.05, 0, 2 * Math.PI);
+    ctx.stroke();
+    
+    ctx.restore();
+
+    // Brillo profesional
+    ctx.save();
+    ctx.globalAlpha = 0.2;
     const highlight = ctx.createRadialGradient(
-      centerX - 35, centerY - 35, 0,
-      centerX - 35, centerY - 35, 40
+      centerX - 30, centerY - 30, 0,
+      centerX - 30, centerY - 30, 35
     );
     highlight.addColorStop(0, '#ffffff');
     highlight.addColorStop(1, 'transparent');
     ctx.beginPath();
-    ctx.arc(centerX - 35, centerY - 35, 40, 0, 2 * Math.PI);
+    ctx.arc(centerX - 30, centerY - 30, 35, 0, 2 * Math.PI);
     ctx.fillStyle = highlight;
     ctx.fill();
     ctx.restore();
-
-    // Anillos orbitales tenues
-    for (let i = 1; i <= 3; i++) {
-      ctx.save();
-      ctx.globalAlpha = 0.1;
-      ctx.strokeStyle = '#60a5fa';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([5, 10]);
-      ctx.beginPath();
-      ctx.arc(centerX, centerY, radius + (i * 50), 0, 2 * Math.PI);
-      ctx.stroke();
-      ctx.restore();
-    }
   };
 
-  // Dibujar palabras orbitando
-  const drawOrbitingWords = (ctx: CanvasRenderingContext2D, words: OrbitingWord[], rotation: number) => {
+  // Dibujar palabras con tipografía profesional
+  const drawProfessionalWords = (ctx: CanvasRenderingContext2D, words: OrbitingWord[], rotation: number) => {
     const centerX = width / 2;
     const centerY = height / 2;
 
     words.forEach((word, index) => {
-      const currentAngle = word.angle + rotation + (index * 0.1);
+      const currentAngle = word.angle + rotation * 0.3; // Rotación más lenta y seria
       const x = centerX + word.orbitRadius * Math.cos(currentAngle);
-      const y = centerY + word.orbitRadius * Math.sin(currentAngle) * 0.6; // Elipse para efecto 3D
+      const y = centerY + word.orbitRadius * Math.sin(currentAngle) * 0.7; // Efecto 3D sutil
 
       // Actualizar posición para detección de hover
       word.x = x;
@@ -235,26 +219,26 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
       
       ctx.save();
       
-      // Efecto hover
+      // Tipografía profesional y bold
       if (word.hovered) {
         ctx.shadowColor = glow;
-        ctx.shadowBlur = 20;
+        ctx.shadowBlur = 12;
         ctx.globalAlpha = 1;
-        ctx.font = `bold ${word.fontSize + 4}px 'Inter', 'Roboto', sans-serif`;
+        ctx.font = `bold ${word.fontSize + 3}px 'Inter', 'Segoe UI', 'Roboto', sans-serif`;
       } else {
-        ctx.shadowColor = color;
-        ctx.shadowBlur = 8;
-        ctx.globalAlpha = 0.9;
-        ctx.font = `600 ${word.fontSize}px 'Inter', 'Roboto', sans-serif`;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        ctx.shadowBlur = 4;
+        ctx.globalAlpha = 0.95;
+        ctx.font = `bold ${word.fontSize}px 'Inter', 'Segoe UI', 'Roboto', sans-serif`;
       }
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = color;
       
-      // Efecto de profundidad basado en posición Y
-      const depth = (y - centerY) / 100;
-      ctx.globalAlpha *= Math.max(0.4, 1 - Math.abs(depth) * 0.3);
+      // Efecto de profundidad profesional
+      const depth = (y - centerY) / 150;
+      ctx.globalAlpha *= Math.max(0.6, 1 - Math.abs(depth) * 0.2);
       
       ctx.fillText(word.text, x, y);
       ctx.restore();
@@ -275,7 +259,7 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
     orbitingWords.forEach(word => {
       const distance = Math.sqrt((x - word.x) ** 2 + (y - word.y) ** 2);
       const wasHovered = word.hovered;
-      word.hovered = distance < word.fontSize;
+      word.hovered = distance < word.fontSize * 0.8;
       
       if (word.hovered && !foundHover) {
         foundHover = true;
@@ -306,7 +290,7 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
     }
   };
 
-  // Animación principal
+  // Animación profesional (más lenta y suave)
   const animate = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -317,26 +301,22 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
     // Limpiar canvas
     ctx.clearRect(0, 0, width, height);
 
-    // Fondo espacial
-    drawStars(ctx, stars);
+    // Globo terráqueo profesional
+    drawProfessionalGlobe(ctx, rotation);
     
-    // Globo terráqueo
-    drawGlobe(ctx, rotation);
-    
-    // Palabras orbitando
-    drawOrbitingWords(ctx, orbitingWords, rotation);
+    // Palabras profesionales
+    drawProfessionalWords(ctx, orbitingWords, rotation);
 
-    // Incrementar rotación
-    setRotation(prev => prev + 0.005);
+    // Incrementar rotación lentamente
+    setRotation(prev => prev + 0.002); // Mucho más lenta
     
     animationRef.current = requestAnimationFrame(animate);
-  }, [stars, orbitingWords, rotation, width, height]);
+  }, [orbitingWords, rotation, width, height]);
 
   // Inicialización
   useEffect(() => {
-    setStars(generateStars(80));
     setOrbitingWords(prepareOrbitingWords(data));
-  }, [data, generateStars, prepareOrbitingWords]);
+  }, [data, prepareOrbitingWords]);
 
   // Iniciar animación
   useEffect(() => {
@@ -353,18 +333,18 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
 
   return (
     <Box sx={{ position: 'relative', width, height, mx: 'auto', my: 2 }}>
-      {/* Contenedor principal con fondo espacial */}
+      {/* Contenedor principal profesional */}
       <Box
         ref={containerRef}
         sx={{
           position: 'relative',
           width: '100%',
           height: '100%',
-          background: 'radial-gradient(ellipse at center, #0f172a 0%, #1e293b 50%, #0f172a 100%)',
-          borderRadius: 4,
+          background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
+          borderRadius: 3,
           overflow: 'hidden',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
-          border: '1px solid rgba(59, 130, 246, 0.2)'
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+          border: '1px solid #e2e8f0'
         }}
       >
         {/* Canvas principal */}
@@ -382,89 +362,69 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
           }}
         />
 
-        {/* Panel informativo superior */}
+        {/* Panel informativo minimalista */}
         <Paper
-          elevation={8}
+          elevation={2}
           sx={{
             position: 'absolute',
-            top: 20,
-            right: 20,
-            px: 3,
-            py: 2,
-            borderRadius: 3,
-            backdropFilter: 'blur(12px)',
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: '#fff',
+            top: 15,
+            right: 15,
+            px: 2.5,
+            py: 1.5,
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            color: '#1e293b',
             zIndex: 3,
-            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-            maxWidth: 280
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)',
+            maxWidth: 220
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
-            <GlobeIcon sx={{ mr: 1, color: '#60a5fa' }} />
-            <Typography variant="h6" fontWeight="bold" sx={{ fontFamily: 'Inter' }}>
-              Tendencias Globales
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+            <GlobeIcon sx={{ mr: 1, color: '#3b82f6', fontSize: 18 }} />
+            <Typography variant="subtitle2" fontWeight="bold" sx={{ fontFamily: 'Inter' }}>
+              Análisis Global
             </Typography>
           </Box>
           
-          <Typography variant="body2" sx={{ mb: 2, opacity: 0.9, lineHeight: 1.4 }}>
-            {orbitingWords.length} tendencias orbitando según su importancia
+          <Typography variant="caption" sx={{ color: '#64748b', lineHeight: 1.3 }}>
+            {orbitingWords.length} tendencias principales identificadas
           </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-            {categories.slice(0, 4).map(cat => (
-              <Chip
-                key={cat.name}
-                label={cat.name}
-                size="small"
-                sx={{
-                  bgcolor: `${cat.color}40`,
-                  color: cat.color,
-                  fontWeight: 'bold',
-                  fontSize: '0.75rem',
-                  border: `1px solid ${cat.color}60`
-                }}
-              />
-            ))}
-          </Box>
         </Paper>
 
-        {/* Leyenda de categorías */}
+        {/* Leyenda minimalista */}
         <Paper
-          elevation={8}
+          elevation={2}
           sx={{
             position: 'absolute',
-            bottom: 20,
-            left: 20,
-            px: 2.5,
-            py: 2,
-            borderRadius: 3,
-            backdropFilter: 'blur(12px)',
-            background: 'rgba(255, 255, 255, 0.1)',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            color: '#fff',
+            bottom: 15,
+            left: 15,
+            px: 2,
+            py: 1.5,
+            borderRadius: 2,
+            background: 'rgba(255, 255, 255, 0.95)',
+            border: '1px solid rgba(59, 130, 246, 0.1)',
+            color: '#1e293b',
             zIndex: 3,
-            boxShadow: '0 8px 32px 0 rgba(31, 38, 135, 0.37)',
-            maxWidth: 200
+            boxShadow: '0 2px 10px rgba(0, 0, 0, 0.05)',
+            maxWidth: 180
           }}
         >
-          <Typography variant="subtitle2" fontWeight="bold" sx={{ mb: 1.5, fontFamily: 'Inter' }}>
+          <Typography variant="caption" fontWeight="bold" sx={{ mb: 1, display: 'block', fontFamily: 'Inter' }}>
             Categorías
           </Typography>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-            {categories.slice(0, 6).map(cat => (
-              <Box key={cat.name} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.3 }}>
+            {categories.slice(0, 4).map(cat => (
+              <Box key={cat.name} sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
                 <Box
                   sx={{
-                    width: 12,
-                    height: 12,
+                    width: 8,
+                    height: 8,
                     borderRadius: '50%',
-                    bgcolor: cat.color,
-                    boxShadow: `0 0 8px ${cat.glow}60`
+                    bgcolor: cat.color
                   }}
                 />
-                <Typography variant="caption" sx={{ fontSize: '0.75rem' }}>
+                <Typography variant="caption" sx={{ fontSize: '0.7rem', color: '#64748b' }}>
                   {cat.name}
                 </Typography>
               </Box>
@@ -472,38 +432,37 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
           </Box>
         </Paper>
 
-        {/* Tooltip para hover */}
+        {/* Tooltip profesional para hover */}
         {hoveredWord && (
           <Fade in={!!hoveredWord}>
             <Paper
-              elevation={12}
+              elevation={8}
               sx={{
                 position: 'absolute',
-                left: mousePos.x + 20,
-                top: mousePos.y - 40,
-                px: 2,
+                left: mousePos.x + 15,
+                top: mousePos.y - 35,
+                px: 1.5,
                 py: 1,
-                borderRadius: 2,
-                backdropFilter: 'blur(8px)',
-                background: 'rgba(0, 0, 0, 0.8)',
+                borderRadius: 1.5,
+                background: 'rgba(30, 41, 59, 0.95)',
                 color: '#fff',
                 zIndex: 4,
                 pointerEvents: 'none',
-                border: '1px solid rgba(255, 255, 255, 0.3)'
+                border: '1px solid rgba(59, 130, 246, 0.3)'
               }}
             >
-              <Typography variant="body2" fontWeight="bold">
+              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
                 {hoveredWord.text}
               </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Categoría: {hoveredWord.category || 'Sin categoría'}
+              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
+                {hoveredWord.category || 'Sin categoría'}
               </Typography>
             </Paper>
           </Fade>
         )}
       </Box>
 
-      {/* Modal de detalles */}
+      {/* Modal de detalles profesional */}
       <Dialog
         open={!!selectedWord}
         onClose={() => setSelectedWord(null)}
@@ -512,23 +471,23 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
         PaperProps={{
           sx: {
             borderRadius: 3,
-            backdropFilter: 'blur(10px)',
-            background: 'rgba(255, 255, 255, 0.95)'
+            background: 'rgba(255, 255, 255, 0.98)',
+            backdropFilter: 'blur(10px)'
           }
         }}
       >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Typography variant="h6" fontWeight="bold">
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
+          <Typography variant="h6" fontWeight="bold" sx={{ fontFamily: 'Inter' }}>
             {selectedWord?.text}
           </Typography>
           <IconButton onClick={() => setSelectedWord(null)} size="small">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ pt: 1 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Box>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
                 Categoría
               </Typography>
               <Chip
@@ -536,22 +495,27 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
                 sx={{
                   bgcolor: getCategoryColor(selectedWord?.category).color,
                   color: '#fff',
-                  fontWeight: 'bold'
+                  fontWeight: 'bold',
+                  fontFamily: 'Inter'
                 }}
               />
             </Box>
             <Box>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Puntuación de tendencia
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Relevancia
               </Typography>
-              <Typography variant="h4" fontWeight="bold" color="primary">
+              <Typography variant="h5" fontWeight="bold" color="primary" sx={{ fontFamily: 'Inter' }}>
                 {selectedWord?.value || 0}
               </Typography>
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSelectedWord(null)} variant="contained">
+        <DialogActions sx={{ pt: 0 }}>
+          <Button 
+            onClick={() => setSelectedWord(null)} 
+            variant="contained"
+            sx={{ fontFamily: 'Inter' }}
+          >
             Cerrar
           </Button>
         </DialogActions>
@@ -560,4 +524,4 @@ const TrendGlobeWordCloud: React.FC<WordCloudProps> = ({
   );
 };
 
-export default TrendGlobeWordCloud;
+export default ProfessionalTrendGlobe;
