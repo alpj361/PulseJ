@@ -1,6 +1,5 @@
 import { KeywordCount, CategoryCount } from '../types';
 import { insertTrendData, getLatestTrendData } from './supabase';
-import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, categoryData as mockCategoryData } from '../data/mockData';
 
 // Define the WordCloudItem interface here instead of importing it
 export interface WordCloudItem {
@@ -14,12 +13,42 @@ export interface TrendResponse {
   wordCloudData: WordCloudItem[];
   topKeywords: KeywordCount[];
   categoryData: CategoryCount[];
+  about?: any[];
+  statistics?: any;
+  timestamp: string;
+  processing_status?: string;
+}
+
+// Types for backend response with about and statistics
+export interface AboutInfo {
+  nombre: string;
+  resumen: string;
+  categoria: string;
+  tipo: string;
+  relevancia: 'alta' | 'media' | 'baja';
+  contexto_local: boolean;
+  razon_tendencia?: string;
+  fecha_evento?: string;
+  palabras_clave?: string[];
+  source: string;
+  model: string;
+}
+
+export interface Statistics {
+  relevancia: Record<string, number>;
+  contexto: {
+    local: number;
+    global: number;
+  };
   timestamp: string;
 }
 
 // Get VPS API URL from environment variables
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
+
+// ExtractorW Backend URL (modificado)
+const EXTRACTORW_API_URL = 'http://localhost:8080/api';
 
 // Verificar que la URL no sea el valor genérico del archivo netlify.toml
 const isGenericUrl = VPS_API_URL.includes('your-vps-scraper-url') || 
@@ -35,44 +64,6 @@ if (!API_URL_TO_USE) {
 
 // Cambia esta URL por la de tu backend en Render
 const RENDER_API_URL = 'https://extractorw.onrender.com/api/processTrends';
-
-/**
- * Creates mock trending data for development when APIs are not available
- * Genera datos ligeramente diferentes cada vez para simular actualización
- */
-function createMockTrendData(): TrendResponse {
-  console.log('Creando nuevos datos mock para tendencias');
-  
-  // Base en los datos mock pero con variaciones
-  const baseKeywords = [...mockTopKeywords];
-  
-  // Reorganizar los keywords y modificar algunos counts
-  const shuffledKeywords = baseKeywords.map(kw => ({
-    keyword: kw.keyword,
-    count: Math.max(1, kw.count + Math.floor(Math.random() * 5) - 2) // Variar el conteo ligeramente
-  })).sort((a, b) => b.count - a.count);
-  
-  // Generar word cloud data a partir de los keywords modificados
-  const newWordCloudData = shuffledKeywords.map(item => ({
-    text: item.keyword,
-    value: Math.min(Math.max(item.count * 10, 20), 100),
-    color: getRandomColor()
-  }));
-  
-  // Modificar ligeramente los conteos de categorías
-  const newCategoryData = mockCategoryData.map(cat => ({
-    category: cat.category,
-    count: Math.max(1, cat.count + Math.floor(Math.random() * 6) - 3)
-  })).sort((a, b) => b.count - a.count);
-  
-  // Devolver los datos con timestamp actual
-  return {
-    wordCloudData: newWordCloudData,
-    topKeywords: shuffledKeywords,
-    categoryData: newCategoryData,
-    timestamp: new Date().toISOString()
-  };
-}
 
 // Función de ayuda para obtener colores aleatorios
 function getRandomColor(): string {
@@ -99,15 +90,24 @@ export async function fetchRawTrendsFromVPS(): Promise<any> {
     console.log('Iniciando fetchRawTrendsFromVPS');
     // Ensure we have an API URL
     if (!API_URL_TO_USE) {
-      console.warn('VPS API URL is not configured, using mock data');
-      // Return a simple mock structure that represents raw data
-      console.log('Retornando datos mock para VPS raw trends');
+      console.warn('VPS API URL is not configured, generating test data');
+      // Return realistic test data structure similar to ExtractorT
+      console.log('Retornando datos de prueba para VPS raw trends');
       return {
-        trends: mockTopKeywords.map(k => ({ 
-          name: k.keyword, 
-          volume: k.count,
-          category: mockCategoryData.find(c => Math.random() > 0.5)?.category || 'Miscellaneous'
-        }))
+        status: "success",
+        location: "guatemala",
+        twitter_trends: [
+          "1. Napoli251K",
+          "2. Lilo68K", 
+          "3. Alejandro Giammattei",
+          "4. Lukita",
+          "5. santa maría de jesús",
+          "6. Aguirre",
+          "7. #SerieA14K",
+          "8. McTominay118K",
+          "9. margaret satterthwaite",
+          "10. Sinibaldi"
+        ]
       };
     }
     
@@ -123,93 +123,24 @@ export async function fetchRawTrendsFromVPS(): Promise<any> {
     return responseData;
   } catch (error) {
     console.error('Error in fetchRawTrendsFromVPS:', error);
-    // Return mock data in case of error
-    console.log('Error en fetchRawTrendsFromVPS, retornando datos mock');
+    // Return test data in case of error
+    console.log('Error en fetchRawTrendsFromVPS, retornando datos de prueba');
     return {
-      trends: mockTopKeywords.map(k => ({ 
-        name: k.keyword, 
-        volume: k.count,
-        category: mockCategoryData.find(c => Math.random() > 0.5)?.category || 'Miscellaneous'
-      }))
+      status: "success",
+      location: "guatemala", 
+      twitter_trends: [
+        "1. Napoli251K",
+        "2. Lilo68K",
+        "3. Alejandro Giammattei",
+        "4. Lukita",
+        "5. santa maría de jesús",
+        "6. Aguirre",
+        "7. #SerieA14K", 
+        "8. McTominay118K",
+        "9. margaret satterthwaite",
+        "10. Sinibaldi"
+      ]
     };
-  }
-}
-
-/**
- * Process trends data with AI via Netlify Function
- */
-export async function processTrendsWithAI(rawTrendsData: any): Promise<TrendResponse> {
-  try {
-    console.log('Iniciando processTrendsWithAI');
-    
-    // Verificar si tenemos las variables de entorno necesarias para usar API real
-    if (!import.meta.env.VITE_HAS_NETLIFY_FUNCTIONS && !import.meta.env.PROD) {
-      console.warn('No se detectaron las funciones de Netlify. Configura VITE_HAS_NETLIFY_FUNCTIONS=true si deseas usar funciones reales en desarrollo.');
-    }
-    
-    console.log('Llamando a la función Netlify processTrends');
-    const response = await fetch('/.netlify/functions/processTrends', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        trendingUrl: `${API_URL_TO_USE}/trends`,
-        rawData: rawTrendsData
-      }),
-    });
-    
-    if (!response.ok) {
-      console.error('Error en la respuesta de la función Netlify:', response.status, response.statusText);
-      throw new Error(`Error processing trends with AI: ${response.statusText}`);
-    }
-    
-    const processedData = await response.json();
-    console.log('Datos procesados recibidos de la función Netlify:', processedData);
-    
-    // Ensure the response has the required format
-    if (!processedData.wordCloudData || !processedData.topKeywords || !processedData.categoryData) {
-      console.error('Formato de respuesta inválido de la función Netlify:', processedData);
-      throw new Error('Invalid response format from AI processing');
-    }
-    
-    return processedData;
-  } catch (error) {
-    console.error('Error in processTrendsWithAI:', error);
-    // Use mock data as fallback
-    console.log('Error en processTrendsWithAI, retornando datos mock');
-    return createMockTrendData();
-  }
-}
-
-/**
- * Fetches trending data from the VPS scraper and processes it with AI
- */
-export async function fetchTrendsFromVPS(): Promise<TrendResponse> {
-  try {
-    console.log('Iniciando fetchTrendsFromVPS');
-    // 1. Fetch raw trends
-    console.log('Solicitando datos crudos de tendencias');
-    const rawTrendsData = await fetchRawTrendsFromVPS();
-    console.log('Datos crudos recibidos, enviando a procesar');
-    
-    // 2. Process with AI
-    const processedData = await processTrendsWithAI(rawTrendsData);
-    console.log('Datos procesados recibidos');
-    
-    // 3. Ensure timestamp
-    if (!processedData.timestamp) {
-      console.log('No timestamp encontrado, agregando uno nuevo');
-      processedData.timestamp = new Date().toISOString();
-    }
-    
-    console.log('Retornando datos procesados');
-    return processedData;
-  } catch (error) {
-    console.error('Error in fetchTrendsFromVPS:', error);
-    // Use mock data as fallback
-    console.log('Error en fetchTrendsFromVPS, retornando datos mock');
-    return createMockTrendData();
   }
 }
 
@@ -246,70 +177,220 @@ async function testFetch() {
 }
 
 /**
- * Fetch trends data from VPS, process with AI, store in Supabase, and return the data
+ * Fetches trending data from ExtractorW backend with fast response + background processing
  */
-export async function fetchAndStoreTrends(): Promise<TrendResponse> {
+export async function fetchTrendsFromExtractorW(rawTrendsData?: any): Promise<TrendResponse> {
   try {
-    console.log('INICIO: fetchAndStoreTrends (Render backend)');
-    // Aquí puedes enviar datos crudos si los tienes, o dejar rawData vacío para que el backend los obtenga
-    const response = await fetch(RENDER_API_URL, {
+    console.log('🚀 Iniciando fetchTrendsFromExtractorW');
+    
+    const requestBody = rawTrendsData ? { rawData: rawTrendsData } : undefined;
+    
+    console.log('📡 Llamando a ExtractorW backend para procesamiento rápido...');
+    const response = await fetch(`${EXTRACTORW_API_URL}/processTrends`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rawData: null })
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: requestBody ? JSON.stringify(requestBody) : JSON.stringify({})
     });
+    
     if (!response.ok) {
-      throw new Error('Error al llamar al backend de Render');
+      throw new Error(`Error calling ExtractorW: ${response.statusText}`);
     }
+    
     const data = await response.json();
-    // Validación básica
-    if (!data.wordCloudData || !data.topKeywords || !data.categoryData) {
-      throw new Error('Respuesta del backend de Render no tiene el formato esperado');
-    }
-    return data;
+    console.log('✅ Respuesta rápida recibida de ExtractorW:', data);
+    
+    // La respuesta inicial viene sin about y statistics
+    // Estos se procesan en background
+    
+    return {
+      wordCloudData: data.wordCloudData || [],
+      topKeywords: data.topKeywords || [],
+      categoryData: data.categoryData || [],
+      about: data.about || [],
+      statistics: data.statistics || {},
+      timestamp: data.timestamp,
+      processing_status: data.processing_status || 'basic_completed'
+    };
   } catch (error) {
-    console.error('Error en fetchAndStoreTrends (Render):', error);
-    // Aquí puedes retornar datos mock si lo deseas
-    return createMockTrendData();
+    console.error('❌ Error in fetchTrendsFromExtractorW:', error);
+    // No fallback a mock data, lanzar el error
+    throw error;
   }
 }
 
 /**
- * Retrieve the latest trend data from Supabase
- * Useful for initial loading of the page
+ * Polls for completed processing status (about and statistics)
+ */
+export async function pollForCompletedData(timestamp: string, maxAttempts: number = 10): Promise<TrendResponse | null> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`🔄 Polling attempt ${attempt}/${maxAttempts} for timestamp: ${timestamp}`);
+      
+      const response = await fetch(`${EXTRACTORW_API_URL}/processingStatus/${encodeURIComponent(timestamp)}`);
+      
+      if (!response.ok) {
+        console.log(`⚠️  Polling attempt ${attempt} failed: ${response.statusText}`);
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        continue;
+      }
+      
+      const data = await response.json();
+      console.log(`📊 Polling result ${attempt}:`, {
+        status: data.status,
+        has_about: data.has_about,
+        has_statistics: data.has_statistics
+      });
+      
+      if (data.status === 'complete' && data.has_about && data.has_statistics) {
+        console.log('✅ Procesamiento completo detectado!');
+        return data.data;
+      }
+      
+      if (data.status === 'error') {
+        console.error('❌ Error en procesamiento detectado');
+        return null;
+      }
+      
+      // Wait before next attempt
+      await new Promise(resolve => setTimeout(resolve, 8000)); // Wait 8 seconds between polls
+      
+    } catch (error) {
+      console.error(`❌ Error en polling attempt ${attempt}:`, error);
+      await new Promise(resolve => setTimeout(resolve, 5000));
+    }
+  }
+  
+  console.log('⏰ Polling timeout reached, returning null');
+  return null;
+}
+
+/**
+ * Gets latest trends from ExtractorW backend
+ */
+export async function getLatestTrendsFromExtractorW(): Promise<TrendResponse | null> {
+  try {
+    console.log('📡 Obteniendo últimas tendencias de ExtractorW...');
+    
+    const response = await fetch(`${EXTRACTORW_API_URL}/latestTrends`);
+    
+    if (!response.ok) {
+      throw new Error(`Error getting latest trends: ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ Últimas tendencias obtenidas:', {
+      timestamp: data.timestamp,
+      status: data.processing_status,
+      has_about: data.about?.length > 0,
+      has_statistics: Object.keys(data.statistics || {}).length > 0
+    });
+    
+    return {
+      wordCloudData: data.wordCloudData || [],
+      topKeywords: data.topKeywords || [],
+      categoryData: data.categoryData || [],
+      about: data.about || [],
+      statistics: data.statistics || {},
+      timestamp: data.timestamp,
+      processing_status: data.processing_status || 'unknown'
+    };
+  } catch (error) {
+    console.error('❌ Error getting latest trends:', error);
+    return null;
+  }
+}
+
+/**
+ * Fetches and stores trending data with AI processing
+ * Now uses ExtractorW backend with fast response + background processing
+ */
+export async function fetchAndStoreTrends(): Promise<TrendResponse> {
+  try {
+    console.log('🚀 Iniciando fetchAndStoreTrends con ExtractorW');
+    
+    // 1. Fetch raw trends from VPS (if available)
+    console.log('📡 Obteniendo datos raw de VPS...');
+    const rawTrendsData = await fetchRawTrendsFromVPS();
+    
+    // 2. Process with ExtractorW (fast response)
+    console.log('⚡ Procesando con ExtractorW (respuesta rápida)...');
+    const initialData = await fetchTrendsFromExtractorW(rawTrendsData);
+    
+    // 3. Start polling for complete data in background
+    if (initialData.timestamp && initialData.processing_status === 'basic_completed') {
+      console.log('🔄 Iniciando polling para datos completos...');
+      // Don't await this - let it run in background
+      pollForCompletedData(initialData.timestamp).then(completeData => {
+        if (completeData) {
+          console.log('✅ Datos completos recibidos del polling');
+          // You could emit an event here or use a state management solution
+          // to update the UI when complete data is available
+        }
+      }).catch(error => {
+        console.error('❌ Error en polling background:', error);
+      });
+    }
+    
+    // 4. Store initial data in Supabase
+    try {
+      console.log('💾 Guardando datos iniciales en Supabase...');
+      await storeTrendsInSupabase(initialData);
+      console.log('✅ Datos guardados en Supabase');
+    } catch (storageError) {
+      console.error('⚠️  Error storing in Supabase:', storageError);
+      // Continue even if storage fails
+    }
+    
+    return initialData;
+  } catch (error) {
+    console.error('❌ Error in fetchAndStoreTrends:', error);
+    // No usar mock data como fallback final, lanzar el error
+    throw error;
+  }
+}
+
+/**
+ * Gets the latest trend data from local storage or API
+ * Now tries ExtractorW first, then falls back to Supabase
  */
 export async function getLatestTrends(): Promise<TrendResponse | null> {
   try {
-    const data = await getLatestTrendData();
-    if (!data) {
-      console.log('No data found in Supabase, returning mock data');
-      return createMockTrendData();
+    console.log('📊 Iniciando getLatestTrends');
+    
+    // 1. Try to get latest from ExtractorW first
+    console.log('🔍 Intentando obtener datos de ExtractorW...');
+    const extractorData = await getLatestTrendsFromExtractorW();
+    
+    if (extractorData) {
+      console.log('✅ Datos obtenidos de ExtractorW');
+      return extractorData;
     }
     
-    // Asegurar que hay exactamente 10 keywords
-    const topKeywords = [...(data.top_keywords || [])];
+    // 2. Fallback to Supabase
+    console.log('🔄 Fallback a Supabase...');
+    const supabaseData = await getLatestTrendData();
     
-    // Si hay menos de 10 keywords, completar con mock data
-    if (topKeywords.length < 10) {
-      console.log(`Completando keywords: tenemos ${topKeywords.length}, necesitamos 10`);
+    if (supabaseData) {
+      console.log('✅ Datos obtenidos de Supabase');
       
-      const mockKeywords = mockTopKeywords.slice(0, 10 - topKeywords.length);
-      topKeywords.push(...mockKeywords);
+      // Asegurar que los datos de Supabase tienen la estructura correcta
+      return {
+        wordCloudData: supabaseData.word_cloud_data || [],
+        topKeywords: supabaseData.top_keywords || [],
+        categoryData: supabaseData.category_data || [],
+        about: supabaseData.about || [],
+        statistics: supabaseData.statistics || null,
+        timestamp: supabaseData.timestamp || new Date().toISOString(),
+        processing_status: supabaseData.processing_status || 'unknown'
+      };
     }
     
-    // Si hay más de 10, quedarnos con los 10 primeros
-    if (topKeywords.length > 10) {
-      console.log(`Recortando keywords: tenemos ${topKeywords.length}, necesitamos 10`);
-      topKeywords.length = 10;
-    }
-    
-    return {
-      wordCloudData: data.word_cloud_data,
-      topKeywords: topKeywords,
-      categoryData: data.category_data,
-      timestamp: data.timestamp
-    };
+    console.log('⚠️  No se encontraron datos, retornando null');
+    return null;
   } catch (error) {
-    console.error('Error getting latest trends from Supabase:', error);
-    return createMockTrendData();
+    console.error('❌ Error in getLatestTrends:', error);
+    return null;
   }
 } 

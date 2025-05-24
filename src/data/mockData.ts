@@ -1,4 +1,5 @@
 import { CategoryCount, KeywordCount, NewsItem } from '../types';
+import { Statistics, AboutInfo } from '../services/api';
 
 export const newsItems: NewsItem[] = [
   {
@@ -162,3 +163,60 @@ function getRandomColor() {
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 }
+
+// Mock statistics data
+export const mockStatistics: Statistics = {
+  relevancia: {
+    'alta': 6,
+    'media': 3,
+    'baja': 1
+  },
+  contexto: {
+    local: 4,
+    global: 6
+  },
+  timestamp: new Date().toISOString()
+};
+
+// Mock about info data
+export const mockAboutInfo: AboutInfo[] = [
+  {
+    nombre: 'Napoli',
+    resumen: 'El equipo italiano Napoli está siendo tendencia debido a su reciente victoria en la Serie A, consolidándose como campeón de la temporada.',
+    categoria: 'Deportes',
+    tipo: 'equipo',
+    relevancia: 'alta',
+    contexto_local: false,
+    razon_tendencia: 'Victoria en Serie A',
+    fecha_evento: '2025-05-24',
+    palabras_clave: ['fútbol', 'serie a', 'napoli', 'campeón'],
+    source: 'mock',
+    model: 'mock'
+  },
+  {
+    nombre: 'Alejandro Giammattei',
+    resumen: 'El expresidente de Guatemala está siendo tendencia debido a investigaciones relacionadas con corrupción y sanciones internacionales.',
+    categoria: 'Política',
+    tipo: 'persona',
+    relevancia: 'alta',
+    contexto_local: true,
+    razon_tendencia: 'Investigaciones por corrupción',
+    fecha_evento: '2025-05-24',
+    palabras_clave: ['guatemala', 'política', 'corrupción', 'investigación'],
+    source: 'mock',
+    model: 'mock'
+  },
+  {
+    nombre: 'Lilo',
+    resumen: 'La película "Lilo & Stitch" está siendo tendencia debido al estreno de su nueva adaptación live-action.',
+    categoria: 'Entretenimiento',
+    tipo: 'película',
+    relevancia: 'alta',
+    contexto_local: false,
+    razon_tendencia: 'Estreno de película live-action',
+    fecha_evento: '2025-05-24',
+    palabras_clave: ['disney', 'película', 'estreno', 'lilo stitch'],
+    source: 'mock',
+    model: 'mock'
+  }
+];
