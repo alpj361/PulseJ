@@ -4,7 +4,8 @@ import {
   BarChart3, 
   TrendingUp,
   ActivitySquare,
-  Search
+  Search,
+  Database
 } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import {
@@ -32,6 +33,7 @@ const translations = {
     recent: 'Actividad reciente',
     sources: 'Fuentes',
     analytics: 'Analítica',
+    library: 'Librería',
     comingSoon: 'Próximamente',
     version: 'Jornal V.0.0411',
   },
@@ -41,6 +43,7 @@ const translations = {
     recent: 'Recent Activity',
     sources: 'Sources',
     analytics: 'Analytics',
+    library: 'Codex',
     comingSoon: 'Coming Soon',
     version: 'Jornal V.0.0411',
   },
@@ -77,6 +80,12 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       icon: <ActivitySquare size={20} />,
       label: t.recent,
       path: '/recent'
+    },
+    {
+      icon: <Database size={20} />,
+      label: t.library,
+      path: '/library',
+      disabled: true
     },
     {
       icon: <Search size={20} />,

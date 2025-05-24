@@ -813,10 +813,12 @@ export const Trends = () => {
           }
         }}>
           <WordCloud 
-            data={wordCloudData} 
-            width={800} 
-            height={400} 
-            onWordClick={handleWordClick}
+            data={wordCloudData}
+            width={800}
+            height={400}
+            onWordClick={(word) => {
+              console.log('Clicked word:', word);
+            }}
           />
         </Box>
       </Paper>
