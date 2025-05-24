@@ -47,9 +47,8 @@ export interface Statistics {
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
-// ExtractorW Backend URL - configuración dinámica según entorno
-const EXTRACTORW_API_URL = import.meta.env.VITE_EXTRACTORW_API_URL || 
-  (import.meta.env.DEV ? 'http://localhost:8080/api' : 'https://extractorw.onrender.com/api');
+// ExtractorW Backend URL - FORZAR URL DE RENDER EN PRODUCCIÓN
+const EXTRACTORW_API_URL = 'https://extractorw.onrender.com/api';
 
 console.log('🔧 Configuración de APIs:');
 console.log(`   ExtractorW: ${EXTRACTORW_API_URL}`);
