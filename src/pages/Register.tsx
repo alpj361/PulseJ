@@ -12,12 +12,15 @@ import {
   Divider,
   Alert,
   Link,
-  CircularProgress
+  CircularProgress,
+  InputAdornment
 } from '@mui/material';
 import GoogleIcon from '@mui/icons-material/Google';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
 
 export default function Register() {
   const [email, setEmail] = useState('');
+  const [invitationCode, setInvitationCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
@@ -35,11 +38,44 @@ export default function Register() {
     }
   }, [user, navigate]);
 
+  const validateInvitationCode = async (code: string): Promise<boolean> => {
+    // TODO: Implementar validación real con backend
+    // Por ahora, validación temporal de ejemplo
+    try {
+      const { data, error } = await supabase
+        .from('invitation_codes')
+        .select('*')
+        .eq('code', code)
+        .eq('used', false)
+        .single();
+      
+      return !error && data;
+    } catch (error) {
+      // Fallback temporal para desarrollo - códigos de ejemplo
+      const validCodes = ['JOURNALIST2024', 'PRESS-INVITE', 'MEDIA-ACCESS'];
+      return validCodes.includes(code.toUpperCase());
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setSuccess(null);
+
+    // Validar código de invitación
+    if (!invitationCode.trim()) {
+      setError('El código de invitación es requerido');
+      setLoading(false);
+      return;
+    }
+
+    const isValidCode = await validateInvitationCode(invitationCode);
+    if (!isValidCode) {
+      setError('Código de invitación inválido o ya utilizado');
+      setLoading(false);
+      return;
+    }
 
     // Validar que las contraseñas coincidan
     if (password !== confirmPassword) {
@@ -59,9 +95,23 @@ export default function Register() {
 
       if (error) throw error;
       
-      // Si el registro fue exitoso, guardar el número en profiles
+      // Si el registro fue exitoso, guardar el número en profiles y marcar código como usado
       if (data.user) {
-        await supabase.from('profiles').upsert({ id: data.user.id, phone });
+        await supabase.from('profiles').upsert({ 
+          id: data.user.id, 
+          phone,
+          invitation_code: invitationCode 
+        });
+
+        // TODO: Marcar código de invitación como usado
+        try {
+          await supabase
+            .from('invitation_codes')
+            .update({ used: true, used_by: data.user.id, used_at: new Date().toISOString() })
+            .eq('code', invitationCode);
+        } catch (codeError) {
+          console.log('Error marcando código como usado:', codeError);
+        }
       }
       
       setSuccess('Se ha enviado un enlace de confirmación a tu correo electrónico.');
@@ -119,16 +169,16 @@ export default function Register() {
             Crear una cuenta
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            O{' '}
+            Necesitas un código de invitación para registrarte •{' '}
             <Link component={RouterLink} to="/login" color="primary" underline="hover">
-              inicia sesión si ya tienes cuenta
+              ¿Ya tienes cuenta?
             </Link>
           </Typography>
         </Box>
 
         {googleWarning && (
           <Alert severity="warning" sx={{ mt: 2, mb: 2 }}>
-            Si te registras con Google, se usará el número asociado a tu cuenta de Google, o deberás agregarlo manualmente en Settings.
+            Si te registras with Google, también necesitarás proporcionar un código de invitación válido.
           </Alert>
         )}
         
@@ -157,6 +207,34 @@ export default function Register() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
+          
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="invitation-code"
+            label="Código de invitación único"
+            name="invitationCode"
+            placeholder="Ej: JOURNALIST2024"
+            value={invitationCode}
+            onChange={(e) => setInvitationCode(e.target.value.toUpperCase())}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <VpnKeyIcon color="primary" />
+                </InputAdornment>
+              ),
+            }}
+            helperText="Solicita tu código de invitación al administrador"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                '&.Mui-focused fieldset': {
+                  borderColor: 'primary.main',
+                },
+              },
+            }}
+          />
+          
           <TextField
             margin="normal"
             required
