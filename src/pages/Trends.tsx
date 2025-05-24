@@ -223,7 +223,7 @@ export const Trends = () => {
       console.log(`📡 Polling intento ${attempt}/${maxAttempts} para timestamp: ${timestamp}`);
       
       try {
-        const response = await fetch(`http://localhost:8080/api/processingStatus/${encodeURIComponent(timestamp)}`);
+        const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://extractorw.onrender.com/api'}/processingStatus/${encodeURIComponent(timestamp)}`);
         
         if (response.ok) {
           const statusData = await response.json();
