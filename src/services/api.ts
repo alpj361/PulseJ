@@ -225,17 +225,29 @@ export async function fetchTrendsFromExtractorW(rawTrendsData?: any): Promise<Tr
 
 /**
  * Polls for completed processing status (about and statistics)
+ * Updated with longer timeouts to handle Perplexity processing time (2-3 minutes)
  */
-export async function pollForCompletedData(timestamp: string, maxAttempts: number = 10): Promise<TrendResponse | null> {
+export async function pollForCompletedData(timestamp: string, maxAttempts: number = 15): Promise<TrendResponse | null> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       console.log(`🔄 Polling attempt ${attempt}/${maxAttempts} for timestamp: ${timestamp}`);
       
-      const response = await fetch(`${EXTRACTORW_API_URL}/processingStatus/${encodeURIComponent(timestamp)}`);
+      const response = await fetch(`${EXTRACTORW_API_URL}/processingStatus/${encodeURIComponent(timestamp)}`, {
+        method: 'GET'
+      });
       
       if (!response.ok) {
-        console.log(`⚠️  Polling attempt ${attempt} failed: ${response.statusText}`);
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds
+        if (response.status === 404) {
+          console.log(`⚠️  Record not found yet, attempt ${attempt}`);
+        } else if (response.status === 503) {
+          console.log(`⚠️  Service unavailable, attempt ${attempt}`);
+        } else {
+          console.log(`⚠️  Polling attempt ${attempt} failed: ${response.status} ${response.statusText}`);
+        }
+        
+        // Wait longer on early attempts, shorter on later ones
+        const waitTime = attempt <= 5 ? 15000 : (attempt <= 10 ? 12000 : 8000);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
       
@@ -256,16 +268,30 @@ export async function pollForCompletedData(timestamp: string, maxAttempts: numbe
         return null;
       }
       
-      // Wait before next attempt
-      await new Promise(resolve => setTimeout(resolve, 8000)); // Wait 8 seconds between polls
+      // Progressive wait times: start with longer waits, then shorter
+      // First 3 attempts: 20 seconds (Perplexity is still processing)
+      // Next 7 attempts: 15 seconds 
+      // Final 5 attempts: 10 seconds
+      let waitTime;
+      if (attempt <= 3) {
+        waitTime = 20000; // 20 seconds for first attempts
+      } else if (attempt <= 10) {
+        waitTime = 15000; // 15 seconds for middle attempts
+      } else {
+        waitTime = 10000; // 10 seconds for final attempts
+      }
+      
+      console.log(`⏳ Esperando ${waitTime/1000} segundos antes del siguiente intento...`);
+      await new Promise(resolve => setTimeout(resolve, waitTime));
       
     } catch (error) {
       console.error(`❌ Error en polling attempt ${attempt}:`, error);
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Wait 10 seconds on fetch errors
+      await new Promise(resolve => setTimeout(resolve, 10000));
     }
   }
   
-  console.log('⏰ Polling timeout reached, returning null');
+  console.log(`⏰ Polling timeout reached after ${maxAttempts} attempts (approx ${Math.round(maxAttempts * 15 / 60)} minutes), returning null`);
   return null;
 }
 
