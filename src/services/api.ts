@@ -47,8 +47,14 @@ export interface Statistics {
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
-// ExtractorW Backend URL (modificado)
-const EXTRACTORW_API_URL = 'http://localhost:8080/api';
+// ExtractorW Backend URL - configuración dinámica según entorno
+const EXTRACTORW_API_URL = import.meta.env.VITE_EXTRACTORW_API_URL || 
+  (import.meta.env.DEV ? 'http://localhost:8080/api' : 'https://extractorw.onrender.com/api');
+
+console.log('🔧 Configuración de APIs:');
+console.log(`   ExtractorW: ${EXTRACTORW_API_URL}`);
+console.log(`   VPS: ${VPS_API_URL || 'No configurado'}`);
+console.log(`   Entorno: ${import.meta.env.DEV ? 'Desarrollo' : 'Producción'}`);
 
 // Verificar que la URL no sea el valor genérico del archivo netlify.toml
 const isGenericUrl = VPS_API_URL.includes('your-vps-scraper-url') || 
@@ -61,9 +67,6 @@ const API_URL_TO_USE = !isGenericUrl && VPS_API_URL ? VPS_API_URL : '';
 if (!API_URL_TO_USE) {
   console.warn('VPS API URL is not configured or contains generic values. Set VITE_VPS_API_URL environment variable. Using mock data.');
 }
-
-// Cambia esta URL por la de tu backend en Render
-const RENDER_API_URL = 'https://extractorw.onrender.com/api/processTrends';
 
 // Función de ayuda para obtener colores aleatorios
 function getRandomColor(): string {
