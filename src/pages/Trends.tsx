@@ -91,7 +91,6 @@ export const Trends = () => {
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
   const [topKeywords, setTopKeywords] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
-  const [categoryDataEnriched, setCategoryDataEnriched] = useState(false);
   const [showCategoryUpdate, setShowCategoryUpdate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
@@ -119,7 +118,6 @@ export const Trends = () => {
           }
           if (latestData.categoryData && latestData.categoryData.length > 0) {
           setCategoryData(latestData.categoryData);
-          setCategoryDataEnriched(false);
           }
           if (latestData.about && Array.isArray(latestData.about)) {
             setAboutInfo(latestData.about);
@@ -167,7 +165,6 @@ export const Trends = () => {
         }
         if (data.categoryData && data.categoryData.length > 0) {
           setCategoryData(data.categoryData);
-          setCategoryDataEnriched(false);
         }
         
         // Actualizar about y statistics si están disponibles
@@ -245,7 +242,6 @@ export const Trends = () => {
             }
             if (statusData.data.categoryData && Array.isArray(statusData.data.categoryData)) {
               setCategoryData(statusData.data.categoryData);
-              setCategoryDataEnriched(true);
               setShowCategoryUpdate(true);
               setTimeout(() => setShowCategoryUpdate(false), 3500);
             }
@@ -868,13 +864,13 @@ export const Trends = () => {
                 {t.categoryDistribution}
               </Typography>
             </Box>
-            {!categoryDataEnriched ? (
+            {categoryData && categoryData.length > 0 ? (
+              <BarChart data={categoryData} title={t.categoryDistribution} />
+            ) : (
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
                 <CircularProgress size={24} sx={{ mr: 2 }} />
                 <Typography color="text.secondary">Cargando categorías...</Typography>
               </Box>
-            ) : (
-              <BarChart data={categoryData} title={t.categoryDistribution} />
             )}
           </Paper>
         </Grid>

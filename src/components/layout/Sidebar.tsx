@@ -33,7 +33,7 @@ const translations = {
     sources: 'Fuentes',
     analytics: 'Analítica',
     comingSoon: 'Próximamente',
-    version: 'Pulse Journal v1.0',
+    version: 'Jornal V.0.0411',
   },
   en: {
     dashboard: 'Dashboard',
@@ -42,7 +42,7 @@ const translations = {
     sources: 'Sources',
     analytics: 'Analytics',
     comingSoon: 'Coming Soon',
-    version: 'Pulse Journal v1.0',
+    version: 'Jornal V.0.0411',
   },
 };
 

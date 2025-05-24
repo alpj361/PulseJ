@@ -27,6 +27,9 @@ const bluePalette = [
   '#0284c7', // sky-700
 ];
 
+const MAX_WORDS = 12;
+const PADDING = 16;
+
 const WordCloud: React.FC<WordCloudProps> = ({ 
   data, 
   width = 800, 
@@ -59,9 +62,9 @@ const WordCloud: React.FC<WordCloudProps> = ({
     const centerY = height / 2;
     const worldRadius = Math.min(width, height) * 0.32;
     const grad = ctx.createRadialGradient(centerX, centerY, worldRadius * 0.3, centerX, centerY, worldRadius);
-    grad.addColorStop(0, 'rgba(186,230,253,0.95)'); // sky-200
-    grad.addColorStop(0.5, 'rgba(59,130,246,0.18)'); // blue-500
-    grad.addColorStop(1, 'rgba(30,64,175,0.10)'); // blue-800
+    grad.addColorStop(0, 'rgba(186,230,253,0.95)');
+    grad.addColorStop(0.5, 'rgba(59,130,246,0.18)');
+    grad.addColorStop(1, 'rgba(30,64,175,0.10)');
     ctx.save();
     ctx.beginPath();
     ctx.arc(centerX, centerY, worldRadius, 0, 2 * Math.PI);
@@ -73,60 +76,82 @@ const WordCloud: React.FC<WordCloudProps> = ({
     ctx.restore();
 
     // --- Palabras ---
-    // Ordenar por tamaño (grandes primero)
-    const sorted = [...data].sort((a, b) => b.value - a.value);
-    // Escalado de tamaño
+    const sorted = [...data].sort((a, b) => b.value - a.value).slice(0, MAX_WORDS);
     const minFont = 28, maxFont = 64;
     const minVal = Math.min(...sorted.map(w => w.value));
     const maxVal = Math.max(...sorted.map(w => w.value));
     const scaleFont = (v: number) => minFont + ((v - minVal) / Math.max(1, maxVal - minVal)) * (maxFont - minFont);
 
-    // Distribución en anillos: las palabras más grandes cerca del ecuador
-    const n = sorted.length;
+    // Algoritmo de colocación con colisión y padding
     const placed: typeof wordPositions = [];
     const usedAngles: number[] = [];
-    const ringStep = Math.PI / Math.max(4, Math.ceil(n / 2));
+    const n = sorted.length;
+    const ringStep = (2 * Math.PI) / Math.max(6, n);
+    const minR = worldRadius + 24;
+    const maxR = Math.min(width, height) / 2 - 32;
+
     sorted.forEach((word, i) => {
       const fontSize = scaleFont(word.value);
       ctx.font = `bold ${fontSize}px Helvetica Neue, Arial, sans-serif`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
-      // Color azul de la paleta
       const color = bluePalette[i % bluePalette.length];
-      // Anillo: las más grandes cerca del centro, las pequeñas más lejos
-      const ringFrac = i / Math.max(1, n - 1);
-      const r = worldRadius + 30 + ringFrac * (width * 0.18); // 30px fuera del mundo, luego más lejos
-      // Ángulo: distribuir uniformemente, pero con un poco de aleatoriedad
-      let angle = ringStep * i * 2 + (Math.random() - 0.5) * 0.3;
-      // Evitar ángulos muy repetidos
-      while (usedAngles.some(a => Math.abs(a - angle) < 0.18)) {
-        angle += 0.15;
-      }
-      usedAngles.push(angle);
-      // Coordenadas
-      const x = centerX + r * Math.cos(angle);
-      const y = centerY + r * Math.sin(angle);
-      // Sombra sutil
-      ctx.save();
-      ctx.shadowColor = 'rgba(30,64,175,0.13)';
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = color;
-      ctx.strokeStyle = 'rgba(30,64,175,0.10)';
-      ctx.lineWidth = 1.5;
-      ctx.fillText(word.text, x, y);
-      ctx.restore();
-      // Medidas para hover/click
       const metrics = ctx.measureText(word.text);
-      placed.push({
-        text: word.text,
-        value: word.value,
-        x: x - metrics.width / 2,
-        y: y - fontSize / 2,
-        width: metrics.width,
-        height: fontSize,
-        color,
-        fontSize
-      });
+      const w = metrics.width;
+      const h = fontSize;
+      // Palabras grandes cerca del mundo, pequeñas más lejos
+      const frac = i / Math.max(1, n - 1);
+      const r = minR + frac * (maxR - minR);
+      let angle = (i % 2 === 0 ? 1 : -1) * (Math.floor(i / 2) + 1) * ringStep / 1.2 + Math.PI / 2;
+      let found = false;
+      let attempts = 0;
+      while (!found && attempts < 32) {
+        const x = centerX + r * Math.cos(angle) - w / 2;
+        const y = centerY + r * Math.sin(angle) - h / 2;
+        // Bounding box con padding
+        const box = { x: x - PADDING, y: y - PADDING, w: w + 2 * PADDING, h: h + 2 * PADDING };
+        // No permitir fuera del canvas
+        if (box.x < 0 || box.y < 0 || box.x + box.w > width || box.y + box.h > height) {
+          angle += ringStep / 2;
+          attempts++;
+          continue;
+        }
+        // No permitir dentro del mundo
+        const distToCenter = Math.sqrt(Math.pow(x + w / 2 - centerX, 2) + Math.pow(y + h / 2 - centerY, 2));
+        if (distToCenter < worldRadius + h / 2 + 8) {
+          angle += ringStep / 2;
+          attempts++;
+          continue;
+        }
+        // No permitir colisión con otras palabras
+        const collision = placed.some(p =>
+          !(box.x + box.w < p.x || box.x > p.x + p.width || box.y + box.h < p.y || box.y > p.y + p.height)
+        );
+        if (collision) {
+          angle += ringStep / 2;
+          attempts++;
+          continue;
+        }
+        // Si pasa todo, colocar
+        ctx.save();
+        ctx.shadowColor = 'rgba(30,64,175,0.13)';
+        ctx.shadowBlur = 8;
+        ctx.fillStyle = color;
+        ctx.fillText(word.text, x + w / 2, y + h / 2);
+        ctx.restore();
+        placed.push({
+          text: word.text,
+          value: word.value,
+          x,
+          y,
+          width: w,
+          height: h,
+          color,
+          fontSize
+        });
+        found = true;
+      }
+      // Si no se pudo colocar tras varios intentos, omitir la palabra
     });
     setWordPositions(placed);
   }, [data, width, height]);
