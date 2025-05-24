@@ -91,6 +91,8 @@ export const Trends = () => {
   const [wordCloudData, setWordCloudData] = useState<any[]>([]);
   const [topKeywords, setTopKeywords] = useState<any[]>([]);
   const [categoryData, setCategoryData] = useState<any[]>([]);
+  const [categoryDataEnriched, setCategoryDataEnriched] = useState(false);
+  const [showCategoryUpdate, setShowCategoryUpdate] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedKeyword, setSelectedKeyword] = useState<string | null>(null);
   const [aboutInfo, setAboutInfo] = useState<AboutInfo[]>([]);
@@ -110,13 +112,14 @@ export const Trends = () => {
           
           // Actualizar solo si tenemos datos válidos
           if (latestData.wordCloudData && latestData.wordCloudData.length > 0) {
-            setWordCloudData(latestData.wordCloudData);
+          setWordCloudData(latestData.wordCloudData);
           }
           if (latestData.topKeywords && latestData.topKeywords.length > 0) {
-            setTopKeywords(latestData.topKeywords);
+          setTopKeywords(latestData.topKeywords);
           }
           if (latestData.categoryData && latestData.categoryData.length > 0) {
-            setCategoryData(latestData.categoryData);
+          setCategoryData(latestData.categoryData);
+          setCategoryDataEnriched(false);
           }
           if (latestData.about && Array.isArray(latestData.about)) {
             setAboutInfo(latestData.about);
@@ -146,11 +149,11 @@ export const Trends = () => {
     setIsLoading(true);
     setError(null);
     
-    try {
+      try {
       console.log('📡 Llamando a fetchAndStoreTrends()...');
-      const data = await fetchAndStoreTrends();
+        const data = await fetchAndStoreTrends();
       console.log('✅ Datos recibidos de fetchAndStoreTrends:', data);
-      
+        
       // Validar que tenemos datos básicos mínimos
       if (data && (data.wordCloudData || data.topKeywords || data.categoryData)) {
         console.log('📊 Actualizando estado con datos básicos...');
@@ -164,6 +167,7 @@ export const Trends = () => {
         }
         if (data.categoryData && data.categoryData.length > 0) {
           setCategoryData(data.categoryData);
+          setCategoryDataEnriched(false);
         }
         
         // Actualizar about y statistics si están disponibles
@@ -190,9 +194,9 @@ export const Trends = () => {
         
         // Mantener los datos actuales en lugar de mostrar error
         console.log('📦 Manteniendo datos actuales en pantalla');
-      }
+        }
       
-    } catch (err) {
+      } catch (err) {
       console.error('❌ Error en fetchTrendingData:', err);
       setError('Error al obtener datos de tendencias. Mostrando datos previos.');
       
@@ -200,10 +204,10 @@ export const Trends = () => {
       setTimeout(() => {
         setError(null);
       }, 3000);
-    } finally {
+      } finally {
       console.log('🏁 Finalizando carga...');
-      setIsLoading(false);
-    }
+        setIsLoading(false);
+      }
   };
 
   const handleWordClick = (word: string, value: number) => {
@@ -238,6 +242,12 @@ export const Trends = () => {
             }
             if (statusData.data.statistics) {
               setStatistics(statusData.data.statistics);
+            }
+            if (statusData.data.categoryData && Array.isArray(statusData.data.categoryData)) {
+              setCategoryData(statusData.data.categoryData);
+              setCategoryDataEnriched(true);
+              setShowCategoryUpdate(true);
+              setTimeout(() => setShowCategoryUpdate(false), 3500);
             }
             
             setIsPollingForDetails(false);
@@ -858,7 +868,14 @@ export const Trends = () => {
                 {t.categoryDistribution}
               </Typography>
             </Box>
-            <BarChart data={categoryData} title={t.categoryDistribution} />
+            {!categoryDataEnriched ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
+                <CircularProgress size={24} sx={{ mr: 2 }} />
+                <Typography color="text.secondary">Cargando categorías...</Typography>
+              </Box>
+            ) : (
+              <BarChart data={categoryData} title={t.categoryDistribution} />
+            )}
           </Paper>
         </Grid>
         
@@ -1001,9 +1018,9 @@ export const Trends = () => {
             {isPollingForDetails ? (
               <>
                 <CircularProgress size={32} />
-                <Typography color="text.secondary">
+        <Typography color="text.secondary">
                   Generando estadísticas de procesamiento...
-                </Typography>
+        </Typography>
                 <Typography variant="caption" color="text.disabled">
                   Analizando resultados de IA
                 </Typography>

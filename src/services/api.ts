@@ -404,7 +404,7 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
       console.log('✅ Datos obtenidos de Supabase');
       
       // Asegurar que los datos de Supabase tienen la estructura correcta
-      return {
+    return {
         wordCloudData: supabaseData.word_cloud_data || [],
         topKeywords: supabaseData.top_keywords || [],
         categoryData: supabaseData.category_data || [],
