@@ -25,59 +25,14 @@ import {
   DialogActions
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import { CloudUpload, Description, Audiotrack, VideoLibrary, Link as LinkIcon, Add, Search, Label, DriveFolderUpload, Lock } from '@mui/icons-material';
+import { CloudUpload, Description, Audiotrack, VideoLibrary, Link as LinkIcon, Add, Search, Label, DriveFolderUpload, Lock, Delete } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock';
 import GoogleIcon from '@mui/icons-material/Google';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 
-// Estructura de datos simulada
-const initialCodexItems = [
-  {
-    id: '1',
-    titulo: 'Entrevista a Ministro de Salud',
-    tipo: 'audio',
-    driveFileId: 'abc123',
-    url: '',
-    etiquetas: ['salud', 'gobierno'],
-    estado: 'Archivado',
-    proyecto: 'COVID-19',
-    fecha: '2024-06-01',
-  },
-  {
-    id: '2',
-    titulo: 'Informe de Transparencia 2024',
-    tipo: 'documento',
-    driveFileId: 'def456',
-    url: '',
-    etiquetas: ['transparencia'],
-    estado: 'En análisis',
-    proyecto: 'Investigación Corrupción',
-    fecha: '2024-06-02',
-  },
-  {
-    id: '3',
-    titulo: 'Video Conferencia Prensa Libre',
-    tipo: 'video',
-    driveFileId: 'ghi789',
-    url: '',
-    etiquetas: ['prensa'],
-    estado: 'Nuevo',
-    proyecto: '',
-    fecha: '2024-06-03',
-  },
-  {
-    id: '4',
-    titulo: 'Artículo: Corrupción en América Latina',
-    tipo: 'enlace',
-    driveFileId: '',
-    url: 'https://ejemplo.com/articulo',
-    etiquetas: ['corrupción', 'latam'],
-    estado: 'Nuevo',
-    proyecto: '',
-    fecha: '2024-06-04',
-  },
-];
+// Estructura de datos simulada - Iniciar con array vacío
+const initialCodexItems: any[] = [];
 
 const tipoLabels: Record<string, string> = {
   documento: 'Documento',
@@ -446,9 +401,31 @@ const Codex: React.FC = () => {
         <Grid container spacing={4}>
           {filteredItems.length === 0 ? (
             <Grid item xs={12}>
-              <Typography color="text.secondary" align="center" sx={{ fontSize: '1.1rem' }}>
-                No se encontraron fuentes con los filtros seleccionados.
-              </Typography>
+              <Box textAlign="center" py={6}>
+                <Typography variant="h6" color="text.secondary" sx={{ fontSize: '1.2rem', mb: 2 }}>
+                  {codexItems.length === 0 
+                    ? 'Tu Codex está vacío' 
+                    : 'No se encontraron fuentes con los filtros seleccionados'
+                  }
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1rem', mb: 3 }}>
+                  {codexItems.length === 0 
+                    ? 'Comienza agregando documentos, audios, videos o enlaces desde Google Drive.' 
+                    : 'Intenta ajustar los filtros para encontrar lo que buscas.'
+                  }
+                </Typography>
+                {codexItems.length === 0 && (
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    startIcon={<Add />}
+                    onClick={() => setTab('agregar')}
+                    sx={{ fontWeight: 600, fontSize: '1rem', px: 3, py: 1.5, borderRadius: 2 }}
+                  >
+                    Agregar primera fuente
+                  </Button>
+                )}
+              </Box>
             </Grid>
           ) : (
             filteredItems.map(item => (
@@ -480,7 +457,7 @@ const Codex: React.FC = () => {
                       {tipoLabels[item.tipo]} • {item.fecha}
                     </Typography>
                     <Stack direction="row" spacing={1} mb={1.5}>
-                      {item.etiquetas.map(et => (
+                      {item.etiquetas.map((et: string) => (
                         <Chip key={et} label={et} size="small" sx={{ bgcolor: 'grey.100', color: 'grey.700', fontWeight: 500, fontSize: '0.95rem' }} />
                       ))}
                     </Stack>
@@ -488,9 +465,26 @@ const Codex: React.FC = () => {
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.98rem', mb: 1.5 }}>
                       Proyecto: <b>{item.proyecto || '—'}</b>
                     </Typography>
-                    <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                      <Chip label="Ver en Google Drive" icon={<DriveFolderUpload fontSize="small" />} clickable sx={{ bgcolor: 'blue.50', color: 'primary.main', fontWeight: 500, fontSize: '0.98rem', mb: 1.5 }} />
-                    </a>
+                    <Stack direction="row" spacing={1} mb={1.5}>
+                      <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                        <Chip label="Ver en Google Drive" icon={<DriveFolderUpload fontSize="small" />} clickable sx={{ bgcolor: 'blue.50', color: 'primary.main', fontWeight: 500, fontSize: '0.98rem' }} />
+                      </a>
+                      <Chip 
+                        label="Eliminar" 
+                        icon={<Delete fontSize="small" />} 
+                        clickable 
+                        onClick={() => handleDeleteItem(item.id)}
+                        sx={{ 
+                          bgcolor: 'red.50', 
+                          color: 'error.main', 
+                          fontWeight: 500, 
+                          fontSize: '0.98rem',
+                          '&:hover': {
+                            bgcolor: 'red.100'
+                          }
+                        }} 
+                      />
+                    </Stack>
                   </CardContent>
                   <Box px={0} pb={0}>
                     <InactiveButton icon={<LockIcon />} label="Relacionar con investigación" />
@@ -503,6 +497,12 @@ const Codex: React.FC = () => {
       </CardContent>
     </Card>
   );
+
+  // Función para eliminar un item del Codex
+  const handleDeleteItem = (itemId: string) => {
+    console.log('[Codex] Eliminando item:', itemId);
+    setCodexItems(items => items.filter(item => item.id !== itemId));
+  };
 
   // Agrego la función handleAddFromDriveWithType
   const handleAddFromDriveWithType = async (forcedType: string) => {
