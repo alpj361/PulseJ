@@ -284,68 +284,14 @@ export default function RecentActivity() {
             } catch (e) {
               console.log('❌ DEBUG: JSON parse error:', e);
               console.log('📄 DEBUG: Raw JSON content that failed:', scrape.value);
-              console.log('🔧 DEBUG: Attempting to fix malformed JSON...');
-              
-              // Try to fix common JSON issues
-              try {
-                let fixedValue = scrape.value;
-                
-                // Check if it's a hashtag format based on content
-                if (fixedValue.includes('"meta"') && fixedValue.includes('"hashtag"')) {
-                  console.log('🎯 DEBUG: This looks like a hashtag scrape, trying to extract hashtag...');
-                  
-                  // Try to extract hashtag from malformed JSON
-                  const hashtagMatch = fixedValue.match(/"hashtag":\s*"([^"]+)"/);
-                  if (hashtagMatch) {
-                    processedType = 'Hashtag';
-                    console.log('✅ DEBUG: Extracted hashtag from malformed JSON:', hashtagMatch[1]);
-                  }
-                  
-                  // Try to extract sentiment
-                  const positiveMatch = fixedValue.match(/"positivo":\s*(\d+)/);
-                  const negativeMatch = fixedValue.match(/"negativo":\s*(\d+)/);
-                  const neutralMatch = fixedValue.match(/"neutral":\s*(\d+)/);
-                  
-                  if (positiveMatch && negativeMatch && neutralMatch) {
-                    const pos = parseInt(positiveMatch[1]);
-                    const neg = parseInt(negativeMatch[1]);
-                    const neu = parseInt(neutralMatch[1]);
-                    
-                    if (pos > neg && pos > neu) {
-                      processedSentimiento = 'positivo';
-                    } else if (neg > pos && neg > neu) {
-                      processedSentimiento = 'negativo';
-                    } else {
-                      processedSentimiento = 'neutral';
-                    }
-                    console.log('✅ DEBUG: Extracted sentiment from malformed JSON:', processedSentimiento);
-                  }
-                }
-                
-                // Try other repair strategies
-                fixedValue = fixedValue.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
-                
-                // Try parsing the fixed version
-                const repairedJson = JSON.parse(fixedValue);
-                console.log('🔧 DEBUG: Successfully repaired JSON!', repairedJson);
-                
-                // Process the repaired JSON
-                if (repairedJson.meta && repairedJson.meta.hashtag) {
-                  processedType = 'Hashtag';
-                  console.log('✅ DEBUG: Detected hashtag in repaired JSON:', repairedJson.meta.hashtag);
-                }
-                
-              } catch (repairError) {
-                console.log('❌ DEBUG: Could not repair JSON:', repairError);
-                // Fallback: try to guess from raw content
-                if (scrape.value.includes('#') || scrape.value.includes('hashtag')) {
-                  processedType = 'Hashtag';
-                  console.log('🎯 DEBUG: Fallback detection: This looks like a hashtag');
-                } else if (scrape.value.startsWith('#')) {
-                  processedType = 'Hashtag';
-                } else if (scrape.value.startsWith('@')) {
-                  processedType = 'Usuario';
-                }
+              // Si el valor contiene 'meta' y 'hashtag', forzar tipo Hashtag
+              if (scrape.value.includes('"meta"') && scrape.value.includes('"hashtag"')) {
+                processedType = 'Hashtag';
+                console.log('🟡 DEBUG: Forzando tipo Hashtag por contenido de texto');
+              } else if (scrape.value.startsWith('#')) {
+                processedType = 'Hashtag';
+              } else if (scrape.value.startsWith('@')) {
+                processedType = 'Usuario';
               }
             }
           }
