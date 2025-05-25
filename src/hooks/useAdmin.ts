@@ -7,29 +7,40 @@ export function useAdmin() {
   const [loading, setLoading] = useState<boolean>(true);
   const { user } = useAuth();
 
+  // 🐛 DEBUG: Log inicial
+  console.log('🎯 useAdmin hook called, user:', user?.id);
+
   useEffect(() => {
     async function checkAdminRole() {
+      console.log('🔍 Checking admin role for user:', user?.id);
+      
       if (!user) {
+        console.log('❌ No user found');
         setIsAdmin(false);
         setLoading(false);
         return;
       }
 
       try {
+        console.log('📡 Making Supabase query...');
         const { data, error } = await supabase
           .from('profiles')
           .select('role')
           .eq('id', user.id)
           .single();
 
+        console.log('📊 Supabase response:', { data, error });
+
         if (error) {
-          console.error('Error checking admin role:', error);
+          console.error('❌ Error checking admin role:', error);
           setIsAdmin(false);
         } else {
-          setIsAdmin(data?.role === 'admin');
+          const isAdminUser = data?.role === 'admin';
+          console.log('👤 User role:', data?.role, '| Is admin:', isAdminUser);
+          setIsAdmin(isAdminUser);
         }
       } catch (error) {
-        console.error('Error checking admin role:', error);
+        console.error('💥 Exception checking admin role:', error);
         setIsAdmin(false);
       } finally {
         setLoading(false);
@@ -38,6 +49,9 @@ export function useAdmin() {
 
     checkAdminRole();
   }, [user]);
+
+  // 🐛 DEBUG: Log resultado final
+  console.log('🎯 useAdmin hook result:', { isAdmin, loading, userId: user?.id });
 
   return { isAdmin, loading };
 } 

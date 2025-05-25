@@ -9,6 +9,8 @@ import {
 } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import { useAdmin } from '../../hooks/useAdmin';
+import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../services/supabase';
 import {
   Box,
   Drawer,
@@ -69,11 +71,38 @@ interface NavItem {
 const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
   const { language, setLanguage } = useContext(LanguageContext);
   const { isAdmin } = useAdmin();
+  const { user } = useAuth();
+
+  // 🐛 DEBUG: Logs temporales
+  console.log('🔍 useAdmin hook result:', { isAdmin });
+  console.log('🎯 Current user from auth context:', user?.id);
 
   const handleLanguageChange = (e: SelectChangeEvent<string>) => {
     setLanguage(e.target.value as 'es' | 'en');
     localStorage.setItem('lang', e.target.value);
   };
+
+  // 🧪 DEBUG: Consulta directa de debugging
+  useEffect(() => {
+    async function directAdminCheck() {
+      console.log('🧪 Starting direct admin check...');
+      console.log('👤 User from useAuth:', user?.id);
+      
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          console.log('📊 Direct Supabase query result:', { data, error });
+        } catch (err) {
+          console.error('💥 Error in direct query:', err);
+        }
+      }
+    }
+    directAdminCheck();
+  }, [user]);
 
   const t = translations[language];
 
