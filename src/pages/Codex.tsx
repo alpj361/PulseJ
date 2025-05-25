@@ -124,121 +124,87 @@ const Codex: React.FC = () => {
   // Cargar scripts de Google Picker y GIS
   useEffect(() => {
     async function loadGoogleApis() {
-      if (!(window as any).google || !(window as any).google.picker) {
-        await loadScript('https://apis.google.com/js/api.js');
-      }
-      (window as any).gapi.load('picker', () => {
-        pickerApiLoaded.current = true;
-      });
-      // Cargar GIS
-      if (!(window as any).google || !(window as any).google.accounts || !(window as any).google.accounts.oauth2) {
-        await loadScript('https://accounts.google.com/gsi/client');
-      }
-      // Inicializar token client GIS
-      if ((window as any).google && (window as any).google.accounts && (window as any).google.accounts.oauth2) {
-        tokenClientRef.current = (window as any).google.accounts.oauth2.initTokenClient({
-          client_id: GOOGLE_CLIENT_ID,
-          scope: GOOGLE_PICKER_SCOPE.join(' '),
-          callback: (tokenResponse: any) => {
-            if (tokenResponse && tokenResponse.access_token) {
-              setGoogleAccessToken(tokenResponse.access_token);
-              setGoogleDialogOpen(false);
-            } else {
-              setGoogleDialogError('No se pudo conectar con Google. Intenta de nuevo.');
+      console.log('[Codex] Cargando APIs de Google...');
+      
+      try {
+        // Cargar Google API base
+        if (!(window as any).gapi) {
+          console.log('[Codex] Cargando Google API base...');
+          await loadScript('https://apis.google.com/js/api.js');
+        }
+        
+        // Cargar Google Picker API
+        console.log('[Codex] Cargando Google Picker...');
+        await new Promise((resolve, reject) => {
+          (window as any).gapi.load('picker', {
+            callback: () => {
+              console.log('[Codex] Google Picker API cargada');
+              
+              // Esperar a que ViewMode esté disponible con reintentos
+              const checkViewMode = (attempts = 0) => {
+                if ((window as any).google && (window as any).google.picker && (window as any).google.picker.ViewMode) {
+                  pickerApiLoaded.current = true;
+                  console.log('[Codex] ViewMode disponible:', Object.keys((window as any).google.picker.ViewMode));
+                  resolve(true);
+                } else if (attempts < 10) {
+                  console.log(`[Codex] ViewMode no disponible aún, reintentando... (${attempts + 1}/10)`);
+                  setTimeout(() => checkViewMode(attempts + 1), 500);
+                } else {
+                  console.warn('[Codex] ViewMode no disponible después de 10 intentos, continuando sin él');
+                  pickerApiLoaded.current = true; // Marcar como cargado de todas formas
+                  resolve(true);
+                }
+              };
+              
+              checkViewMode();
+            },
+            onerror: (error: any) => {
+              console.error('[Codex] Error cargando Picker:', error);
+              reject(error);
             }
-          },
+          });
         });
+        
+        // Cargar Google Identity Services
+        console.log('[Codex] Cargando Google Identity Services...');
+        if (!(window as any).google || !(window as any).google.accounts || !(window as any).google.accounts.oauth2) {
+          await loadScript('https://accounts.google.com/gsi/client');
+        }
+        
+        // Esperar a que GIS se inicialice
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Inicializar token client GIS
+        if ((window as any).google && (window as any).google.accounts && (window as any).google.accounts.oauth2) {
+          tokenClientRef.current = (window as any).google.accounts.oauth2.initTokenClient({
+            client_id: GOOGLE_CLIENT_ID,
+            scope: GOOGLE_PICKER_SCOPE.join(' '),
+            callback: (tokenResponse: any) => {
+              console.log('[Codex] Token response recibido:', tokenResponse);
+              if (tokenResponse && tokenResponse.access_token) {
+                setGoogleAccessToken(tokenResponse.access_token);
+                setGoogleDialogOpen(false);
+                setDriveAuthDialogOpen(false);
+                console.log('[Codex] Token de Google Drive obtenido exitosamente');
+              } else {
+                setGoogleDialogError('No se pudo obtener el token de acceso. Intenta de nuevo.');
+                console.error('[Codex] Error en token response:', tokenResponse);
+              }
+            },
+          });
+          console.log('[Codex] Google Identity Services inicializado');
+        }
+        
+        console.log('[Codex] Todas las APIs de Google cargadas exitosamente');
+        
+      } catch (error) {
+        console.error('[Codex] Error cargando APIs de Google:', error);
+        setGoogleDialogError('Error cargando los servicios de Google. Recarga la página e intenta de nuevo.');
       }
     }
+    
     loadGoogleApis();
   }, []);
-
-  // Reemplazo handleGoogleConnect para usar Supabase Auth
-  const handleGoogleConnect = async () => {
-    setGoogleDialogError('');
-    try {
-      await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin + window.location.pathname // vuelve a la misma página
-        }
-      });
-    } catch (e: any) {
-      setGoogleDialogError('No se pudo conectar con Google. Intenta de nuevo.');
-    }
-  };
-
-  // Función para abrir el picker
-  const handleAddFromDrive = async () => {
-    if (!pickerApiLoaded.current) {
-      setGoogleDialogOpen(true);
-      return;
-    }
-    let token = googleAccessToken;
-    if (!token) {
-      setGoogleDialogOpen(true);
-      return;
-    }
-    const view = new (window as any).google.picker.DocsView()
-      .setIncludeFolders(true)
-      .setSelectFolderEnabled(true)
-      .setMode((window as any).google.picker.ViewMode.LIST);
-    const picker = new (window as any).google.picker.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(token)
-      .setDeveloperKey(GOOGLE_PICKER_API_KEY)
-      .setCallback(async (data: any) => {
-        if (data.action === 'picked' && data.docs && data.docs.length > 0) {
-          const file = data.docs[0];
-          // Obtener metadatos extra desde Drive API
-          await loadScript('https://apis.google.com/js/api.js');
-          (window as any).gapi.load('client', async () => {
-            await (window as any).gapi.client.init({
-              apiKey: GOOGLE_PICKER_API_KEY,
-              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-            });
-            (window as any).gapi.client.setToken({ access_token: token });
-            const driveFile = await (window as any).gapi.client.drive.files.get({
-              fileId: file.id,
-              fields: 'id, name, mimeType, modifiedTime, webViewLink',
-            });
-            const meta = driveFile.result;
-            // Determinar tipo
-            let tipo: string = 'documento';
-            if (meta.mimeType.startsWith('audio')) tipo = 'audio';
-            else if (meta.mimeType.startsWith('video')) tipo = 'video';
-            else if (meta.mimeType.startsWith('application/pdf')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('application/vnd.google-apps.document')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('application/vnd.google-apps.spreadsheet')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('application/vnd.google-apps.presentation')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('application/vnd.google-apps.folder')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('application/')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('text/')) tipo = 'documento';
-            else if (meta.mimeType.startsWith('image/')) tipo = 'documento';
-            else tipo = 'enlace';
-            // Agregar al Codex
-            setCodexItems(items => [
-              ...items,
-              {
-                id: 'codex-' + Math.random().toString(36).slice(2, 8),
-                titulo: meta.name,
-                tipo,
-                fecha: meta.modifiedTime?.slice(0, 10) || '',
-                etiquetas: [],
-                estado: 'Nuevo',
-                proyecto: '',
-                driveFileId: meta.id,
-                url: meta.webViewLink,
-              },
-            ]);
-            setTab('explorar');
-          });
-        }
-      })
-      .setTitle('Selecciona un archivo de Google Drive')
-      .build();
-    picker.setVisible(true);
-  };
 
   // Filtros
   const filteredItems = codexItems.filter(item => {
@@ -316,7 +282,7 @@ const Codex: React.FC = () => {
             variant={tab === 'agregar' ? 'contained' : 'outlined'}
             color="primary"
             startIcon={<Add />}
-            onClick={handleAddFromDrive}
+            onClick={() => setTab('agregar')}
             sx={{ minWidth: 220, fontWeight: 600, fontSize: '1.1rem', py: 1.3, borderRadius: 2, boxShadow: tab === 'agregar' ? 2 : 0 }}
           >
             + Agregar nueva fuente
@@ -541,73 +507,128 @@ const Codex: React.FC = () => {
   // Agrego la función handleAddFromDriveWithType
   const handleAddFromDriveWithType = async (forcedType: string) => {
     console.log('[Codex] handleAddFromDriveWithType called. user:', user);
-    // Solo mostrar popup de login si el usuario NO está autenticado
-    if (!user) {
-      console.log('[Codex] Usuario no autenticado, mostrando popup de Google.');
+    
+    // Verificar si los scripts de Google están cargados
+    if (!pickerApiLoaded.current || !tokenClientRef.current) {
+      console.log('[Codex] Scripts de Google no están listos, mostrando mensaje de espera.');
+      setGoogleDialogError('Los servicios de Google aún se están cargando. Espera unos segundos e intenta de nuevo.');
       setGoogleDialogOpen(true);
       return;
     }
-    // Si está autenticado pero no tiene token de Drive, mostrar solo el popup de Drive
+
+    // Verificar que Google Picker esté disponible
+    if (!(window as any).google || !(window as any).google.picker) {
+      console.error('[Codex] Google Picker no está disponible');
+      setGoogleDialogError('Los servicios de Google Picker no están disponibles. Recarga la página e intenta de nuevo.');
+      setGoogleDialogOpen(true);
+      return;
+    }
+
+    // Si no tenemos token de Google Drive, solicitarlo directamente
     if (!googleAccessToken) {
-      console.log('[Codex] Usuario autenticado pero sin token de Google Drive, mostrando popup de autorización.');
+      console.log('[Codex] No hay token de Google Drive, solicitando autorización.');
+      setGoogleDialogError('');
       setDriveAuthDialogOpen(true);
       return;
     }
-    console.log('[Codex] Usuario autenticado y con token de Google Drive, abriendo picker.');
-    let token = googleAccessToken;
-    if (!token) {
-      setGoogleDialogOpen(true);
-      return;
-    }
-    const view = new (window as any).google.picker.DocsView()
-      .setIncludeFolders(true)
-      .setSelectFolderEnabled(true)
-      .setMode((window as any).google.picker.ViewMode.LIST);
-    const picker = new (window as any).google.picker.PickerBuilder()
-      .addView(view)
-      .setOAuthToken(token)
-      .setDeveloperKey(GOOGLE_PICKER_API_KEY)
-      .setCallback(async (data: any) => {
-        if (data.action === 'picked' && data.docs && data.docs.length > 0) {
-          const file = data.docs[0];
-          await loadScript('https://apis.google.com/js/api.js');
-          (window as any).gapi.load('client', async () => {
-            await (window as any).gapi.client.init({
-              apiKey: GOOGLE_PICKER_API_KEY,
-              discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-            });
-            (window as any).gapi.client.setToken({ access_token: token });
-            const driveFile = await (window as any).gapi.client.drive.files.get({
-              fileId: file.id,
-              fields: 'id, name, mimeType, modifiedTime, webViewLink',
-            });
-            const meta = driveFile.result;
-            // Determinar tipo
-            let tipo: string = forcedType;
-            if (forcedType === 'audio' && !meta.mimeType.startsWith('audio')) tipo = 'documento';
-            if (forcedType === 'video' && !meta.mimeType.startsWith('video')) tipo = 'documento';
-            // Agregar al Codex
-            setCodexItems(items => [
-              ...items,
-              {
+
+    console.log('[Codex] Token de Google Drive disponible, abriendo picker.');
+    
+    // Crear y mostrar el picker
+    try {
+      console.log('[Codex] Creando vista del picker...');
+      const view = new (window as any).google.picker.DocsView()
+        .setIncludeFolders(true)
+        .setSelectFolderEnabled(true);
+      
+      // Intentar aplicar modo LIST si está disponible
+      try {
+        if ((window as any).google.picker.ViewMode && (window as any).google.picker.ViewMode.LIST) {
+          view.setMode((window as any).google.picker.ViewMode.LIST);
+          console.log('[Codex] Modo LIST aplicado');
+        } else {
+          console.warn('[Codex] LIST mode no disponible, usando modo por defecto');
+        }
+      } catch (viewModeError) {
+        console.warn('[Codex] Error aplicando ViewMode, usando modo por defecto:', viewModeError);
+      }
+      
+      console.log('[Codex] Creando picker builder...');
+      const picker = new (window as any).google.picker.PickerBuilder()
+        .addView(view)
+        .setOAuthToken(googleAccessToken)
+        .setDeveloperKey(GOOGLE_PICKER_API_KEY)
+        .setCallback(async (data: any) => {
+          console.log('[Codex] Picker callback ejecutado:', data);
+          if (data.action === 'picked' && data.docs && data.docs.length > 0) {
+            const file = data.docs[0];
+            console.log('[Codex] Archivo seleccionado:', file);
+            
+            try {
+              // Cargar Google Drive API si no está cargada
+              console.log('[Codex] Cargando Google Drive API...');
+              if (!(window as any).gapi.client) {
+                await new Promise((resolve) => {
+                  (window as any).gapi.load('client', resolve);
+                });
+              }
+              
+              await (window as any).gapi.client.init({
+                apiKey: GOOGLE_PICKER_API_KEY,
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+              });
+              
+              (window as any).gapi.client.setToken({ access_token: googleAccessToken });
+              
+              console.log('[Codex] Obteniendo metadatos del archivo...');
+              const driveFile = await (window as any).gapi.client.drive.files.get({
+                fileId: file.id,
+                fields: 'id, name, mimeType, modifiedTime, webViewLink',
+              });
+              
+              const meta = driveFile.result;
+              console.log('[Codex] Metadatos del archivo:', meta);
+              
+              // Determinar tipo basado en el tipo forzado y el mimeType
+              let tipo: string = forcedType;
+              if (forcedType === 'audio' && !meta.mimeType.startsWith('audio')) tipo = 'documento';
+              if (forcedType === 'video' && !meta.mimeType.startsWith('video')) tipo = 'documento';
+              
+              // Agregar al Codex
+              const newItem = {
                 id: 'codex-' + Math.random().toString(36).slice(2, 8),
                 titulo: meta.name,
                 tipo,
-                fecha: meta.modifiedTime?.slice(0, 10) || '',
+                fecha: meta.modifiedTime?.slice(0, 10) || new Date().toISOString().slice(0, 10),
                 etiquetas: [],
                 estado: 'Nuevo',
                 proyecto: '',
                 driveFileId: meta.id,
                 url: meta.webViewLink,
-              },
-            ]);
-            setTab('explorar');
-          });
-        }
-      })
-      .setTitle('Selecciona un archivo de Google Drive')
-      .build();
-    picker.setVisible(true);
+              };
+              
+              console.log('[Codex] Agregando nuevo item:', newItem);
+              setCodexItems(items => [...items, newItem]);
+              setTab('explorar');
+              
+            } catch (error) {
+              console.error('[Codex] Error procesando archivo:', error);
+              setGoogleDialogError('Error al procesar el archivo seleccionado. Intenta de nuevo.');
+              setGoogleDialogOpen(true);
+            }
+          }
+        })
+        .setTitle('Selecciona un archivo de Google Drive')
+        .build();
+      
+      console.log('[Codex] Mostrando picker...');
+      picker.setVisible(true);
+      
+    } catch (error) {
+      console.error('[Codex] Error creando picker:', error);
+      setGoogleDialogError('Error al abrir el selector de archivos. Los servicios de Google pueden no estar completamente cargados. Recarga la página e intenta de nuevo.');
+      setGoogleDialogOpen(true);
+    }
   };
 
   return (
@@ -636,29 +657,19 @@ const Codex: React.FC = () => {
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center' }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>
-            Conecta tu cuenta de Google
+            Servicios de Google
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            Para agregar archivos desde Google Drive, primero debes conectar tu cuenta de Google. Espera unos segundos si acabas de abrir la página, o recarga si el problema persiste.
+            {googleDialogError || 'Los servicios de Google se están cargando. Espera unos segundos e intenta de nuevo.'}
           </Typography>
-          {googleDialogError && (
-            <Typography color="error" sx={{ mb: 2 }}>{googleDialogError}</Typography>
-          )}
           <Button
             variant="contained"
-            startIcon={<GoogleIcon />}
-            onClick={handleGoogleConnect}
-            disabled={!!user}
+            onClick={() => setGoogleDialogOpen(false)}
             sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
           >
-            Conectar con Google
+            Entendido
           </Button>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setGoogleDialogOpen(false)} color="primary" autoFocus>
-            Cerrar
-          </Button>
-        </DialogActions>
       </Dialog>
       <Dialog open={driveAuthDialogOpen} onClose={() => setDriveAuthDialogOpen(false)}>
         <DialogTitle sx={{ textAlign: 'center', pb: 0 }}>
@@ -669,7 +680,7 @@ const Codex: React.FC = () => {
             Autoriza acceso a Google Drive
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            Para agregar archivos desde Google Drive, primero debes autorizar el acceso a tu cuenta de Google Drive.
+            Para agregar archivos desde Google Drive, necesitas autorizar el acceso a tu cuenta de Google Drive.
           </Typography>
           {googleDialogError && (
             <Typography color="error" sx={{ mb: 2 }}>{googleDialogError}</Typography>
@@ -679,12 +690,20 @@ const Codex: React.FC = () => {
             startIcon={<GoogleIcon />}
             onClick={async () => {
               setGoogleDialogError('');
+              console.log('[Codex] Solicitando token de acceso...');
+              
               if (!tokenClientRef.current) {
-                setGoogleDialogError('El conector de Google aún no está listo. Espera unos segundos.');
+                setGoogleDialogError('El conector de Google aún no está listo. Espera unos segundos e intenta de nuevo.');
                 return;
               }
-              tokenClientRef.current.requestAccessToken();
-              setDriveAuthDialogOpen(false);
+              
+              try {
+                tokenClientRef.current.requestAccessToken();
+                setDriveAuthDialogOpen(false);
+              } catch (error) {
+                console.error('[Codex] Error solicitando token:', error);
+                setGoogleDialogError('Error al solicitar autorización. Intenta de nuevo.');
+              }
             }}
             sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
           >
