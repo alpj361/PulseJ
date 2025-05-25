@@ -535,7 +535,7 @@ const Codex: React.FC = () => {
 
   // Agrego la función handleAddFromDriveWithType
   const handleAddFromDriveWithType = async (forcedType: string) => {
-    if (!user || !(user as any).identities?.some((id: any) => id.provider === 'google')) {
+    if (!user) {
       setGoogleDialogOpen(true);
       return;
     }
