@@ -115,6 +115,7 @@ const Codex: React.FC = () => {
   const [googleDialogError, setGoogleDialogError] = useState('');
   const tokenClientRef = useRef<any>(null);
   const { user } = useAuth();
+  const [driveAuthDialogOpen, setDriveAuthDialogOpen] = useState(false);
 
   useEffect(() => {
     console.log('[Codex] user:', user);
@@ -545,7 +546,12 @@ const Codex: React.FC = () => {
       setGoogleDialogOpen(true);
       return;
     }
-    console.log('[Codex] Usuario autenticado, abriendo picker.');
+    if (!googleAccessToken) {
+      console.log('[Codex] Usuario autenticado pero sin token de Google Drive, mostrando popup de autorización.');
+      setDriveAuthDialogOpen(true);
+      return;
+    }
+    console.log('[Codex] Usuario autenticado y con token de Google Drive, abriendo picker.');
     let token = googleAccessToken;
     if (!token) {
       setGoogleDialogOpen(true);
@@ -647,6 +653,43 @@ const Codex: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setGoogleDialogOpen(false)} color="primary" autoFocus>
+            Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+      <Dialog open={driveAuthDialogOpen} onClose={() => setDriveAuthDialogOpen(false)}>
+        <DialogTitle sx={{ textAlign: 'center', pb: 0 }}>
+          <GoogleIcon sx={{ fontSize: 48, color: '#4285F4', mb: 1 }} />
+        </DialogTitle>
+        <DialogContent sx={{ textAlign: 'center' }}>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>
+            Autoriza acceso a Google Drive
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Para agregar archivos desde Google Drive, primero debes autorizar el acceso a tu cuenta de Google Drive.
+          </Typography>
+          {googleDialogError && (
+            <Typography color="error" sx={{ mb: 2 }}>{googleDialogError}</Typography>
+          )}
+          <Button
+            variant="contained"
+            startIcon={<GoogleIcon />}
+            onClick={async () => {
+              setGoogleDialogError('');
+              if (!tokenClientRef.current) {
+                setGoogleDialogError('El conector de Google aún no está listo. Espera unos segundos.');
+                return;
+              }
+              tokenClientRef.current.requestAccessToken();
+              setDriveAuthDialogOpen(false);
+            }}
+            sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
+          >
+            Autorizar Google Drive
+          </Button>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDriveAuthDialogOpen(false)} color="primary" autoFocus>
             Cerrar
           </Button>
         </DialogActions>
