@@ -12,6 +12,7 @@ import AdminPanel from './pages/AdminPanel';
 import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Box, CircularProgress } from '@mui/material';
+import Codex from './pages/Codex';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -89,6 +90,13 @@ function App() {
             <ProtectedRoute>
               <Layout>
                 <AdminPanel />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/library" element={
+            <ProtectedRoute>
+              <Layout>
+                <Codex />
               </Layout>
             </ProtectedRoute>
           } />

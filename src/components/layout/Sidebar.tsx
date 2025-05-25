@@ -91,8 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
     {
       icon: <Database size={20} />,
       label: t.library,
-      path: '/library',
-      disabled: true
+      path: '/library'
     },
     {
       icon: <Search size={20} />,
