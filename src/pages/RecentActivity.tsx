@@ -107,7 +107,7 @@ export default function RecentActivity() {
         
         // Extract theme name from JSON structure
         if (jsonData.meta && jsonData.meta.hashtag) {
-          // If it's a hashtag JSON format
+          // If it's a hashtag JSON format (new format)
           const theme = jsonData.meta.hashtag.toLowerCase();
           if (valueFrequency[theme]) {
             valueFrequency[theme]++;
@@ -125,6 +125,28 @@ export default function RecentActivity() {
                 valueFrequency[relatedTopic] = 1;
               }
             });
+          }
+        } else if (Array.isArray(jsonData) && jsonData.length > 0) {
+          // Check if it's the older array format with tweets
+          if (jsonData[0].tipo === "tweet" && jsonData[0].contenido) {
+            // Extract hashtag from tweet content
+            const hashtagMatch = jsonData[0].contenido.match(/#(\w+)/);
+            if (hashtagMatch) {
+              const theme = hashtagMatch[1].toLowerCase();
+              if (valueFrequency[theme]) {
+                valueFrequency[theme]++;
+              } else {
+                valueFrequency[theme] = 1;
+              }
+            }
+          }
+        } else if (jsonData.hashtag) {
+          // Direct hashtag property
+          const theme = jsonData.hashtag.toLowerCase();
+          if (valueFrequency[theme]) {
+            valueFrequency[theme]++;
+          } else {
+            valueFrequency[theme] = 1;
           }
         } else {
           // Not the expected JSON format, use the raw value
@@ -185,12 +207,76 @@ export default function RecentActivity() {
       if (activityError) {
         setError(t.error);
       } else {
-        setActivities(data || []);
+        // Process the data to ensure correct type detection
+        const processedActivities = (data || []).map((scrape: any) => {
+          let processedType = scrape.type;
+          let processedSentimiento = scrape.sentimiento || 'neutral';
+          
+          // Try to detect type from JSON structure if not already set correctly
+          if (scrape.value) {
+            try {
+              const jsonData = JSON.parse(scrape.value);
+              
+              // New format with meta.hashtag
+              if (jsonData.meta && jsonData.meta.hashtag) {
+                processedType = 'Hashtag';
+                // Use sentiment from meta if available
+                if (jsonData.meta.sentiment_summary) {
+                  const sentiment = jsonData.meta.sentiment_summary;
+                  if (sentiment.positivo > sentiment.negativo && sentiment.positivo > sentiment.neutral) {
+                    processedSentimiento = 'positivo';
+                  } else if (sentiment.negativo > sentiment.positivo && sentiment.negativo > sentiment.neutral) {
+                    processedSentimiento = 'negativo';
+                  } else {
+                    processedSentimiento = 'neutral';
+                  }
+                }
+              }
+              // Array format with tweets
+              else if (Array.isArray(jsonData) && jsonData.length > 0) {
+                if (jsonData[0].tipo === "tweet" || jsonData[0].text || jsonData[0].contenido) {
+                  // Check if it looks like hashtag content
+                  const content = jsonData[0].contenido || jsonData[0].text || '';
+                  if (content.includes('#')) {
+                    processedType = 'Hashtag';
+                  }
+                  // Use sentiment from first tweet if available
+                  if (jsonData[0].sentimiento || jsonData[0].sentiment) {
+                    processedSentimiento = jsonData[0].sentimiento || jsonData[0].sentiment;
+                  }
+                }
+              }
+              // Direct hashtag object
+              else if (jsonData.hashtag) {
+                processedType = 'Hashtag';
+              }
+              // User data
+              else if (jsonData.username || jsonData.user) {
+                processedType = 'Usuario';
+              }
+            } catch (e) {
+              // If not JSON, keep original type or try to guess
+              if (scrape.value.startsWith('#')) {
+                processedType = 'Hashtag';
+              } else if (scrape.value.startsWith('@')) {
+                processedType = 'Usuario';
+              }
+            }
+          }
+          
+          return {
+            ...scrape,
+            type: processedType,
+            sentimiento: processedSentimiento
+          };
+        });
+        
+        setActivities(processedActivities);
       }
       setLoading(false);
     };
     fetchPhoneAndActivity();
-  }, [user]);
+  }, [user, t.error]);
 
   const statistics = getStatistics();
 
