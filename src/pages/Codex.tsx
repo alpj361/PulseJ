@@ -541,11 +541,13 @@ const Codex: React.FC = () => {
   // Agrego la función handleAddFromDriveWithType
   const handleAddFromDriveWithType = async (forcedType: string) => {
     console.log('[Codex] handleAddFromDriveWithType called. user:', user);
+    // Solo mostrar popup de login si el usuario NO está autenticado
     if (!user) {
       console.log('[Codex] Usuario no autenticado, mostrando popup de Google.');
       setGoogleDialogOpen(true);
       return;
     }
+    // Si está autenticado pero no tiene token de Drive, mostrar solo el popup de Drive
     if (!googleAccessToken) {
       console.log('[Codex] Usuario autenticado pero sin token de Google Drive, mostrando popup de autorización.');
       setDriveAuthDialogOpen(true);
@@ -646,6 +648,7 @@ const Codex: React.FC = () => {
             variant="contained"
             startIcon={<GoogleIcon />}
             onClick={handleGoogleConnect}
+            disabled={!!user}
             sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
           >
             Conectar con Google
