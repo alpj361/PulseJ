@@ -77,19 +77,6 @@ export default function AdminPanel() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Si no es admin, redirigir
-  if (adminLoading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
-
   const loadCodes = async () => {
     try {
       const { data, error } = await supabase
@@ -125,6 +112,19 @@ export default function AdminPanel() {
   useEffect(() => {
     loadCodes();
   }, []);
+
+  // Si no es admin, redirigir - DESPUÉS de todos los hooks
+  if (adminLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   const generateCode = async (preset?: { prefix: string; description: string }) => {
     try {
