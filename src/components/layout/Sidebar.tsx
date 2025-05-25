@@ -8,6 +8,7 @@ import {
   Database
 } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
+import { useAdmin } from '../../hooks/useAdmin';
 import {
   Box,
   Drawer,
@@ -25,6 +26,7 @@ import {
   SelectChangeEvent,
   Paper
 } from '@mui/material';
+import { AdminPanelSettings } from '@mui/icons-material';
 
 const translations = {
   es: {
@@ -34,6 +36,8 @@ const translations = {
     sources: 'Fuentes',
     analytics: 'Analítica',
     library: 'Librería',
+    administration: 'Administración',
+    adminPanel: 'Panel Admin',
     comingSoon: 'Próximamente',
     version: 'Jornal V.0.0411',
   },
@@ -44,6 +48,8 @@ const translations = {
     sources: 'Sources',
     analytics: 'Analytics',
     library: 'Codex',
+    administration: 'Administration',
+    adminPanel: 'Admin Panel',
     comingSoon: 'Coming Soon',
     version: 'Jornal V.0.0411',
   },
@@ -62,6 +68,7 @@ interface NavItem {
 
 const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
   const { language, setLanguage } = useContext(LanguageContext);
+  const { isAdmin } = useAdmin();
 
   const handleLanguageChange = (e: SelectChangeEvent<string>) => {
     setLanguage(e.target.value as 'es' | 'en');
@@ -98,6 +105,14 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       label: t.analytics,
       path: '/analytics',
       disabled: true
+    }
+  ];
+
+  const adminNavItems: NavItem[] = [
+    {
+      icon: <AdminPanelSettings />,
+      label: t.adminPanel,
+      path: '/admin'
     }
   ];
 
@@ -234,6 +249,90 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
           </ListItem>
         ))}
       </List>
+
+      {/* Sección de Administración - Solo para admins */}
+      {isAdmin && (
+        <>
+          <Divider sx={{ mx: 2 }} />
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight="medium">
+              {t.administration}
+            </Typography>
+          </Box>
+          <List component="nav" sx={{ py: 0 }}>
+            {adminNavItems.map((item) => (
+              <ListItem 
+                key={item.path} 
+                disablePadding 
+                onClick={closeSidebar}
+              >
+                <ListItemButton
+                  component={NavLink}
+                  to={item.path}
+                  sx={{
+                    borderRadius: '0 20px 20px 0',
+                    mr: 2,
+                    ml: 1,
+                    mb: 0.5,
+                    py: 1.25,
+                    '&.active': {
+                      bgcolor: 'action.selected',
+                      '& .MuiListItemIcon-root': {
+                        color: 'primary.main',
+                      },
+                      '& .MuiListItemText-primary': {
+                        fontWeight: 'bold',
+                        color: 'primary.main',
+                      },
+                      '& .indicator': {
+                        backgroundColor: 'primary.main',
+                        opacity: 1,
+                        transform: 'scaleY(1)',
+                      }
+                    },
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                      '& .indicator': {
+                        backgroundColor: 'primary.lighter',
+                        opacity: 0.5,
+                        transform: 'scaleY(0.7)',
+                      }
+                    },
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                  }}
+                >
+                  <Box 
+                    className="indicator"
+                    sx={{
+                      position: 'absolute',
+                      left: 0,
+                      top: 6,
+                      bottom: 6,
+                      width: 3,
+                      opacity: 0,
+                      borderRadius: 4,
+                      transform: 'scaleY(0.3)',
+                      transition: 'all 0.3s ease',
+                      backgroundColor: 'transparent',
+                    }}
+                  />
+                  <ListItemIcon sx={{ minWidth: 36, color: 'text.secondary' }}>
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      fontWeight: 'medium'
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </>
+      )}
 
       <Box
         sx={{

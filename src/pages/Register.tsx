@@ -45,8 +45,6 @@ export default function Register() {
   }, [user, navigate]);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
-    // TODO: Implementar validación real con backend
-    // Por ahora, validación temporal de ejemplo
     try {
       const { data, error } = await supabase
         .from('invitation_codes')
@@ -123,10 +121,10 @@ export default function Register() {
 
         // TODO: Marcar código de invitación como usado
         try {
-          await supabase
-            .from('invitation_codes')
-            .update({ used: true, used_by: data.user.id, used_at: new Date().toISOString() })
-            .eq('code', validatedCode);
+          await supabase.rpc('mark_invitation_code_used', {
+            invitation_code: validatedCode,
+            user_id: data.user.id
+          });
         } catch (codeError) {
           console.log('Error marcando código como usado:', codeError);
         }
