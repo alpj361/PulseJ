@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import { CloudUpload, Description, Audiotrack, VideoLibrary, Link as LinkIcon, Add, Search, Label, DriveFolderUpload, Lock } from '@mui/icons-material';
+import LockIcon from '@mui/icons-material/Lock';
 
 // Estructura de datos simulada
 const initialCodexItems = [
@@ -110,51 +111,65 @@ const Codex: React.FC = () => {
 
   // UI para botones inactivos
   const InactiveButton: React.FC<{ icon: React.ReactNode; label: string }> = ({ icon, label }) => (
-    <Tooltip title="🔒 Función disponible próximamente" arrow>
-      <span>
-        <Button
-          variant="contained"
-          color="inherit"
-          startIcon={icon}
-          disabled
-          sx={{ opacity: 0.6, pointerEvents: 'auto', bgcolor: 'grey.200', color: 'grey.600' }}
-        >
-          {label}
-        </Button>
-      </span>
-    </Tooltip>
-  );
+  <Tooltip title="🔒 Función disponible próximamente" arrow>
+    <span>
+      <Button
+        variant="outlined"
+        color="inherit"
+        startIcon={<LockIcon sx={{ mr: 0.5, color: 'grey.400' }} />}
+        disabled
+        sx={{
+          opacity: 0.7,
+          pointerEvents: 'auto',
+          bgcolor: 'grey.100',
+          color: 'grey.500',
+          borderColor: 'grey.200',
+          fontWeight: 500,
+          fontSize: '1rem',
+          px: 2.5,
+          py: 1.2,
+          borderRadius: 2,
+        }}
+      >
+        {label}
+      </Button>
+    </span>
+  </Tooltip>
+);
 
   // Card de resumen general
   const CardResumen = () => (
-    <Card sx={{ mb: 4, p: 2, borderRadius: 4, boxShadow: 0 }}>
-      <CardContent>
-        <Grid container spacing={2} alignItems="center">
+    <Card sx={{ mb: 6, p: 4, borderRadius: 5, boxShadow: 0 }}>
+      <CardContent sx={{ px: { xs: 1, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+        <Grid container spacing={4} alignItems="center">
           <Grid item xs={12} sm={6}>
-            <Typography variant="h5" fontWeight={700} gutterBottom>
+            <Typography variant="h4" fontWeight={700} gutterBottom sx={{ letterSpacing: -1, mb: 1 }}>
               Resumen general del Codex
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
               Última actualización: {resumen.ultima || '—'}
             </Typography>
           </Grid>
           <Grid item xs={12} sm={6}>
-            <Stack direction="row" spacing={2} justifyContent={isMobile ? 'flex-start' : 'flex-end'}>
-              <Chip icon={<Description />} label={`Documentos: ${resumen.documento}`} color="primary" />
-              <Chip icon={<Audiotrack />} label={`Audios: ${resumen.audio}`} color="secondary" />
-              <Chip icon={<VideoLibrary />} label={`Videos: ${resumen.video}`} sx={{ bgcolor: 'blue.100', color: 'blue.800' }} />
-              <Chip icon={<LinkIcon />} label={`Enlaces: ${resumen.enlace}`} sx={{ bgcolor: 'grey.100', color: 'grey.700' }} />
+            <Stack direction="row" spacing={2.5} justifyContent={isMobile ? 'flex-start' : 'flex-end'}>
+              <Chip icon={<Description />} label={`Documentos: ${resumen.documento}`} color="primary" sx={{ fontSize: '1rem', px: 1.5, py: 1 }} />
+              <Chip icon={<Audiotrack />} label={`Audios: ${resumen.audio}`} color="secondary" sx={{ fontSize: '1rem', px: 1.5, py: 1 }} />
+              <Chip icon={<VideoLibrary />} label={`Videos: ${resumen.video}`} sx={{ bgcolor: 'blue.100', color: 'blue.800', fontSize: '1rem', px: 1.5, py: 1 }} />
+              <Chip icon={<LinkIcon />} label={`Enlaces: ${resumen.enlace}`} sx={{ bgcolor: 'grey.100', color: 'grey.700', fontSize: '1rem', px: 1.5, py: 1 }} />
             </Stack>
           </Grid>
         </Grid>
-        <Divider sx={{ my: 2 }} />
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+        <Divider sx={{ my: 4 }} />
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
           <Button
             variant={tab === 'agregar' ? 'contained' : 'outlined'}
             color="primary"
             startIcon={<Add />}
-            onClick={() => setTab('agregar')}
-            sx={{ minWidth: 180 }}
+            onClick={() => {
+              setTab('agregar');
+              // Aquí iría el flujo de OAuth real
+            }}
+            sx={{ minWidth: 220, fontWeight: 600, fontSize: '1.1rem', py: 1.3, borderRadius: 2, boxShadow: tab === 'agregar' ? 2 : 0 }}
           >
             + Agregar nueva fuente
           </Button>
@@ -163,7 +178,7 @@ const Codex: React.FC = () => {
             color="secondary"
             startIcon={<Search />}
             onClick={() => setTab('explorar')}
-            sx={{ minWidth: 180 }}
+            sx={{ minWidth: 220, fontWeight: 600, fontSize: '1.1rem', py: 1.3, borderRadius: 2, boxShadow: tab === 'explorar' ? 2 : 0 }}
           >
             Explorar Codex
           </Button>
@@ -174,16 +189,16 @@ const Codex: React.FC = () => {
 
   // Cards de carga de fuentes
   const CardSubirDocumento = () => (
-    <Card sx={{ mb: 3, borderRadius: 4 }}>
-      <CardContent>
-        <Stack spacing={2}>
-          <Typography variant="h6" fontWeight={600} gutterBottom>
+    <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
+      <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+        <Stack spacing={3}>
+          <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
             Subir Documento / Nota / PDF
           </Typography>
-          <TextField label="Título del documento" fullWidth size="small" />
-          <TextField label="Descripción breve" fullWidth size="small" multiline rows={2} />
-          <TextField label="Etiquetas" fullWidth size="small" placeholder="Ej: salud, gobierno" InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+          <TextField label="Título del documento" fullWidth size="medium" />
+          <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
+          <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: salud, gobierno" InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
             <InactiveButton icon={<CloudUpload />} label="Subir PDF desde equipo" />
             <InactiveButton icon={<DriveFolderUpload />} label="Conectar desde Google Drive" />
           </Stack>
@@ -254,18 +269,18 @@ const Codex: React.FC = () => {
 
   // Explorador de Codex
   const ExploradorCodex = () => (
-    <Card sx={{ borderRadius: 4 }}>
-      <CardContent>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} mb={2}>
+    <Card sx={{ borderRadius: 4, p: 2, boxShadow: 0 }}>
+      <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} mb={3}>
           <TextField
             label="Buscar por título"
-            size="small"
+            size="medium"
             value={filtros.search}
             onChange={e => setFiltros(f => ({ ...f, search: e.target.value }))}
             InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
-            sx={{ minWidth: 200 }}
+            sx={{ minWidth: 240 }}
           />
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="medium" sx={{ minWidth: 180 }}>
             <InputLabel>Tipo de fuente</InputLabel>
             <Select
               label="Tipo de fuente"
@@ -278,7 +293,7 @@ const Codex: React.FC = () => {
               ))}
             </Select>
           </FormControl>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="medium" sx={{ minWidth: 180 }}>
             <InputLabel>Estado</InputLabel>
             <Select
               label="Estado"
@@ -292,11 +307,11 @@ const Codex: React.FC = () => {
             </Select>
           </FormControl>
         </Stack>
-        <Divider sx={{ mb: 2 }} />
-        <Grid container spacing={2}>
+        <Divider sx={{ mb: 3 }} />
+        <Grid container spacing={4}>
           {filteredItems.length === 0 ? (
             <Grid item xs={12}>
-              <Typography color="text.secondary" align="center">
+              <Typography color="text.secondary" align="center" sx={{ fontSize: '1.1rem' }}>
                 No se encontraron fuentes con los filtros seleccionados.
               </Typography>
             </Grid>
@@ -306,37 +321,44 @@ const Codex: React.FC = () => {
                 <Card
                   variant="outlined"
                   sx={{
-                    borderRadius: 3,
+                    borderRadius: 4,
                     height: '100%',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
                     bgcolor: 'background.paper',
                     boxShadow: 0,
+                    p: 3,
                   }}
                 >
-                  <CardContent>
-                    <Stack direction="row" spacing={1} alignItems="center" mb={1}>
+                  <CardContent sx={{ px: 0, py: 0 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" mb={2}>
                       {item.tipo === 'documento' && <Description color="primary" />}
                       {item.tipo === 'audio' && <Audiotrack color="secondary" />}
                       {item.tipo === 'video' && <VideoLibrary sx={{ color: theme.palette.primary.dark }} />}
                       {item.tipo === 'enlace' && <LinkIcon sx={{ color: theme.palette.grey[700] }} />}
-                      <Typography variant="subtitle1" fontWeight={600} noWrap>
+                      <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ fontSize: '1.1rem' }}>
                         {item.titulo}
                       </Typography>
                     </Stack>
-                    <Typography variant="body2" color="text.secondary" mb={1}>
+                    <Typography variant="body2" color="text.secondary" mb={1.5} sx={{ fontSize: '1rem' }}>
                       {tipoLabels[item.tipo]} • {item.fecha}
                     </Typography>
-                    <Stack direction="row" spacing={1} mb={1}>
+                    <Stack direction="row" spacing={1} mb={1.5}>
                       {item.etiquetas.map(et => (
-                        <Chip key={et} label={et} size="small" sx={{ bgcolor: 'grey.100', color: 'grey.700' }} />
+                        <Chip key={et} label={et} size="small" sx={{ bgcolor: 'grey.100', color: 'grey.700', fontWeight: 500, fontSize: '0.95rem' }} />
                       ))}
                     </Stack>
-                    <Chip label={item.estado} size="small" sx={{ bgcolor: 'grey.200', color: 'grey.800', fontWeight: 500 }} />
+                    <Chip label={item.estado} size="small" sx={{ bgcolor: 'grey.200', color: 'grey.800', fontWeight: 600, fontSize: '0.95rem', mb: 1.5 }} />
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.98rem', mb: 1.5 }}>
+                      Proyecto: <b>{item.proyecto || '—'}</b>
+                    </Typography>
+                    <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                      <Chip label="Ver en Google Drive" icon={<DriveFolderUpload fontSize="small" />} clickable sx={{ bgcolor: 'blue.50', color: 'primary.main', fontWeight: 500, fontSize: '0.98rem', mb: 1.5 }} />
+                    </a>
                   </CardContent>
-                  <Box px={2} pb={2}>
-                    <InactiveButton icon={<Lock />} label="Relacionar con investigación" />
+                  <Box px={0} pb={0}>
+                    <InactiveButton icon={<LockIcon />} label="Relacionar con investigación" />
                   </Box>
                 </Card>
               </Grid>
@@ -348,12 +370,12 @@ const Codex: React.FC = () => {
   );
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Box textAlign="center" mb={4}>
-        <Typography variant="h3" fontWeight={700} gutterBottom>
+    <Container maxWidth="md" sx={{ py: 6 }}>
+      <Box textAlign="center" mb={7}>
+        <Typography variant="h2" fontWeight={800} gutterBottom sx={{ letterSpacing: -2, fontSize: { xs: '2.2rem', sm: '2.8rem' } }}>
           Codex
         </Typography>
-        <Typography variant="h6" color="text.secondary">
+        <Typography variant="h5" color="text.secondary" sx={{ fontWeight: 400, fontSize: { xs: '1.1rem', sm: '1.3rem' }, mb: 1 }}>
           Tu archivo personal de fuentes, documentos, audios, videos y enlaces. Conecta tu Google Drive para comenzar a organizar y analizar tus materiales periodísticos.
         </Typography>
       </Box>
