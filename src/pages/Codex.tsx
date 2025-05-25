@@ -116,6 +116,10 @@ const Codex: React.FC = () => {
   const tokenClientRef = useRef<any>(null);
   const { user } = useAuth();
 
+  useEffect(() => {
+    console.log('[Codex] user:', user);
+  }, [user]);
+
   // Cargar scripts de Google Picker y GIS
   useEffect(() => {
     async function loadGoogleApis() {
@@ -535,10 +539,13 @@ const Codex: React.FC = () => {
 
   // Agrego la función handleAddFromDriveWithType
   const handleAddFromDriveWithType = async (forcedType: string) => {
+    console.log('[Codex] handleAddFromDriveWithType called. user:', user);
     if (!user) {
+      console.log('[Codex] Usuario no autenticado, mostrando popup de Google.');
       setGoogleDialogOpen(true);
       return;
     }
+    console.log('[Codex] Usuario autenticado, abriendo picker.');
     let token = googleAccessToken;
     if (!token) {
       setGoogleDialogOpen(true);
