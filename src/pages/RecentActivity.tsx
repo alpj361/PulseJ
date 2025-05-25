@@ -158,31 +158,109 @@ export default function RecentActivity() {
           }
         }
       } catch (e) {
-        // Not JSON, use the raw value
-        const value = activity.value.toLowerCase();
-        if (valueFrequency[value]) {
-          valueFrequency[value]++;
-        } else {
-          valueFrequency[value] = 1;
+        console.log('❌ DEBUG: JSON parse error:', e);
+        console.log('📄 DEBUG: Raw JSON content that failed:', activity.value);
+        console.log('🔧 DEBUG: Attempting to fix malformed JSON...');
+        
+        // Try to fix common JSON issues
+        try {
+          let fixedValue = activity.value;
+          
+          // Check if it's a hashtag format based on content
+          if (fixedValue.includes('"meta"') && fixedValue.includes('"hashtag"')) {
+            console.log('🎯 DEBUG: This looks like a hashtag scrape, trying to extract hashtag...');
+            
+            // Try to extract hashtag from malformed JSON
+            const hashtagMatch = fixedValue.match(/"hashtag":\s*"([^"]+)"/);
+            if (hashtagMatch) {
+              const theme = hashtagMatch[1].toLowerCase();
+              if (valueFrequency[theme]) {
+                valueFrequency[theme]++;
+              } else {
+                valueFrequency[theme] = 1;
+              }
+            }
+            
+            // Try to extract sentiment
+            const positiveMatch = fixedValue.match(/"positivo":\s*(\d+)/);
+            const negativeMatch = fixedValue.match(/"negativo":\s*(\d+)/);
+            const neutralMatch = fixedValue.match(/"neutral":\s*(\d+)/);
+            
+            if (positiveMatch && negativeMatch && neutralMatch) {
+              const pos = parseInt(positiveMatch[1]);
+              const neg = parseInt(negativeMatch[1]);
+              const neu = parseInt(neutralMatch[1]);
+              
+              if (pos > neg && pos > neu) {
+                const processedSentimiento = 'positivo';
+                console.log('✅ DEBUG: Extracted sentiment from malformed JSON:', processedSentimiento);
+              } else if (neg > pos && neg > neu) {
+                const processedSentimiento = 'negativo';
+                console.log('✅ DEBUG: Extracted sentiment from malformed JSON:', processedSentimiento);
+              } else {
+                const processedSentimiento = 'neutral';
+                console.log('✅ DEBUG: Extracted sentiment from malformed JSON:', processedSentimiento);
+              }
+            }
+          }
+          
+          // Try other repair strategies
+          fixedValue = fixedValue.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+          
+          // Try parsing the fixed version
+          const repairedJson = JSON.parse(fixedValue);
+          console.log('🔧 DEBUG: Successfully repaired JSON!', repairedJson);
+          
+          // Process the repaired JSON
+          if (repairedJson.meta && repairedJson.meta.hashtag) {
+            const theme = repairedJson.meta.hashtag.toLowerCase();
+            if (valueFrequency[theme]) {
+              valueFrequency[theme]++;
+            } else {
+              valueFrequency[theme] = 1;
+            }
+          }
+          
+        } catch (repairError) {
+          console.log('❌ DEBUG: Could not repair JSON:', repairError);
+          // Fallback: try to guess from raw content
+          if (activity.value.includes('#') || activity.value.includes('hashtag')) {
+            const theme = activity.value.toLowerCase();
+            if (valueFrequency[theme]) {
+              valueFrequency[theme]++;
+            } else {
+              valueFrequency[theme] = 1;
+            }
+          } else if (activity.value.startsWith('#')) {
+            const theme = activity.value.toLowerCase();
+            if (valueFrequency[theme]) {
+              valueFrequency[theme]++;
+            } else {
+              valueFrequency[theme] = 1;
+            }
+          } else if (activity.value.startsWith('@')) {
+            const theme = activity.value.toLowerCase();
+            if (valueFrequency[theme]) {
+              valueFrequency[theme]++;
+            } else {
+              valueFrequency[theme] = 1;
+            }
+          }
         }
       }
+      
+      const processed = {
+        ...activity,
+        type: processedType,
+        sentimiento: processedSentimiento
+      };
+      
+      console.log('✅ DEBUG: Processed result:', processed.id, processed.type, processed.sentimiento);
+      return processed;
     });
     
-    // Sort by frequency and get top 5
-    const commonThemes: ThemeCount[] = Object.entries(valueFrequency)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5)
-      .map(([theme, count]) => ({ 
-        theme, 
-        count 
-      }));
-    
-    return {
-      hashtagCount,
-      userCount,
-      newsCount,
-      commonThemes
-    };
+    console.log('📊 DEBUG: Final processed activities:', processedActivities.length);
+    setActivities(processedActivities);
   };
 
   useEffect(() => {
@@ -283,11 +361,69 @@ export default function RecentActivity() {
               }
             } catch (e) {
               console.log('❌ DEBUG: JSON parse error:', e);
-              // If not JSON, keep original type or try to guess
-              if (scrape.value.startsWith('#')) {
-                processedType = 'Hashtag';
-              } else if (scrape.value.startsWith('@')) {
-                processedType = 'Usuario';
+              console.log('📄 DEBUG: Raw JSON content that failed:', scrape.value);
+              console.log('🔧 DEBUG: Attempting to fix malformed JSON...');
+              
+              // Try to fix common JSON issues
+              try {
+                let fixedValue = scrape.value;
+                
+                // Check if it's a hashtag format based on content
+                if (fixedValue.includes('"meta"') && fixedValue.includes('"hashtag"')) {
+                  console.log('🎯 DEBUG: This looks like a hashtag scrape, trying to extract hashtag...');
+                  
+                  // Try to extract hashtag from malformed JSON
+                  const hashtagMatch = fixedValue.match(/"hashtag":\s*"([^"]+)"/);
+                  if (hashtagMatch) {
+                    processedType = 'Hashtag';
+                    console.log('✅ DEBUG: Extracted hashtag from malformed JSON:', hashtagMatch[1]);
+                  }
+                  
+                  // Try to extract sentiment
+                  const positiveMatch = fixedValue.match(/"positivo":\s*(\d+)/);
+                  const negativeMatch = fixedValue.match(/"negativo":\s*(\d+)/);
+                  const neutralMatch = fixedValue.match(/"neutral":\s*(\d+)/);
+                  
+                  if (positiveMatch && negativeMatch && neutralMatch) {
+                    const pos = parseInt(positiveMatch[1]);
+                    const neg = parseInt(negativeMatch[1]);
+                    const neu = parseInt(neutralMatch[1]);
+                    
+                    if (pos > neg && pos > neu) {
+                      processedSentimiento = 'positivo';
+                    } else if (neg > pos && neg > neu) {
+                      processedSentimiento = 'negativo';
+                    } else {
+                      processedSentimiento = 'neutral';
+                    }
+                    console.log('✅ DEBUG: Extracted sentiment from malformed JSON:', processedSentimiento);
+                  }
+                }
+                
+                // Try other repair strategies
+                fixedValue = fixedValue.replace(/,\s*}/g, '}').replace(/,\s*]/g, ']');
+                
+                // Try parsing the fixed version
+                const repairedJson = JSON.parse(fixedValue);
+                console.log('🔧 DEBUG: Successfully repaired JSON!', repairedJson);
+                
+                // Process the repaired JSON
+                if (repairedJson.meta && repairedJson.meta.hashtag) {
+                  processedType = 'Hashtag';
+                  console.log('✅ DEBUG: Detected hashtag in repaired JSON:', repairedJson.meta.hashtag);
+                }
+                
+              } catch (repairError) {
+                console.log('❌ DEBUG: Could not repair JSON:', repairError);
+                // Fallback: try to guess from raw content
+                if (scrape.value.includes('#') || scrape.value.includes('hashtag')) {
+                  processedType = 'Hashtag';
+                  console.log('🎯 DEBUG: Fallback detection: This looks like a hashtag');
+                } else if (scrape.value.startsWith('#')) {
+                  processedType = 'Hashtag';
+                } else if (scrape.value.startsWith('@')) {
+                  processedType = 'Usuario';
+                }
               }
             }
           }
