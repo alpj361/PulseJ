@@ -132,8 +132,9 @@ const extractHashtag = (value: string): string => {
     // Si no podemos extraer un hashtag, devolver un valor predeterminado
     return "#Tendencia";
   } catch (e) {
-    // Si no es JSON, devolver el valor original
-    return value.startsWith('#') ? value : `#${value}`;
+    // Si el JSON está mal, retorna el valor original o vacío
+    console.warn('Error al extraer hashtag:', e, value);
+    return value.startsWith('#') ? value : '';
   }
 };
 
@@ -176,14 +177,13 @@ const normalizeTweet = (tweet: any): Tweet => {
   };
 };
 
-// Función para extraer tweets del valor JSON
+// Función para extraer tweets del valor (si es JSON)
 const extractTweets = (value: string): Tweet[] => {
   try {
     const parsedData = JSON.parse(value);
     
     // Si es la nueva estructura con meta y tweets
-    if (parsedData.meta && Array.isArray(parsedData.tweets)) {
-      // Normalizar cada tweet al formato esperado
+    if (parsedData.tweets && Array.isArray(parsedData.tweets)) {
       return parsedData.tweets.map(normalizeTweet);
     }
     
@@ -214,7 +214,8 @@ const extractTweets = (value: string): Tweet[] => {
     
     return [];
   } catch (e) {
-    console.error("Error al extraer tweets:", e);
+    // Si el JSON está mal, retorna array vacío y loguea el error
+    console.warn('Error al extraer tweets:', e, value);
     return [];
   }
 };
@@ -266,6 +267,8 @@ const extractSentimentSummary = (value: string): {
       totalCount: tweets.length
     };
   } catch (e) {
+    // Si el JSON está mal, retorna ceros
+    console.warn('Error al extraer resumen de sentimiento:', e, value);
     return {
       positiveCount: 0,
       negativeCount: 0,
