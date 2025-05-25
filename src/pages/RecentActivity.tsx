@@ -198,17 +198,39 @@ export default function RecentActivity() {
         return;
       }
       setUserPhone(profile.phone);
+      console.log('🔍 DEBUG: User phone:', profile.phone);
+      
       // Obtener la actividad asociada a ese número
       const { data, error: activityError } = await supabase
         .from('scrapes')
         .select('*')
         .eq('wa_number', profile.phone)
         .order('created_at', { ascending: false });
+        
+      console.log('📊 DEBUG: Raw scrapes data:', data);
+      console.log('❌ DEBUG: Activity error:', activityError);
+      
+      // TEMP DEBUG: Also get all recent scrapes to see what's available
+      const { data: allScrapes } = await supabase
+        .from('scrapes')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      console.log('🌍 DEBUG: All recent scrapes (last 10):', allScrapes?.map(s => ({
+        id: s.id,
+        wa_number: s.wa_number,
+        type: s.type,
+        value_preview: s.value?.substring(0, 50),
+        created_at: s.created_at
+      })));
+      
       if (activityError) {
         setError(t.error);
       } else {
         // Process the data to ensure correct type detection
         const processedActivities = (data || []).map((scrape: any) => {
+          console.log('🔍 DEBUG: Processing scrape:', scrape.id, scrape.type, scrape.value?.substring(0, 100));
+          
           let processedType = scrape.type;
           let processedSentimiento = scrape.sentimiento || 'neutral';
           
@@ -216,10 +238,12 @@ export default function RecentActivity() {
           if (scrape.value) {
             try {
               const jsonData = JSON.parse(scrape.value);
+              console.log('📋 DEBUG: Parsed JSON meta:', jsonData.meta);
               
               // New format with meta.hashtag
               if (jsonData.meta && jsonData.meta.hashtag) {
                 processedType = 'Hashtag';
+                console.log('✅ DEBUG: Detected hashtag format:', jsonData.meta.hashtag);
                 // Use sentiment from meta if available
                 if (jsonData.meta.sentiment_summary) {
                   const sentiment = jsonData.meta.sentiment_summary;
@@ -239,6 +263,7 @@ export default function RecentActivity() {
                   const content = jsonData[0].contenido || jsonData[0].text || '';
                   if (content.includes('#')) {
                     processedType = 'Hashtag';
+                    console.log('✅ DEBUG: Detected hashtag in array format');
                   }
                   // Use sentiment from first tweet if available
                   if (jsonData[0].sentimiento || jsonData[0].sentiment) {
@@ -249,12 +274,15 @@ export default function RecentActivity() {
               // Direct hashtag object
               else if (jsonData.hashtag) {
                 processedType = 'Hashtag';
+                console.log('✅ DEBUG: Detected direct hashtag format');
               }
               // User data
               else if (jsonData.username || jsonData.user) {
                 processedType = 'Usuario';
+                console.log('✅ DEBUG: Detected user format');
               }
             } catch (e) {
+              console.log('❌ DEBUG: JSON parse error:', e);
               // If not JSON, keep original type or try to guess
               if (scrape.value.startsWith('#')) {
                 processedType = 'Hashtag';
@@ -264,13 +292,17 @@ export default function RecentActivity() {
             }
           }
           
-          return {
+          const processed = {
             ...scrape,
             type: processedType,
             sentimiento: processedSentimiento
           };
+          
+          console.log('✅ DEBUG: Processed result:', processed.id, processed.type, processed.sentimiento);
+          return processed;
         });
         
+        console.log('📊 DEBUG: Final processed activities:', processedActivities.length);
         setActivities(processedActivities);
       }
       setLoading(false);
