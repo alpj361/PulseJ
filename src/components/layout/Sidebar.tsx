@@ -73,10 +73,6 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
   const { isAdmin } = useAdmin();
   const { user } = useAuth();
 
-  // 🐛 DEBUG: Logs temporales
-  console.log('🔍 useAdmin hook result:', { isAdmin });
-  console.log('🎯 Current user from auth context:', user?.id);
-
   const handleLanguageChange = (e: SelectChangeEvent<string>) => {
     setLanguage(e.target.value as 'es' | 'en');
     localStorage.setItem('lang', e.target.value);
@@ -84,6 +80,9 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
 
   // 🧪 DEBUG: Consulta directa de debugging
   useEffect(() => {
+    console.log('🔍 useAdmin hook result:', { isAdmin });
+    console.log('🎯 Current user from auth context:', user?.id);
+    
     async function directAdminCheck() {
       console.log('🧪 Starting direct admin check...');
       console.log('👤 User from useAuth:', user?.id);
@@ -102,7 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       }
     }
     directAdminCheck();
-  }, [user]);
+  }, [user, isAdmin]);
 
   const t = translations[language];
 
