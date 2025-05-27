@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
-import { GOOGLE_SCOPES } from '../config/auth';
+import { GOOGLE_SCOPES, getCallbackUrl } from '../config/auth';
 import Logo from '../components/common/Logo';
 import {
   Box,
@@ -152,12 +152,16 @@ export default function Register() {
   const handleGoogleRegister = async () => {
     // El código ya está validado, proceder con Google
     try {
-      // Construir URL de callback basada en la ubicación actual
-      const currentUrl = new URL(window.location.href);
-      const callbackUrl = `${currentUrl.protocol}//${currentUrl.host}/auth/callback?code=${validatedCode}`;
+      // Obtener URL de callback usando la configuración centralizada
+      const baseCallbackUrl = getCallbackUrl();
+      const callbackUrl = `${baseCallbackUrl}?code=${validatedCode}`;
       
-      console.log('Current URL:', window.location.href);
-      console.log('Register Callback URL:', callbackUrl);
+      console.log('🔧 Register Environment:', {
+        hostname: window.location.hostname,
+        protocol: window.location.protocol,
+        validatedCode: validatedCode
+      });
+      console.log('🔧 Register Callback URL:', callbackUrl);
 
       const { error } = await supabase.auth.signInWithOAuth({ 
         provider: 'google',
@@ -166,8 +170,15 @@ export default function Register() {
           scopes: GOOGLE_SCOPES
         }
       });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('❌ Error en Google Register:', error);
+        throw error;
+      }
+      
+      console.log('✅ Google Register OAuth iniciado correctamente');
     } catch (error: any) {
+      console.error('❌ Error completo en handleGoogleRegister:', error);
       setError('Error al registrarse con Google: ' + error.message);
     }
   };

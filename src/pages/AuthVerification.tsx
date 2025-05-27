@@ -59,26 +59,46 @@ export default function AuthVerification() {
   useEffect(() => {
     const verifyUser = async () => {
       try {
+        console.log('🔍 AuthVerification - INICIANDO VERIFICACIÓN');
+        console.log('🔍 AuthVerification - Environment:', {
+          hostname: window.location.hostname,
+          protocol: window.location.protocol,
+          href: window.location.href,
+          userAgent: navigator.userAgent
+        });
+        
         setStatus('checking');
         setMessage('Verificando tu cuenta...');
         
         // Obtener la sesión actual
         const { data, error } = await supabase.auth.getSession();
         
-        console.log('🔍 AuthVerification - Session data:', data);
-        console.log('🔍 AuthVerification - Session error:', error);
+        console.log('🔍 AuthVerification - Session data:', {
+          hasSession: !!data.session,
+          hasUser: !!data.session?.user,
+          userEmail: data.session?.user?.email,
+          userId: data.session?.user?.id,
+          sessionError: error
+        });
         
         if (error) {
-          console.error('❌ Error obteniendo sesión:', error);
+          console.error('❌ AuthVerification - Error obteniendo sesión:', error);
           setStatus('error');
           setMessage('Error de autenticación');
-          setTimeout(() => navigate('/login'), 2000);
+          setTimeout(() => {
+            console.log('🔄 AuthVerification - Redirigiendo a login por error de sesión');
+            navigate('/login');
+          }, 2000);
           return;
         }
 
         if (!data.session || !data.session.user) {
           // No hay sesión, redirigir a login y detener el efecto
-          console.log('❌ No hay sesión, redirigiendo a login');
+          console.log('❌ AuthVerification - No hay sesión válida, redirigiendo a login');
+          console.log('🔍 AuthVerification - Session details:', {
+            session: data.session,
+            user: data.session?.user
+          });
           navigate('/login');
           return;
         }
@@ -86,46 +106,71 @@ export default function AuthVerification() {
         const userId = data.session.user.id;
         const userEmail = data.session.user.email;
         
-        console.log('✅ Usuario autenticado:', userEmail);
-        console.log('🔍 User ID:', userId);
+        console.log('✅ AuthVerification - Usuario autenticado:', {
+          email: userEmail,
+          id: userId,
+          hasEmail: !!userEmail
+        });
         
         if (!userEmail) {
-          console.error('❌ No se pudo obtener el email del usuario');
+          console.error('❌ AuthVerification - No se pudo obtener el email del usuario');
           setStatus('error');
           setMessage('Error obteniendo información del usuario');
-          navigate('/login');
+          setTimeout(() => {
+            console.log('🔄 AuthVerification - Redirigiendo a login por falta de email');
+            navigate('/login');
+          }, 2000);
           return;
         }
         
         // Verificar si el usuario está registrado en profiles
+        console.log('🔍 AuthVerification - Verificando si usuario existe en profiles...');
         const userExists = await checkUserExists(userEmail);
+        
+        console.log('🔍 AuthVerification - Resultado verificación:', {
+          userExists,
+          email: userEmail
+        });
         
         if (userExists) {
           // Usuario registrado, redirigir al dashboard
-          console.log('✅ Usuario verificado, redirigiendo al dashboard');
+          console.log('✅ AuthVerification - Usuario verificado, redirigiendo al dashboard');
           setMessage('¡Bienvenido! Redirigiendo...');
           sessionStorage.setItem('user_verified', 'true');
-          setTimeout(() => navigate('/'), 1000);
+          setTimeout(() => {
+            console.log('🔄 AuthVerification - Navegando a dashboard');
+            navigate('/');
+          }, 1000);
           return;
         } else {
           // Usuario no registrado, cerrar sesión y redirigir al registro
-          console.log('❌ Usuario no registrado, cerrando sesión y redirigiendo al registro');
+          console.log('❌ AuthVerification - Usuario no registrado, iniciando limpieza');
           setMessage('Cuenta no registrada. Redirigiendo al registro...');
           sessionStorage.removeItem('user_verified');
+          
+          console.log('🗑️ AuthVerification - Eliminando usuario no registrado');
           await deleteUnregisteredUser(userId);
+          
+          console.log('🚪 AuthVerification - Cerrando sesión');
           await supabase.auth.signOut();
+          
+          console.log('🔄 AuthVerification - Redirigiendo a registro');
           navigate('/register?error=not_registered&message=Debes registrarte con un código de acceso antes de poder iniciar sesión');
           return;
         }
         
       } catch (error) {
-        console.error('❌ Error en verificación:', error);
+        console.error('❌ AuthVerification - Error en verificación:', error);
         setStatus('error');
         setMessage('Error verificando tu cuenta');
-        setTimeout(() => navigate('/login'), 2000);
+        setTimeout(() => {
+          console.log('🔄 AuthVerification - Redirigiendo a login por error general');
+          navigate('/login');
+        }, 2000);
       }
     };
 
+    console.log('🔍 AuthVerification - useEffect ejecutándose');
     verifyUser();
   }, [navigate]);
 

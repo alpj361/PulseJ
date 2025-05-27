@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
-import { GOOGLE_SCOPES } from '../config/auth';
+import { GOOGLE_SCOPES, getCallbackUrl } from '../config/auth';
 import Logo from '../components/common/Logo';
 import {
   Container,
@@ -70,16 +70,18 @@ export default function Login() {
     setError(null);
 
     try {
-      // Primero intentamos obtener la información del usuario de Google sin hacer login
-      // Para esto, usaremos un flujo temporal que nos permita verificar el email
+      // Obtener URL de callback usando la configuración centralizada
+      const callbackUrl = getCallbackUrl();
       
-      // Construir URL de callback basada en la ubicación actual
-      const currentUrl = new URL(window.location.href);
-      const callbackUrl = `${currentUrl.protocol}//${currentUrl.host}/auth/callback`;
-      
-      console.log('Current URL:', window.location.href);
-      console.log('Callback URL:', callbackUrl);
-      console.log('Scopes solicitados:', GOOGLE_SCOPES);
+      console.log('🔧 Environment:', {
+        hostname: window.location.hostname,
+        protocol: window.location.protocol,
+        port: window.location.port,
+        origin: window.location.origin,
+        href: window.location.href
+      });
+      console.log('🔧 Callback URL:', callbackUrl);
+      console.log('🔧 Scopes solicitados:', GOOGLE_SCOPES);
 
       // Iniciamos el flujo de OAuth con Google
       const { error } = await supabase.auth.signInWithOAuth({
@@ -95,15 +97,14 @@ export default function Login() {
       });
 
       if (error) {
-        console.error('Error en signInWithOAuth:', error);
+        console.error('❌ Error en signInWithOAuth:', error);
         throw error;
       }
 
-      // Nota: La verificación del usuario se hará en el callback
-      // porque necesitamos el email del usuario de Google primero
+      console.log('✅ OAuth iniciado correctamente');
       
     } catch (error: any) {
-      console.error('Error completo:', error);
+      console.error('❌ Error completo en handleGoogleLogin:', error);
       setError(error.message || 'Error al iniciar sesión con Google');
       setLoading(false);
     }

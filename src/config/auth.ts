@@ -3,12 +3,26 @@ export const getAuthConfig = () => {
   const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   const currentPort = window.location.port || (isLocalDev ? '5173' : '80');
   
+  // En producción, asegurar que usamos HTTPS
+  const protocol = isLocalDev ? 'http:' : 'https:';
+  const baseUrl = isLocalDev 
+    ? `http://localhost:${currentPort}` 
+    : `${protocol}//${window.location.hostname}`;
+  
   return {
     isLocalDev,
-    baseUrl: isLocalDev ? `http://localhost:${currentPort}` : window.location.origin,
-    callbackUrl: isLocalDev ? `http://localhost:${currentPort}/auth/callback` : `${window.location.origin}/auth/callback`,
-    loginUrl: isLocalDev ? `http://localhost:${currentPort}/login` : `${window.location.origin}/login`,
+    baseUrl,
+    callbackUrl: `${baseUrl}/auth/callback`,
+    loginUrl: `${baseUrl}/login`,
+    verifyUrl: `${baseUrl}/auth/verify`,
   };
+};
+
+// Función para obtener la URL de callback correcta
+export const getCallbackUrl = () => {
+  const config = getAuthConfig();
+  console.log('🔧 Auth Config:', config);
+  return config.callbackUrl;
 };
 
 // Scopes básicos para Google OAuth
