@@ -9,6 +9,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Settings from './pages/Settings';
 import AdminPanel from './pages/AdminPanel';
+import AuthCallback from './pages/AuthCallback';
+import AuthVerification from './pages/AuthVerification';
+import Terms from './pages/Terms';
 import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Box, CircularProgress } from '@mui/material';
@@ -31,7 +34,49 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  return user ? <>{children}</> : <Navigate to="/login" />;
+  // Si hay usuario, redirigir a verificación para que valide si está registrado
+  // Si no hay usuario, redirigir a login
+  return user ? <Navigate to="/auth/verify" /> : <Navigate to="/login" />;
+};
+
+// Componente para rutas que requieren usuario verificado (acceso directo desde AuthVerification)
+const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        minHeight: '100vh' 
+      }}>
+        <CircularProgress color="primary" size={48} />
+      </Box>
+    );
+  }
+  
+  // Si no hay usuario, redirigir a login
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+  
+  // Si hay usuario, verificar que venga desde AuthVerification
+  // Para esto, verificamos si estamos en una ruta protegida sin haber pasado por verificación
+  const currentPath = window.location.pathname;
+  const isProtectedPath = ['/', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library'].includes(currentPath);
+  
+  if (isProtectedPath) {
+    // Verificar si el usuario viene directamente sin verificación
+    // Esto se puede hacer verificando si hay un flag en sessionStorage
+    const isVerified = sessionStorage.getItem('user_verified') === 'true';
+    
+    if (!isVerified) {
+      return <Navigate to="/auth/verify" />;
+    }
+  }
+  
+  return <>{children}</>;
 };
 
 function App() {
@@ -42,6 +87,9 @@ function App() {
           {/* Rutas públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/callback" element={<AuthCallback />} />
+          <Route path="/auth/verify" element={<AuthVerification />} />
+          <Route path="/terms" element={<Terms />} />
           
           {/* Ruta de prueba para el nuevo formato JSON */}
           <Route path="/test-hashtag" element={
@@ -52,53 +100,53 @@ function App() {
           
           {/* Rutas protegidas */}
           <Route path="/" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <Trends />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/recent" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <RecentActivity />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/sources" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <Sources />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/analytics" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <Analytics />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/settings" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <Settings />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/admin" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <AdminPanel />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           <Route path="/library" element={
-            <ProtectedRoute>
+            <VerifiedRoute>
               <Layout>
                 <Codex />
               </Layout>
-            </ProtectedRoute>
+            </VerifiedRoute>
           } />
           
           {/* Redirección para rutas no encontradas */}

@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
+import { supabase } from '../../services/supabase';
 
 interface HeaderProps {
   toggleDarkMode: () => void;
@@ -26,13 +27,29 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
 
   const handleLogout = async () => {
     try {
-      // Llamar a signOut y luego hacer una redirección con recarga completa
-      await signOut();
+      console.log('Iniciando logout...');
+      
+      // Limpiar inmediatamente el estado local
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Limpiar cookies
+      document.cookie.split(';').forEach(c => {
+        document.cookie = c
+          .replace(/^ +/, '')
+          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
+      });
+      
+      // Llamar a signOut de Supabase sin esperar
+      supabase.auth.signOut().catch((error: any) => {
+        console.log('Error en signOut (ignorado):', error);
+      });
+      
     } catch (error) {
       console.error("Error during logout:", error);
     } finally {
-      // Siempre redirigimos, incluso si hay error en signOut
-      // Usar location.href hace una recarga completa de la página
+      // Siempre redirigir con recarga completa
+      console.log('Redirigiendo a login...');
       window.location.href = '/login';
     }
   };

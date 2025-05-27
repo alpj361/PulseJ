@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useNavigate, Link as RouterLink, useSearchParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { GOOGLE_SCOPES } from '../config/auth';
 import Logo from '../components/common/Logo';
 import {
   Box,
@@ -36,6 +37,7 @@ export default function Register() {
   const [success, setSuccess] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
 
   // Si el usuario ya está autenticado, redirigir al dashboard
   useEffect(() => {
@@ -43,6 +45,20 @@ export default function Register() {
       navigate('/');
     }
   }, [user, navigate]);
+
+  // Verificar si hay un mensaje de error en los parámetros de URL
+  useEffect(() => {
+    const errorParam = searchParams.get('error');
+    const messageParam = searchParams.get('message');
+    
+    if (errorParam === 'not_registered' && messageParam) {
+      setError(decodeURIComponent(messageParam));
+    } else if (errorParam === 'invalid_code' && messageParam) {
+      setError(decodeURIComponent(messageParam));
+    } else if (errorParam === 'profile_creation_failed' && messageParam) {
+      setError(decodeURIComponent(messageParam));
+    }
+  }, [searchParams]);
 
   const validateInvitationCode = async (code: string): Promise<boolean> => {
     try {
@@ -114,20 +130,10 @@ export default function Register() {
       // Si el registro fue exitoso, guardar el número en profiles y marcar código como usado
       if (data.user) {
         await supabase.from('profiles').upsert({ 
-          id: data.user.id, 
-          phone,
-          invitation_code: validatedCode 
+          id: data.user.id,
+          email: data.user.email,
+          phone
         });
-
-        // TODO: Marcar código de invitación como usado
-        try {
-          await supabase.rpc('mark_invitation_code_used', {
-            invitation_code: validatedCode,
-            user_id: data.user.id
-          });
-        } catch (codeError) {
-          console.log('Error marcando código como usado:', codeError);
-        }
       }
       
       setSuccess('Se ha enviado un enlace de confirmación a tu correo electrónico.');
@@ -146,10 +152,18 @@ export default function Register() {
   const handleGoogleRegister = async () => {
     // El código ya está validado, proceder con Google
     try {
+      // Construir URL de callback basada en la ubicación actual
+      const currentUrl = new URL(window.location.href);
+      const callbackUrl = `${currentUrl.protocol}//${currentUrl.host}/auth/callback?code=${validatedCode}`;
+      
+      console.log('Current URL:', window.location.href);
+      console.log('Register Callback URL:', callbackUrl);
+
       const { error } = await supabase.auth.signInWithOAuth({ 
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/login?code=${validatedCode}`
+          redirectTo: callbackUrl,
+          scopes: GOOGLE_SCOPES
         }
       });
       if (error) throw error;
@@ -269,6 +283,16 @@ export default function Register() {
               ¿Ya tienes cuenta?{' '}
               <Link component={RouterLink} to="/login" color="primary" underline="hover">
                 Iniciar sesión
+              </Link>
+            </Typography>
+          </Box>
+
+          {/* Enlace a términos y condiciones */}
+          <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary">
+              Al continuar, aceptas nuestros{' '}
+              <Link component={RouterLink} to="/terms" color="primary" underline="hover">
+                Términos y Condiciones
               </Link>
             </Typography>
           </Box>
@@ -432,6 +456,16 @@ export default function Register() {
           >
             Cambiar código de invitación
           </Button>
+        </Box>
+
+        {/* Enlace a términos y condiciones */}
+        <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Typography variant="caption" color="text.secondary">
+            Al crear tu cuenta, aceptas nuestros{' '}
+            <Link component={RouterLink} to="/terms" color="primary" underline="hover">
+              Términos y Condiciones
+            </Link>
+          </Typography>
         </Box>
       </Paper>
     </Box>

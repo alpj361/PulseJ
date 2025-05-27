@@ -22,13 +22,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Obtener sesión actual
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('🔍 AuthContext - Sesión inicial:', session?.user?.email);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
     // Escuchar cambios de autenticación
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔍 AuthContext - Auth state change:', event, session?.user?.email);
+      
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -40,24 +43,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Función para cerrar sesión
   const signOut = async () => {
     try {
-      // Primero intentamos logout normal
-      await supabase.auth.signOut();
-    } catch (error) {
-      console.error("Error en signOut de Supabase:", error);
-    } finally {
-      // Incluso si hay error, limpiamos el estado local
+      // Limpiar estado inmediatamente
       setSession(null);
       setUser(null);
       
-      // Limpiamos cualquier token de localStorage para asegurar logout completo
-      localStorage.removeItem('supabase.auth.token');
+      // Llamar a signOut de Supabase
+      await supabase.auth.signOut();
       
-      // Limpiamos todas las cookies relacionadas con Supabase (ruta / y dominio actual)
-      document.cookie.split(';').forEach(c => {
-        document.cookie = c
-          .replace(/^ +/, '')
-          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-      });
+      // Limpiar almacenamiento local
+      localStorage.clear();
+      sessionStorage.clear();
+      
+    } catch (error) {
+      console.error("Error en signOut de Supabase:", error);
+      // Incluso si hay error, limpiar estado local
+      setSession(null);
+      setUser(null);
+      // Limpiar almacenamiento local incluso si hay error
+      localStorage.clear();
+      sessionStorage.clear();
     }
   };
 

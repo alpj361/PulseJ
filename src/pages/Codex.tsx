@@ -44,9 +44,7 @@ const tipoLabels: Record<string, string> = {
 const estadoLabels = ['Nuevo', 'Archivado', 'En análisis'];
 const tipoOptions = ['documento', 'audio', 'video', 'enlace'];
 
-const GOOGLE_CLIENT_ID = '80973030831-7v96jltgkg4r31r8n68du9vjpjutuq3o.apps.googleusercontent.com';
 const GOOGLE_PICKER_API_KEY = 'AIzaSyA0oumyL3f8EaXraPvdYOVE2IYLbcO6lEo';
-const GOOGLE_PICKER_SCOPE = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive.readonly'];
 
 function loadScript(src: string) {
   return new Promise((resolve, reject) => {
@@ -65,18 +63,41 @@ const Codex: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const pickerApiLoaded = useRef(false);
-  const [googleAccessToken, setGoogleAccessToken] = useState<string | null>(null);
   const [googleDialogOpen, setGoogleDialogOpen] = useState(false);
   const [googleDialogError, setGoogleDialogError] = useState('');
-  const tokenClientRef = useRef<any>(null);
-  const { user } = useAuth();
-  const [driveAuthDialogOpen, setDriveAuthDialogOpen] = useState(false);
+  const { user, session } = useAuth();
+  const [needsGoogleAuth, setNeedsGoogleAuth] = useState(false);
 
   useEffect(() => {
     console.log('[Codex] user:', user);
-  }, [user]);
+    console.log('[Codex] session:', session);
+    
+    // Verificar si el usuario está autenticado con Google y tiene los scopes necesarios
+    if (user && session) {
+      const isGoogleUser = user.app_metadata?.provider === 'google';
+      console.log('[Codex] Es usuario de Google:', isGoogleUser);
+      
+      if (isGoogleUser) {
+        // Verificar si tenemos acceso a Google Drive
+        const providerToken = session.provider_token;
+        console.log('[Codex] Provider token disponible:', !!providerToken);
+        
+        if (!providerToken) {
+          console.log('[Codex] No hay provider token, necesita reautenticación');
+          setNeedsGoogleAuth(true);
+        } else {
+          setNeedsGoogleAuth(false);
+        }
+      } else {
+        console.log('[Codex] Usuario no autenticado con Google');
+        setNeedsGoogleAuth(true);
+      }
+    } else {
+      setNeedsGoogleAuth(true);
+    }
+  }, [user, session]);
 
-  // Cargar scripts de Google Picker y GIS
+  // Cargar scripts de Google Picker
   useEffect(() => {
     async function loadGoogleApis() {
       console.log('[Codex] Cargando APIs de Google...');
@@ -119,36 +140,6 @@ const Codex: React.FC = () => {
             }
           });
         });
-        
-        // Cargar Google Identity Services
-        console.log('[Codex] Cargando Google Identity Services...');
-        if (!(window as any).google || !(window as any).google.accounts || !(window as any).google.accounts.oauth2) {
-          await loadScript('https://accounts.google.com/gsi/client');
-        }
-        
-        // Esperar a que GIS se inicialice
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Inicializar token client GIS
-        if ((window as any).google && (window as any).google.accounts && (window as any).google.accounts.oauth2) {
-          tokenClientRef.current = (window as any).google.accounts.oauth2.initTokenClient({
-            client_id: GOOGLE_CLIENT_ID,
-            scope: GOOGLE_PICKER_SCOPE.join(' '),
-            callback: (tokenResponse: any) => {
-              console.log('[Codex] Token response recibido:', tokenResponse);
-              if (tokenResponse && tokenResponse.access_token) {
-                setGoogleAccessToken(tokenResponse.access_token);
-                setGoogleDialogOpen(false);
-                setDriveAuthDialogOpen(false);
-                console.log('[Codex] Token de Google Drive obtenido exitosamente');
-              } else {
-                setGoogleDialogError('No se pudo obtener el token de acceso. Intenta de nuevo.');
-                console.error('[Codex] Error en token response:', tokenResponse);
-              }
-            },
-          });
-          console.log('[Codex] Google Identity Services inicializado');
-        }
         
         console.log('[Codex] Todas las APIs de Google cargadas exitosamente');
         
@@ -504,14 +495,40 @@ const Codex: React.FC = () => {
     setCodexItems(items => items.filter(item => item.id !== itemId));
   };
 
-  // Agrego la función handleAddFromDriveWithType
+  // Función principal para agregar desde Google Drive
   const handleAddFromDriveWithType = async (forcedType: string) => {
     console.log('[Codex] handleAddFromDriveWithType called. user:', user);
     
+    // Verificar si el usuario está autenticado
+    if (!user || !session) {
+      setGoogleDialogError('Debes iniciar sesión para acceder a Google Drive.');
+      setNeedsGoogleAuth(true);
+      setGoogleDialogOpen(true);
+      return;
+    }
+
+    // Verificar si el usuario está autenticado con Google
+    const isGoogleUser = user.app_metadata?.provider === 'google';
+    if (!isGoogleUser) {
+      setGoogleDialogError('Para acceder a Google Drive, debes iniciar sesión con tu cuenta de Google.');
+      setNeedsGoogleAuth(true);
+      setGoogleDialogOpen(true);
+      return;
+    }
+
+    // Verificar si tenemos el token de Google
+    const googleToken = session.provider_token;
+    if (!googleToken) {
+      setGoogleDialogError('Necesitas autorizar el acceso a Google Drive para usar esta función.');
+      setNeedsGoogleAuth(true);
+      setGoogleDialogOpen(true);
+      return;
+    }
+
     // Verificar si los scripts de Google están cargados
-    if (!pickerApiLoaded.current || !tokenClientRef.current) {
-      console.log('[Codex] Scripts de Google no están listos, mostrando mensaje de espera.');
+    if (!pickerApiLoaded.current) {
       setGoogleDialogError('Los servicios de Google aún se están cargando. Espera unos segundos e intenta de nuevo.');
+      setNeedsGoogleAuth(false);
       setGoogleDialogOpen(true);
       return;
     }
@@ -520,19 +537,12 @@ const Codex: React.FC = () => {
     if (!(window as any).google || !(window as any).google.picker) {
       console.error('[Codex] Google Picker no está disponible');
       setGoogleDialogError('Los servicios de Google Picker no están disponibles. Recarga la página e intenta de nuevo.');
+      setNeedsGoogleAuth(false);
       setGoogleDialogOpen(true);
       return;
     }
 
-    // Si no tenemos token de Google Drive, solicitarlo directamente
-    if (!googleAccessToken) {
-      console.log('[Codex] No hay token de Google Drive, solicitando autorización.');
-      setGoogleDialogError('');
-      setDriveAuthDialogOpen(true);
-      return;
-    }
-
-    console.log('[Codex] Token de Google Drive disponible, abriendo picker.');
+    console.log('[Codex] Token de Google disponible, abriendo picker.');
     
     // Crear y mostrar el picker
     try {
@@ -556,7 +566,7 @@ const Codex: React.FC = () => {
       console.log('[Codex] Creando picker builder...');
       const picker = new (window as any).google.picker.PickerBuilder()
         .addView(view)
-        .setOAuthToken(googleAccessToken)
+        .setOAuthToken(googleToken)
         .setDeveloperKey(GOOGLE_PICKER_API_KEY)
         .setCallback(async (data: any) => {
           console.log('[Codex] Picker callback ejecutado:', data);
@@ -578,7 +588,7 @@ const Codex: React.FC = () => {
                 discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
               });
               
-              (window as any).gapi.client.setToken({ access_token: googleAccessToken });
+              (window as any).gapi.client.setToken({ access_token: googleToken });
               
               console.log('[Codex] Obteniendo metadatos del archivo...');
               const driveFile = await (window as any).gapi.client.drive.files.get({
@@ -611,9 +621,15 @@ const Codex: React.FC = () => {
               setCodexItems(items => [...items, newItem]);
               setTab('explorar');
               
-            } catch (error) {
+            } catch (error: any) {
               console.error('[Codex] Error procesando archivo:', error);
-              setGoogleDialogError('Error al procesar el archivo seleccionado. Intenta de nuevo.');
+              if (error.status === 403) {
+                setGoogleDialogError('No tienes permisos para acceder a Google Drive. Necesitas autorizar el acceso.');
+                setNeedsGoogleAuth(true);
+              } else {
+                setGoogleDialogError('Error al procesar el archivo seleccionado. Intenta de nuevo.');
+                setNeedsGoogleAuth(false);
+              }
               setGoogleDialogOpen(true);
             }
           }
@@ -624,10 +640,47 @@ const Codex: React.FC = () => {
       console.log('[Codex] Mostrando picker...');
       picker.setVisible(true);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('[Codex] Error creando picker:', error);
-      setGoogleDialogError('Error al abrir el selector de archivos. Los servicios de Google pueden no estar completamente cargados. Recarga la página e intenta de nuevo.');
+      if (error.status === 403) {
+        setGoogleDialogError('No tienes permisos para acceder a Google Drive. Necesitas autorizar el acceso.');
+        setNeedsGoogleAuth(true);
+      } else {
+        setGoogleDialogError('Error al abrir el selector de archivos. Los servicios de Google pueden no estar completamente cargados. Recarga la página e intenta de nuevo.');
+        setNeedsGoogleAuth(false);
+      }
       setGoogleDialogOpen(true);
+    }
+  };
+
+  // Función para manejar la reautenticación con Google (con scopes de Drive)
+  const handleGoogleReauth = async () => {
+    try {
+      // Construir URL de callback basada en la ubicación actual
+      const currentUrl = new URL(window.location.href);
+      const callbackUrl = `${currentUrl.protocol}//${currentUrl.host}/auth/callback`;
+      
+      console.log('[Codex] Solicitando autorización para Google Drive...');
+      console.log('[Codex] Callback URL:', callbackUrl);
+
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: callbackUrl,
+          scopes: 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent'
+          }
+        }
+      });
+
+      if (error) throw error;
+      
+      setGoogleDialogOpen(false);
+    } catch (error: any) {
+      console.error('[Codex] Error en reautenticación:', error);
+      setGoogleDialogError('Error al autorizar Google Drive: ' + error.message);
     }
   };
 
@@ -651,67 +704,32 @@ const Codex: React.FC = () => {
         </Box>
       )}
       {tab === 'explorar' && <ExploradorCodex />}
+      
+      {/* Dialog para errores de Google */}
       <Dialog open={googleDialogOpen} onClose={() => setGoogleDialogOpen(false)}>
         <DialogTitle sx={{ textAlign: 'center', pb: 0 }}>
           <GoogleIcon sx={{ fontSize: 48, color: '#4285F4', mb: 1 }} />
         </DialogTitle>
         <DialogContent sx={{ textAlign: 'center' }}>
           <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>
-            Servicios de Google
+            Acceso a Google Drive
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            {googleDialogError || 'Los servicios de Google se están cargando. Espera unos segundos e intenta de nuevo.'}
+            {googleDialogError}
           </Typography>
-          <Button
-            variant="contained"
-            onClick={() => setGoogleDialogOpen(false)}
-            sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
-          >
-            Entendido
-          </Button>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={driveAuthDialogOpen} onClose={() => setDriveAuthDialogOpen(false)}>
-        <DialogTitle sx={{ textAlign: 'center', pb: 0 }}>
-          <GoogleIcon sx={{ fontSize: 48, color: '#4285F4', mb: 1 }} />
-        </DialogTitle>
-        <DialogContent sx={{ textAlign: 'center' }}>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 700 }}>
-            Autoriza acceso a Google Drive
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            Para agregar archivos desde Google Drive, necesitas autorizar el acceso a tu cuenta de Google Drive.
-          </Typography>
-          {googleDialogError && (
-            <Typography color="error" sx={{ mb: 2 }}>{googleDialogError}</Typography>
+          {needsGoogleAuth && (
+            <Button
+              variant="contained"
+              startIcon={<GoogleIcon />}
+              onClick={handleGoogleReauth}
+              sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
+            >
+              Iniciar sesión con Google
+            </Button>
           )}
-          <Button
-            variant="contained"
-            startIcon={<GoogleIcon />}
-            onClick={async () => {
-              setGoogleDialogError('');
-              console.log('[Codex] Solicitando token de acceso...');
-              
-              if (!tokenClientRef.current) {
-                setGoogleDialogError('El conector de Google aún no está listo. Espera unos segundos e intenta de nuevo.');
-                return;
-              }
-              
-              try {
-                tokenClientRef.current.requestAccessToken();
-                setDriveAuthDialogOpen(false);
-              } catch (error) {
-                console.error('[Codex] Error solicitando token:', error);
-                setGoogleDialogError('Error al solicitar autorización. Intenta de nuevo.');
-              }
-            }}
-            sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
-          >
-            Autorizar Google Drive
-          </Button>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDriveAuthDialogOpen(false)} color="primary" autoFocus>
+          <Button onClick={() => setGoogleDialogOpen(false)} color="primary" autoFocus>
             Cerrar
           </Button>
         </DialogActions>
