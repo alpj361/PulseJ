@@ -70,6 +70,12 @@ export default function Login() {
     setError(null);
 
     try {
+      // Verificar configuración de Supabase
+      console.log('🔧 Supabase Config Check:', {
+        hasSupabaseClient: !!supabase,
+        timestamp: new Date().toISOString()
+      });
+      
       // Obtener URL de callback usando la configuración centralizada
       const callbackUrl = getCallbackUrl();
       
@@ -98,6 +104,10 @@ export default function Login() {
 
       if (error) {
         console.error('❌ Error en signInWithOAuth:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          status: error.status
+        });
         throw error;
       }
 
@@ -105,7 +115,19 @@ export default function Login() {
       
     } catch (error: any) {
       console.error('❌ Error completo en handleGoogleLogin:', error);
-      setError(error.message || 'Error al iniciar sesión con Google');
+      
+      // Proporcionar mensajes de error más específicos
+      let errorMessage = 'Error al iniciar sesión con Google';
+      
+      if (error.message?.includes('Invalid redirect URL')) {
+        errorMessage = 'Error de configuración: URL de redirección no autorizada. Contacta al administrador.';
+      } else if (error.message?.includes('network')) {
+        errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };

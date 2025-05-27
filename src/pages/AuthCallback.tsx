@@ -39,77 +39,101 @@ export default function AuthCallback() {
         console.log('🔍 AuthCallback - Code param:', codeParam);
         console.log('🔍 AuthCallback - Is from register:', isFromRegister);
         
-        if (!isFromRegister) {
-          // Si no viene desde registro, dejar que AuthVerification maneje la verificación
-          console.log('🔍 AuthCallback - No viene desde registro, redirigiendo a verificación');
-          navigate('/auth/verify');
-          return;
+        // IMPORTANTE: Esperar a que Supabase procese el callback de OAuth
+        console.log('🔍 AuthCallback - Esperando procesamiento de OAuth...');
+        
+        // Intentar obtener la sesión con reintentos
+        let sessionData = null;
+        let attempts = 0;
+        const maxAttempts = 5;
+        
+        while (!sessionData && attempts < maxAttempts) {
+          attempts++;
+          console.log(`🔍 AuthCallback - Intento ${attempts}/${maxAttempts} obteniendo sesión`);
+          
+          const { data, error } = await supabase.auth.getSession();
+          
+          if (error) {
+            console.error('❌ AuthCallback - Error obteniendo sesión:', error);
+            if (attempts === maxAttempts) {
+              navigate('/login?error=auth_failed');
+              return;
+            }
+          } else if (data.session && data.session.user) {
+            sessionData = data;
+            console.log('✅ AuthCallback - Sesión obtenida exitosamente');
+            break;
+          } else {
+            console.log('⏳ AuthCallback - Sesión aún no disponible, esperando...');
+            // Esperar 1 segundo antes del siguiente intento
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
         }
         
-        // Obtener la sesión actual después del callback de OAuth
-        const { data, error } = await supabase.auth.getSession();
-        
-        console.log('🔍 AuthCallback - Session data:', data);
-        console.log('🔍 AuthCallback - Session error:', error);
-        
-        if (error) {
-          console.error('❌ Error en callback:', error);
+        if (!sessionData || !sessionData.session || !sessionData.session.user) {
+          console.error('❌ AuthCallback - No se pudo obtener sesión después de múltiples intentos');
           navigate('/login?error=auth_failed');
           return;
         }
-
-        if (data.session && data.session.user) {
-          const userEmail = data.session.user.email;
-          const userId = data.session.user.id;
-          console.log('✅ Usuario autenticado:', userEmail);
-          console.log('🔍 User ID:', userId);
-          
-          // Usuario viene desde registro con código, validar código y crear perfil
-          console.log('🔍 Usuario viene desde registro, validando código:', codeParam);
-          
-          const isValidCode = await validateInvitationCode(codeParam);
-          console.log('🔍 Código válido:', isValidCode);
-          
-          if (isValidCode) {
-            // Crear perfil del usuario
+        
+        const userEmail = sessionData.session.user.email;
+        const userId = sessionData.session.user.id;
+        console.log('✅ AuthCallback - Usuario autenticado:', userEmail);
+        console.log('🔍 AuthCallback - User ID:', userId);
+        
+        if (!isFromRegister) {
+          // Si no viene desde registro, redirigir a verificación
+          console.log('🔍 AuthCallback - No viene desde registro, redirigiendo a verificación');
+          // Dar un momento para que la sesión se propague
+          setTimeout(() => {
+            navigate('/auth/verify');
+          }, 500);
+          return;
+        }
+        
+        // Usuario viene desde registro con código, validar código y crear perfil
+        console.log('🔍 AuthCallback - Usuario viene desde registro, validando código:', codeParam);
+        
+        const isValidCode = await validateInvitationCode(codeParam);
+        console.log('🔍 AuthCallback - Código válido:', isValidCode);
+        
+        if (isValidCode) {
+          // Crear perfil del usuario
+          try {
+            console.log('🔍 AuthCallback - Creando perfil del usuario...');
+            await supabase.from('profiles').upsert({
+              id: sessionData.session.user.id,
+              email: sessionData.session.user.email,
+              phone: '' // Inicializar con string vacío, el usuario lo puede llenar después
+            });
+            
+            // Marcar código como usado
             try {
-              console.log('🔍 Creando perfil del usuario...');
-              await supabase.from('profiles').upsert({
-                id: data.session.user.id,
-                email: data.session.user.email,
-                phone: '' // Inicializar con string vacío, el usuario lo puede llenar después
+              await supabase.rpc('mark_invitation_code_used', {
+                invitation_code: codeParam,
+                user_id: sessionData.session.user.id
               });
-              
-              // Marcar código como usado
-              try {
-                await supabase.rpc('mark_invitation_code_used', {
-                  invitation_code: codeParam,
-                  user_id: data.session.user.id
-                });
-              } catch (codeError) {
-                console.log('⚠️ Error marcando código como usado:', codeError);
-              }
-              
-              console.log('✅ Perfil creado exitosamente, redirigiendo al dashboard');
-              navigate('/auth/verify');
-            } catch (profileError) {
-              console.error('❌ Error creando perfil:', profileError);
-              await supabase.auth.signOut();
-              navigate('/register?error=profile_creation_failed&message=Error creando tu perfil. Intenta de nuevo.');
+            } catch (codeError) {
+              console.log('⚠️ AuthCallback - Error marcando código como usado:', codeError);
             }
-          } else {
-            // Código inválido
-            console.log('❌ Código de invitación inválido');
+            
+            console.log('✅ AuthCallback - Perfil creado exitosamente, redirigiendo a verificación');
+            setTimeout(() => {
+              navigate('/auth/verify');
+            }, 500);
+          } catch (profileError) {
+            console.error('❌ AuthCallback - Error creando perfil:', profileError);
             await supabase.auth.signOut();
-            navigate('/register?error=invalid_code&message=Código de invitación inválido o ya utilizado');
+            navigate('/register?error=profile_creation_failed&message=Error creando tu perfil. Intenta de nuevo.');
           }
         } else {
-          // No hay sesión, redirigir a login
-          console.log('❌ No hay sesión, redirigiendo a login');
-          navigate('/login');
+          // Código inválido
+          console.log('❌ AuthCallback - Código de invitación inválido');
+          await supabase.auth.signOut();
+          navigate('/register?error=invalid_code&message=Código de invitación inválido o ya utilizado');
         }
       } catch (error) {
-        console.error('❌ Error procesando callback:', error);
+        console.error('❌ AuthCallback - Error procesando callback:', error);
         navigate('/login?error=callback_failed');
       }
     };

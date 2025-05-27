@@ -70,41 +70,61 @@ export default function AuthVerification() {
         setStatus('checking');
         setMessage('Verificando tu cuenta...');
         
-        // Obtener la sesión actual
-        const { data, error } = await supabase.auth.getSession();
+        // Esperar un momento para que la sesión se propague desde AuthCallback
+        console.log('🔍 AuthVerification - Esperando propagación de sesión...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        console.log('🔍 AuthVerification - Session data:', {
-          hasSession: !!data.session,
-          hasUser: !!data.session?.user,
-          userEmail: data.session?.user?.email,
-          userId: data.session?.user?.id,
-          sessionError: error
-        });
+        // Intentar obtener la sesión con reintentos
+        let sessionData = null;
+        let attempts = 0;
+        const maxAttempts = 3;
         
-        if (error) {
-          console.error('❌ AuthVerification - Error obteniendo sesión:', error);
-          setStatus('error');
-          setMessage('Error de autenticación');
-          setTimeout(() => {
-            console.log('🔄 AuthVerification - Redirigiendo a login por error de sesión');
-            navigate('/login');
-          }, 2000);
-          return;
+        while (!sessionData && attempts < maxAttempts) {
+          attempts++;
+          console.log(`🔍 AuthVerification - Intento ${attempts}/${maxAttempts} obteniendo sesión`);
+          
+          const { data, error } = await supabase.auth.getSession();
+          
+          console.log('🔍 AuthVerification - Session data:', {
+            hasSession: !!data.session,
+            hasUser: !!data.session?.user,
+            userEmail: data.session?.user?.email,
+            userId: data.session?.user?.id,
+            sessionError: error
+          });
+          
+          if (error) {
+            console.error('❌ AuthVerification - Error obteniendo sesión:', error);
+            if (attempts === maxAttempts) {
+              setStatus('error');
+              setMessage('Error de autenticación');
+              setTimeout(() => {
+                console.log('🔄 AuthVerification - Redirigiendo a login por error de sesión');
+                navigate('/login');
+              }, 2000);
+              return;
+            }
+          } else if (data.session && data.session.user) {
+            sessionData = data;
+            console.log('✅ AuthVerification - Sesión obtenida exitosamente');
+            break;
+          } else {
+            console.log('⏳ AuthVerification - Sesión aún no disponible, esperando...');
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+          }
         }
 
-        if (!data.session || !data.session.user) {
-          // No hay sesión, redirigir a login y detener el efecto
-          console.log('❌ AuthVerification - No hay sesión válida, redirigiendo a login');
-          console.log('🔍 AuthVerification - Session details:', {
-            session: data.session,
-            user: data.session?.user
-          });
+        if (!sessionData || !sessionData.session || !sessionData.session.user) {
+          // No hay sesión después de reintentos, redirigir a login
+          console.log('❌ AuthVerification - No hay sesión válida después de reintentos, redirigiendo a login');
           navigate('/login');
           return;
         }
 
-        const userId = data.session.user.id;
-        const userEmail = data.session.user.email;
+        const userId = sessionData.session.user.id;
+        const userEmail = sessionData.session.user.email;
         
         console.log('✅ AuthVerification - Usuario autenticado:', {
           email: userEmail,
