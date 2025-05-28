@@ -81,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
     {
       icon: <BarChart3 size={20} />,
       label: t.trends,
-      path: '/'
+      path: '/dashboard'
     },
     {
       icon: <ActivitySquare size={20} />,
@@ -91,7 +91,7 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
     {
       icon: <Database size={20} />,
       label: t.library,
-      path: '/library'
+      path: '/codex'
     },
     {
       icon: <Search size={20} />,
