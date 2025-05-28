@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
+import Home from './pages/Home';
 import { Trends } from './pages/Trends';
 import RecentActivity from './pages/RecentActivity';
 import Sources from './pages/Sources';
@@ -64,7 +65,7 @@ const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   // Si hay usuario, verificar que venga desde AuthVerification
   // Para esto, verificamos si estamos en una ruta protegida sin haber pasado por verificación
   const currentPath = window.location.pathname;
-  const isProtectedPath = ['/', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library'].includes(currentPath);
+  const isProtectedPath = ['/dashboard', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library', '/codex'].includes(currentPath);
   
   if (isProtectedPath) {
     // Verificar si el usuario viene directamente sin verificación
@@ -84,6 +85,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Ruta principal - Homepage pública */}
+          <Route path="/" element={<Home />} />
+          
           {/* Rutas públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -99,7 +103,7 @@ function App() {
           } />
           
           {/* Rutas protegidas */}
-          <Route path="/" element={
+          <Route path="/dashboard" element={
             <VerifiedRoute>
               <Layout>
                 <Trends />
@@ -141,7 +145,7 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
-          <Route path="/library" element={
+          <Route path="/codex" element={
             <VerifiedRoute>
               <Layout>
                 <Codex />

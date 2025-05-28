@@ -42,7 +42,7 @@ export default function Register() {
   // Si el usuario ya está autenticado, redirigir al dashboard
   useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [user, navigate]);
 
@@ -167,7 +167,11 @@ export default function Register() {
         provider: 'google',
         options: {
           redirectTo: callbackUrl,
-          scopes: GOOGLE_SCOPES
+          scopes: GOOGLE_SCOPES,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'select_account'
+          }
         }
       });
       

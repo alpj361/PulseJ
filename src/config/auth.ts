@@ -28,5 +28,5 @@ export const getCallbackUrl = () => {
 // Scopes básicos para Google OAuth
 export const GOOGLE_SCOPES = 'openid email profile';
 
-// Scopes con Drive (para usar más tarde)
+// Scopes con Drive (para usar en login/register)
 export const GOOGLE_SCOPES_WITH_DRIVE = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly'; 

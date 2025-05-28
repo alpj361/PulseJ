@@ -30,6 +30,9 @@ import LockIcon from '@mui/icons-material/Lock';
 import GoogleIcon from '@mui/icons-material/Google';
 import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
+import { jwtDecode } from 'jwt-decode';
+import { GoogleDrivePickerButton } from '../components/GoogleDrivePickerButton';
+import { useGoogleDrive } from '../hooks/useGoogleDrive';
 
 // Estructura de datos simulada - Iniciar con array vacío
 const initialCodexItems: any[] = [];
@@ -45,6 +48,9 @@ const estadoLabels = ['Nuevo', 'Archivado', 'En análisis'];
 const tipoOptions = ['documento', 'audio', 'video', 'enlace'];
 
 const GOOGLE_PICKER_API_KEY = 'AIzaSyA0oumyL3f8EaXraPvdYOVE2IYLbcO6lEo';
+const CLIENT_ID = 'YOUR_CLIENT_ID';
+const API_KEY = 'YOUR_API_KEY';
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 
 function loadScript(src: string) {
   return new Promise((resolve, reject) => {
@@ -66,91 +72,22 @@ const Codex: React.FC = () => {
   const [googleDialogOpen, setGoogleDialogOpen] = useState(false);
   const [googleDialogError, setGoogleDialogError] = useState('');
   const { user, session } = useAuth();
-  const [needsGoogleAuth, setNeedsGoogleAuth] = useState(false);
+  const { isGoogleUser, canUseDrive } = useGoogleDrive();
 
   useEffect(() => {
-    console.log('[Codex] user:', user);
-    console.log('[Codex] session:', session);
-    
-    // Verificar si el usuario está autenticado con Google y tiene los scopes necesarios
-    if (user && session) {
-      const isGoogleUser = user.app_metadata?.provider === 'google';
-      console.log('[Codex] Es usuario de Google:', isGoogleUser);
-      
-      if (isGoogleUser) {
-        // Verificar si tenemos acceso a Google Drive
-        const providerToken = session.provider_token;
-        console.log('[Codex] Provider token disponible:', !!providerToken);
-        
-        if (!providerToken) {
-          console.log('[Codex] No hay provider token, necesita reautenticación');
-          setNeedsGoogleAuth(true);
-        } else {
-          setNeedsGoogleAuth(false);
-        }
-      } else {
-        console.log('[Codex] Usuario no autenticado con Google');
-        setNeedsGoogleAuth(true);
-      }
-    } else {
-      setNeedsGoogleAuth(true);
+    console.log('🟦 [Codex] user:', user);
+    console.log('🟦 [Codex] session:', session);
+    console.log('🟦 [Codex] ¿Es usuario de Google?:', isGoogleUser);
+    console.log('🟦 [Codex] ¿Puede usar Drive?:', canUseDrive);
+    if (user) {
+      if (user.app_metadata) console.log('🟦 [Codex] user.app_metadata:', user.app_metadata);
+      if (user.identities) console.log('🟦 [Codex] user.identities:', user.identities);
     }
-  }, [user, session]);
-
-  // Cargar scripts de Google Picker
-  useEffect(() => {
-    async function loadGoogleApis() {
-      console.log('[Codex] Cargando APIs de Google...');
-      
-      try {
-        // Cargar Google API base
-        if (!(window as any).gapi) {
-          console.log('[Codex] Cargando Google API base...');
-          await loadScript('https://apis.google.com/js/api.js');
-        }
-        
-        // Cargar Google Picker API
-        console.log('[Codex] Cargando Google Picker...');
-        await new Promise((resolve, reject) => {
-          (window as any).gapi.load('picker', {
-            callback: () => {
-              console.log('[Codex] Google Picker API cargada');
-              
-              // Esperar a que ViewMode esté disponible con reintentos
-              const checkViewMode = (attempts = 0) => {
-                if ((window as any).google && (window as any).google.picker && (window as any).google.picker.ViewMode) {
-                  pickerApiLoaded.current = true;
-                  console.log('[Codex] ViewMode disponible:', Object.keys((window as any).google.picker.ViewMode));
-                  resolve(true);
-                } else if (attempts < 10) {
-                  console.log(`[Codex] ViewMode no disponible aún, reintentando... (${attempts + 1}/10)`);
-                  setTimeout(() => checkViewMode(attempts + 1), 500);
-                } else {
-                  console.warn('[Codex] ViewMode no disponible después de 10 intentos, continuando sin él');
-                  pickerApiLoaded.current = true; // Marcar como cargado de todas formas
-                  resolve(true);
-                }
-              };
-              
-              checkViewMode();
-            },
-            onerror: (error: any) => {
-              console.error('[Codex] Error cargando Picker:', error);
-              reject(error);
-            }
-          });
-        });
-        
-        console.log('[Codex] Todas las APIs de Google cargadas exitosamente');
-        
-      } catch (error) {
-        console.error('[Codex] Error cargando APIs de Google:', error);
-        setGoogleDialogError('Error cargando los servicios de Google. Recarga la página e intenta de nuevo.');
-      }
+    if (session) {
+      if (session.provider_token) console.log('🟦 [Codex] session.provider_token:', session.provider_token);
+      if (session.user) console.log('🟦 [Codex] session.user:', session.user);
     }
-    
-    loadGoogleApis();
-  }, []);
+  }, [user, session, isGoogleUser, canUseDrive]);
 
   // Filtros
   const filteredItems = codexItems.filter(item => {
@@ -247,84 +184,106 @@ const Codex: React.FC = () => {
     </Card>
   );
 
+  // Función para manejar archivos seleccionados del picker
+  const handleFileFromDrive = (file: any, tipo: string) => {
+    console.log('🟩 [Codex] Archivo seleccionado de Drive:', file, 'tipo:', tipo);
+    const newItem = {
+      id: 'codex-' + Math.random().toString(36).slice(2, 8),
+      titulo: file.name,
+      tipo: tipo,
+      fecha: new Date().toISOString().slice(0, 10),
+      etiquetas: [],
+      estado: 'Nuevo',
+      proyecto: '',
+      driveFileId: file.id,
+      url: file.url || '',
+    };
+    setCodexItems(items => [...items, newItem]);
+    setTab('explorar');
+  };
+
+  // Función para manejar errores del picker
+  const handlePickerError = (error: string) => {
+    console.error('🟥 [Codex] Error del picker:', error);
+    setGoogleDialogError(error);
+    setGoogleDialogOpen(true);
+  };
+
   // Cards de carga de fuentes
-  const CardSubirDocumento = () => (
-    <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
-      <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
-        <Stack spacing={3}>
-          <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
-            Subir Documento / Nota / PDF
-          </Typography>
-          <TextField label="Título del documento" fullWidth size="medium" />
-          <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
-          <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: salud, gobierno" InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
-            <Button
-              variant="outlined"
-              startIcon={<DriveFolderUpload />}
-              onClick={() => handleAddFromDriveWithType('documento')}
-              sx={{ fontWeight: 600, fontSize: '1rem', borderRadius: 2 }}
-            >
-              Conectar desde Google Drive
-            </Button>
+  function CardSubirDocumento() {
+    return (
+      <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
+        <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+          <Stack spacing={3}>
+            <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
+              Subir Documento / Nota / PDF
+            </Typography>
+            <TextField label="Título del documento" fullWidth size="medium" />
+            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
+            <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: salud, gobierno" InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <GoogleDrivePickerButton
+                onFilePicked={(file) => handleFileFromDrive(file, 'documento')}
+                onError={handlePickerError}
+                buttonText="Conectar desde Google Drive"
+              />
+            </Stack>
+            <InactiveButton icon={<Description />} label="Analizar contenido del PDF" />
           </Stack>
-          <InactiveButton icon={<Description />} label="Analizar contenido del PDF" />
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const CardSubirAudio = () => (
-    <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
-      <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
-        <Stack spacing={3}>
-          <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
-            Subir Audio / Entrevista
-          </Typography>
-          <TextField label="Nombre del audio" fullWidth size="medium" />
-          <TextField label="Breve descripción o contexto" fullWidth size="medium" multiline rows={2} />
-          <TextField label="Relacionar con proyecto (opcional)" fullWidth size="medium" />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
-            <Button
-              variant="outlined"
-              startIcon={<DriveFolderUpload />}
-              onClick={() => handleAddFromDriveWithType('audio')}
-              sx={{ fontWeight: 600, fontSize: '1rem', borderRadius: 2 }}
-            >
-              Conectar desde Google Drive
-            </Button>
+  function CardSubirAudio() {
+    return (
+      <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
+        <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+          <Stack spacing={3}>
+            <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
+              Subir Audio / Entrevista
+            </Typography>
+            <TextField label="Nombre del audio" fullWidth size="medium" />
+            <TextField label="Breve descripción o contexto" fullWidth size="medium" multiline rows={2} />
+            <TextField label="Relacionar con proyecto (opcional)" fullWidth size="medium" />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <GoogleDrivePickerButton
+                onFilePicked={(file) => handleFileFromDrive(file, 'audio')}
+                onError={handlePickerError}
+                buttonText="Conectar desde Google Drive"
+              />
+            </Stack>
+            <InactiveButton icon={<Audiotrack />} label="Transcribir audio" />
           </Stack>
-          <InactiveButton icon={<Audiotrack />} label="Transcribir audio" />
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  }
 
-  const CardSubirVideo = () => (
-    <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
-      <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
-        <Stack spacing={3}>
-          <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
-            Subir Video / Conferencia
-          </Typography>
-          <TextField label="Título del video" fullWidth size="medium" />
-          <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
-          <TextField label="Participantes clave (opcional)" fullWidth size="medium" />
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
-            <Button
-              variant="outlined"
-              startIcon={<DriveFolderUpload />}
-              onClick={() => handleAddFromDriveWithType('video')}
-              sx={{ fontWeight: 600, fontSize: '1rem', borderRadius: 2 }}
-            >
-              Conectar desde Google Drive
-            </Button>
+  function CardSubirVideo() {
+    return (
+      <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
+        <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
+          <Stack spacing={3}>
+            <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
+              Subir Video / Conferencia
+            </Typography>
+            <TextField label="Título del video" fullWidth size="medium" />
+            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
+            <TextField label="Participantes clave (opcional)" fullWidth size="medium" />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <GoogleDrivePickerButton
+                onFilePicked={(file) => handleFileFromDrive(file, 'video')}
+                onError={handlePickerError}
+                buttonText="Conectar desde Google Drive"
+              />
+            </Stack>
+            <InactiveButton icon={<VideoLibrary />} label="Extraer audio" />
           </Stack>
-          <InactiveButton icon={<VideoLibrary />} label="Extraer audio" />
-        </Stack>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  }
 
   const CardSubirEnlace = () => (
     <Card sx={{ mb: 3, borderRadius: 4 }}>
@@ -495,195 +454,6 @@ const Codex: React.FC = () => {
     setCodexItems(items => items.filter(item => item.id !== itemId));
   };
 
-  // Función principal para agregar desde Google Drive
-  const handleAddFromDriveWithType = async (forcedType: string) => {
-    console.log('[Codex] handleAddFromDriveWithType called. user:', user);
-    
-    // Verificar si el usuario está autenticado
-    if (!user || !session) {
-      setGoogleDialogError('Debes iniciar sesión para acceder a Google Drive.');
-      setNeedsGoogleAuth(true);
-      setGoogleDialogOpen(true);
-      return;
-    }
-
-    // Verificar si el usuario está autenticado con Google
-    const isGoogleUser = user.app_metadata?.provider === 'google';
-    if (!isGoogleUser) {
-      setGoogleDialogError('Para acceder a Google Drive, debes iniciar sesión con tu cuenta de Google.');
-      setNeedsGoogleAuth(true);
-      setGoogleDialogOpen(true);
-      return;
-    }
-
-    // Verificar si tenemos el token de Google
-    const googleToken = session.provider_token;
-    if (!googleToken) {
-      setGoogleDialogError('Necesitas autorizar el acceso a Google Drive para usar esta función.');
-      setNeedsGoogleAuth(true);
-      setGoogleDialogOpen(true);
-      return;
-    }
-
-    // Verificar si los scripts de Google están cargados
-    if (!pickerApiLoaded.current) {
-      setGoogleDialogError('Los servicios de Google aún se están cargando. Espera unos segundos e intenta de nuevo.');
-      setNeedsGoogleAuth(false);
-      setGoogleDialogOpen(true);
-      return;
-    }
-
-    // Verificar que Google Picker esté disponible
-    if (!(window as any).google || !(window as any).google.picker) {
-      console.error('[Codex] Google Picker no está disponible');
-      setGoogleDialogError('Los servicios de Google Picker no están disponibles. Recarga la página e intenta de nuevo.');
-      setNeedsGoogleAuth(false);
-      setGoogleDialogOpen(true);
-      return;
-    }
-
-    console.log('[Codex] Token de Google disponible, abriendo picker.');
-    
-    // Crear y mostrar el picker
-    try {
-      console.log('[Codex] Creando vista del picker...');
-      const view = new (window as any).google.picker.DocsView()
-        .setIncludeFolders(true)
-        .setSelectFolderEnabled(true);
-      
-      // Intentar aplicar modo LIST si está disponible
-      try {
-        if ((window as any).google.picker.ViewMode && (window as any).google.picker.ViewMode.LIST) {
-          view.setMode((window as any).google.picker.ViewMode.LIST);
-          console.log('[Codex] Modo LIST aplicado');
-        } else {
-          console.warn('[Codex] LIST mode no disponible, usando modo por defecto');
-        }
-      } catch (viewModeError) {
-        console.warn('[Codex] Error aplicando ViewMode, usando modo por defecto:', viewModeError);
-      }
-      
-      console.log('[Codex] Creando picker builder...');
-      const picker = new (window as any).google.picker.PickerBuilder()
-        .addView(view)
-        .setOAuthToken(googleToken)
-        .setDeveloperKey(GOOGLE_PICKER_API_KEY)
-        .setCallback(async (data: any) => {
-          console.log('[Codex] Picker callback ejecutado:', data);
-          if (data.action === 'picked' && data.docs && data.docs.length > 0) {
-            const file = data.docs[0];
-            console.log('[Codex] Archivo seleccionado:', file);
-            
-            try {
-              // Cargar Google Drive API si no está cargada
-              console.log('[Codex] Cargando Google Drive API...');
-              if (!(window as any).gapi.client) {
-                await new Promise((resolve) => {
-                  (window as any).gapi.load('client', resolve);
-                });
-              }
-              
-              await (window as any).gapi.client.init({
-                apiKey: GOOGLE_PICKER_API_KEY,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-              });
-              
-              (window as any).gapi.client.setToken({ access_token: googleToken });
-              
-              console.log('[Codex] Obteniendo metadatos del archivo...');
-              const driveFile = await (window as any).gapi.client.drive.files.get({
-                fileId: file.id,
-                fields: 'id, name, mimeType, modifiedTime, webViewLink',
-              });
-              
-              const meta = driveFile.result;
-              console.log('[Codex] Metadatos del archivo:', meta);
-              
-              // Determinar tipo basado en el tipo forzado y el mimeType
-              let tipo: string = forcedType;
-              if (forcedType === 'audio' && !meta.mimeType.startsWith('audio')) tipo = 'documento';
-              if (forcedType === 'video' && !meta.mimeType.startsWith('video')) tipo = 'documento';
-              
-              // Agregar al Codex
-              const newItem = {
-                id: 'codex-' + Math.random().toString(36).slice(2, 8),
-                titulo: meta.name,
-                tipo,
-                fecha: meta.modifiedTime?.slice(0, 10) || new Date().toISOString().slice(0, 10),
-                etiquetas: [],
-                estado: 'Nuevo',
-                proyecto: '',
-                driveFileId: meta.id,
-                url: meta.webViewLink,
-              };
-              
-              console.log('[Codex] Agregando nuevo item:', newItem);
-              setCodexItems(items => [...items, newItem]);
-              setTab('explorar');
-              
-            } catch (error: any) {
-              console.error('[Codex] Error procesando archivo:', error);
-              if (error.status === 403) {
-                setGoogleDialogError('No tienes permisos para acceder a Google Drive. Necesitas autorizar el acceso.');
-                setNeedsGoogleAuth(true);
-              } else {
-                setGoogleDialogError('Error al procesar el archivo seleccionado. Intenta de nuevo.');
-                setNeedsGoogleAuth(false);
-              }
-              setGoogleDialogOpen(true);
-            }
-          }
-        })
-        .setTitle('Selecciona un archivo de Google Drive')
-        .build();
-      
-      console.log('[Codex] Mostrando picker...');
-      picker.setVisible(true);
-      
-    } catch (error: any) {
-      console.error('[Codex] Error creando picker:', error);
-      if (error.status === 403) {
-        setGoogleDialogError('No tienes permisos para acceder a Google Drive. Necesitas autorizar el acceso.');
-        setNeedsGoogleAuth(true);
-      } else {
-        setGoogleDialogError('Error al abrir el selector de archivos. Los servicios de Google pueden no estar completamente cargados. Recarga la página e intenta de nuevo.');
-        setNeedsGoogleAuth(false);
-      }
-      setGoogleDialogOpen(true);
-    }
-  };
-
-  // Función para manejar la reautenticación con Google (con scopes de Drive)
-  const handleGoogleReauth = async () => {
-    try {
-      // Construir URL de callback basada en la ubicación actual
-      const currentUrl = new URL(window.location.href);
-      const callbackUrl = `${currentUrl.protocol}//${currentUrl.host}/auth/callback`;
-      
-      console.log('[Codex] Solicitando autorización para Google Drive...');
-      console.log('[Codex] Callback URL:', callbackUrl);
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: callbackUrl,
-          scopes: 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent'
-          }
-        }
-      });
-
-      if (error) throw error;
-      
-      setGoogleDialogOpen(false);
-    } catch (error: any) {
-      console.error('[Codex] Error en reautenticación:', error);
-      setGoogleDialogError('Error al autorizar Google Drive: ' + error.message);
-    }
-  };
-
   return (
     <Container maxWidth="md" sx={{ py: 6 }}>
       <Box textAlign="center" mb={7}>
@@ -717,15 +487,14 @@ const Codex: React.FC = () => {
           <Typography variant="body1" sx={{ mb: 2 }}>
             {googleDialogError}
           </Typography>
-          {needsGoogleAuth && (
-            <Button
-              variant="contained"
-              startIcon={<GoogleIcon />}
-              onClick={handleGoogleReauth}
-              sx={{ bgcolor: '#4285F4', color: 'white', fontWeight: 600, fontSize: '1.1rem', mb: 1, '&:hover': { bgcolor: '#357ae8' } }}
-            >
-              Iniciar sesión con Google
-            </Button>
+          {isGoogleUser ? (
+            <Typography variant="body2" color="success.main" sx={{ fontWeight: 600, mt: 1 }}>
+              Ya tienes acceso a Google Drive. Puedes seleccionar archivos.
+            </Typography>
+          ) : (
+            <Typography variant="body2" color="warning.main" sx={{ fontWeight: 600, mt: 1 }}>
+              Necesitas iniciar sesión con Google para acceder a Drive.
+            </Typography>
           )}
         </DialogContent>
         <DialogActions>

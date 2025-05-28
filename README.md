@@ -1,151 +1,226 @@
-# News Dashboard with Trends Scraper Integration
+# PulseJ - Dashboard de Tendencias y Codex
 
-A React-based dashboard for viewing trending news topics with integration to a VPS-based scraper, OpenRouter AI processing, and Supabase database.
+## Descripción
+Dashboard moderno para análisis de tendencias y gestión de contenido con autenticación Supabase y integración con Google Drive.
 
-## Features
+## Características principales
 
-- View trending keywords in a word cloud visualization
-- See news distribution by category with bar charts
-- Track top keywords with frequency counts
-- Button to trigger trend scraping from your VPS
-- AI-powered trend processing using OpenRouter (GPT-4 Turbo)
-- Integration with Supabase for data storage and retrieval
+### 🔐 Sistema de autenticación robusto
+- Autenticación con Supabase (email/password y Google OAuth)
+- Solo usuarios registrados con código de invitación pueden acceder
+- Limpieza automática de usuarios no registrados de `auth.users`
+- Verificación de email entre Supabase y Google OAuth
 
-## Setup Instructions
+### 📊 Dashboard de tendencias
+- Visualización de tendencias en tiempo real desde backend ExtractorW
+- Gráficos interactivos con Chart.js
+- Filtros por fecha y categoría
 
-### 1. Dependencies Installation
+### 📁 Codex con Google Drive
+- **Nuevo sistema modular y robusto** para Google Drive Picker
+- Hook `useGoogleDrive` centralizado que maneja OAuth + Picker
+- Carga única de scripts Google APIs (evita duplicados)
+- Manejo estandarizado de errores con mensajes amigables
+- Verificación automática de emails entre Supabase y Google
+- Importación de documentos, audio y video desde Google Drive
 
+## Arquitectura del Google Drive Picker
+
+### Módulos principales
+
+#### 1. `utils/googleApiLoader.ts`
+- **Propósito**: Carga única y controlada de Google APIs
+- **Funciones**:
+  - `loadGsi()`: Carga Google Sign-In con reintentos
+  - `loadGapiPicker()`: Carga Google Picker API
+  - `waitForGsi()`: Utilidad para esperar disponibilidad
+- **Beneficios**: Evita scripts duplicados, manejo robusto de errores
+
+#### 2. `config/google.ts`
+- **Propósito**: Configuración centralizada de Google APIs
+- **Incluye**:
+  - Client ID y Developer Key
+  - Scopes para Google Drive
+  - Mapeo de errores OAuth con mensajes amigables
+  - Funciones de utilidad para manejo de errores
+
+#### 3. `hooks/useGoogleDrive.ts`
+- **Propósito**: Hook global para manejo de Google Drive
+- **Estado gestionado**:
+  - `token`: Access token actual
+  - `loading`: Estado de carga
+  - `error`: Errores con mensajes amigables
+  - `email`: Email del usuario Google
+  - `isGoogleUser`: Detección automática de usuarios Google
+  - `canUseDrive`: Verificación de permisos
+- **Funciones**:
+  - `requestToken()`: Solicita access token con OAuth
+  - `openPicker()`: Abre Google Picker con token válido
+  - `clearToken()`: Limpia estado y tokens
+
+#### 4. `components/GoogleDrivePickerButton.tsx`
+- **Propósito**: Componente UI simplificado
+- **Props**:
+  - `onFilePicked`: Callback cuando se selecciona archivo
+  - `onError`: Callback para manejo de errores
+  - `buttonText`: Texto personalizable del botón
+  - `disabled`: Estado deshabilitado
+- **Características**:
+  - Estados visuales (loading, error, success)
+  - Mensajes informativos automáticos
+  - Integración completa con `useGoogleDrive`
+
+### Flujo de funcionamiento
+
+1. **Inicialización**: El hook `useGoogleDrive` detecta si el usuario es de Google
+2. **Carga de APIs**: Se cargan GSI y GAPI Picker de forma asíncrona y única
+3. **Solicitud de token**: Al hacer clic, se solicita access token con scopes de Drive
+4. **Verificación**: Se verifica que el email de Google coincida con Supabase
+5. **Picker**: Se abre Google Picker con token válido
+6. **Selección**: El archivo seleccionado se pasa al callback `onFilePicked`
+
+### Manejo de errores
+
+- **Errores de OAuth**: Mensajes amigables mapeados desde códigos técnicos
+- **Errores de carga**: Reintentos automáticos para APIs de Google
+- **Errores de verificación**: Validación de emails entre servicios
+- **Errores recuperables**: Identificación automática para reintentos
+
+## Instalación y configuración
+
+### Prerrequisitos
+- Node.js 18+
+- Cuenta de Supabase configurada
+- Proyecto de Google Cloud con APIs habilitadas
+
+### Variables de entorno
+```env
+VITE_SUPABASE_URL=tu_supabase_url
+VITE_SUPABASE_ANON_KEY=tu_supabase_anon_key
+```
+
+### Configuración de Google Cloud
+1. Habilitar Google Drive API y Google Picker API
+2. Configurar OAuth 2.0 con dominios autorizados
+3. Obtener Client ID y Developer Key
+4. Actualizar `config/google.ts` con tus credenciales
+
+### Instalación
 ```bash
 npm install
-# or
-yarn
+npm run dev
 ```
 
-### 2. VPS Scraper Configuration
-
-1. Create a `.env.local` file in the root directory with your VPS API URL:
+## Estructura del proyecto
 
 ```
-VITE_VPS_API_URL=https://your-vps-domain.com/api
+src/
+├── components/
+│   ├── GoogleDrivePickerButton.tsx  # Componente UI del picker
+│   └── ...
+├── hooks/
+│   ├── useGoogleDrive.ts           # Hook principal de Google Drive
+│   └── ...
+├── utils/
+│   ├── googleApiLoader.ts          # Cargador de APIs de Google
+│   └── ...
+├── config/
+│   ├── google.ts                   # Configuración de Google APIs
+│   ├── auth.ts                     # Configuración de autenticación
+│   └── ...
+├── pages/
+│   ├── Codex.tsx                   # Página principal del codex
+│   ├── Trends.tsx                  # Dashboard de tendencias
+│   └── ...
+└── context/
+    ├── AuthContext.tsx             # Contexto de autenticación
+    └── ...
 ```
 
-2. Ensure your VPS scraper API returns data in the following format:
+## Uso del Google Drive Picker
 
-```typescript
-{
-  wordCloudData: Array<{
-    text: string;
-    value: number;
-    color: string;
-  }>;
-  topKeywords: Array<{
-    keyword: string;
-    count: number;
-  }>;
-  categoryData: Array<{
-    category: string;
-    count: number;
-  }>;
-  timestamp: string;
+### Implementación básica
+```tsx
+import { GoogleDrivePickerButton } from '../components/GoogleDrivePickerButton';
+
+function MiComponente() {
+  const handleFilePicked = (file) => {
+    console.log('Archivo seleccionado:', file);
+    // Procesar archivo...
+  };
+
+  const handleError = (error) => {
+    console.error('Error:', error);
+    // Mostrar error al usuario...
+  };
+
+  return (
+    <GoogleDrivePickerButton
+      onFilePicked={handleFilePicked}
+      onError={handleError}
+      buttonText="Seleccionar archivo"
+    />
+  );
 }
 ```
 
-### 3. Supabase Setup
+### Uso avanzado con hook
+```tsx
+import { useGoogleDrive } from '../hooks/useGoogleDrive';
 
-1. Create a Supabase account at [https://supabase.com](https://supabase.com)
-2. Create a new project
-3. Create a `trends` table with the following structure:
-   - `id`: uuid (primary key, generated)
-   - `created_at`: timestamp with time zone (default now())
-   - `timestamp`: timestamp with time zone (when the trend data was collected)
-   - `word_cloud_data`: jsonb (array of WordCloudItem)
-   - `top_keywords`: jsonb (array of KeywordCount)
-   - `category_data`: jsonb (array of CategoryCount)
+function ComponenteAvanzado() {
+  const { 
+    isGoogleUser, 
+    token, 
+    loading, 
+    error, 
+    openPicker, 
+    requestToken 
+  } = useGoogleDrive();
 
-4. Install the Supabase client:
-
-```bash
-npm install @supabase/supabase-js
-# or
-yarn add @supabase/supabase-js
+  // Lógica personalizada...
+}
 ```
 
-5. Add your Supabase credentials to the `.env.local` file:
+## Mejoras implementadas
 
-```
-VITE_SUPABASE_URL=https://your-project-url.supabase.co
-VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-```
+### ✅ Problemas resueltos
+- **Scripts duplicados**: Carga única controlada
+- **Errores de inicialización**: Reintentos automáticos
+- **Bucles infinitos**: Flujo de estado robusto
+- **Manejo de errores**: Mensajes amigables y recuperación
+- **Verificación de usuarios**: Validación automática de emails
 
-6. Uncomment the Supabase client implementation in `src/services/supabase.ts`.
+### 🚀 Beneficios
+- **Rendimiento**: Menos scripts, menos memoria
+- **Estabilidad**: Manejo robusto de errores de red
+- **UX**: Mensajes claros y estados visuales
+- **Mantenibilidad**: Código modular y reutilizable
+- **Debugging**: Logs exhaustivos con emojis
 
-### 4. Bolt.new and Netlify Integration
+## Desarrollo
 
-This project is designed to work with Bolt.new and Netlify for deployment:
+### Scripts disponibles
+- `npm run dev`: Servidor de desarrollo
+- `npm run build`: Build de producción
+- `npm run preview`: Preview del build
 
-1. The `netlify.toml` file configures environment variables for different deployment contexts
-2. Set up your environment variables in the Netlify dashboard:
-   - Go to Site settings > Environment variables
-   - Add the following variables:
-     - `VITE_VPS_API_URL`: URL of your VPS scraper API
-     - `VITE_SUPABASE_URL`: Your Supabase project URL
-     - `VITE_SUPABASE_ANON_KEY`: Your Supabase anon key
+### Debugging
+Los logs incluyen emojis para facilitar el debugging:
+- 🟦 Información general
+- 🟩 Éxito/completado
+- 🟧 Advertencias
+- 🟥 Errores
+- 🟨 Callbacks/eventos
 
-3. If using Bolt.new's Supabase integration:
-   - Connect your GitHub repository to Bolt.new
-   - Enable the Supabase integration in Bolt.new
-   - The integration will automatically configure Supabase with Netlify
+## Contribución
 
-4. Deploy your site:
-   - Bolt.new will automatically deploy to Netlify
-   - The environment variables will be used in the production build
+1. Fork del repositorio
+2. Crear rama feature (`git checkout -b feature/nueva-funcionalidad`)
+3. Commit cambios (`git commit -am 'Añadir nueva funcionalidad'`)
+4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
+5. Crear Pull Request
 
-### 5. OpenRouter AI Integration
+## Licencia
 
-This project uses OpenRouter's AI (GPT-4 Turbo or Claude) to process and analyze trends:
-
-1. Sign up for an account at [OpenRouter.ai](https://openrouter.ai/)
-2. Create an API key in your OpenRouter dashboard
-3. Add your API key to the Netlify environment variables:
-   - Go to Site settings > Environment variables
-   - Add `OPENROUTER_API_KEY` with your OpenRouter API key
-4. Update the HTTP-Referer in `netlify/functions/processTrends.js` to match your Netlify site URL
-
-For more details, see the [OpenRouter Integration](./docs/OPENROUTER_SETUP.md) documentation.
-
-## Development
-
-```bash
-npm run dev
-# or
-yarn dev
-```
-
-## Build for Production
-
-```bash
-npm run build
-# or
-yarn build
-```
-
-## Usage
-
-1. Navigate to the Trends page in the dashboard
-2. Click the "Search Trends" button to trigger a scrape from your VPS
-3. The data will be fetched, stored in Supabase, and displayed in the dashboard
-4. The dashboard will show the latest trend data from Supabase on initial load
-
-## Customization
-
-- Modify the visualizations in the `src/components/ui` directory
-- Adjust the API endpoints and data processing in `src/services/api.ts`
-- Customize the Supabase integration in `src/services/supabase.ts`
-
-## Documentation
-
-For detailed instructions, see:
-
-- [VPS Scraper Setup](./docs/SCRAPER_SETUP.md) - How to set up and deploy your scraper
-- [Supabase Integration](./docs/SUPABASE_SETUP.md) - How to configure Supabase with Bolt.new and Netlify
-- [OpenRouter AI Integration](./docs/OPENROUTER_SETUP.md) - How to set up AI processing for trends
+MIT License - ver archivo LICENSE para detalles.

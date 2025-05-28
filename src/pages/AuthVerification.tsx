@@ -159,7 +159,7 @@ export default function AuthVerification() {
           sessionStorage.setItem('user_verified', 'true');
           setTimeout(() => {
             console.log('🔄 AuthVerification - Navegando a dashboard');
-            navigate('/');
+            navigate('/dashboard');
           }, 1000);
           return;
         } else {
