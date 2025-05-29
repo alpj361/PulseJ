@@ -40,7 +40,7 @@ const translations = {
     administration: 'Administración',
     adminPanel: 'Panel Admin',
     comingSoon: 'Próximamente',
-    version: 'Jornal V.0.0429',
+    version: 'Jornal V.0.0430',
   },
   en: {
     dashboard: 'Dashboard',
