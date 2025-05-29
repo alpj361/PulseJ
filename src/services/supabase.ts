@@ -128,3 +128,53 @@ export async function getLatestTrendData(): Promise<any | null> {
     return mockTrendData;
   }
 }
+
+/**
+ * Tabla: codex_items
+ * - id: uuid (primary key)
+ * - user_id: uuid (referencia a auth.users)
+ * - tipo: text (documento, audio, video, enlace)
+ * - titulo: text
+ * - descripcion: text
+ * - etiquetas: text[]
+ * - proyecto: text
+ * - storage_path: text
+ * - url: text
+ * - nombre_archivo: text
+ * - tamano: bigint
+ * - fecha: date
+ * - created_at: timestamp with time zone (default now())
+ */
+
+export async function saveCodexItem(item: any) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return;
+  const { error } = await supabase.from('codex_items').insert([
+    {
+      user_id: item.user_id,
+      tipo: item.tipo,
+      titulo: item.titulo,
+      descripcion: item.descripcion,
+      etiquetas: item.etiquetas,
+      proyecto: item.proyecto,
+      storage_path: item.storagePath,
+      url: item.url,
+      nombre_archivo: item.nombreArchivo,
+      tamano: item.tamano,
+      fecha: item.fecha,
+      isDrive: item.isDrive || false,
+      driveFileId: item.driveFileId || null
+    }
+  ]);
+  if (error) throw error;
+}
+
+export async function getCodexItemsByUser(user_id: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+  const { data, error } = await supabase
+    .from('codex_items')
+    .select('*')
+    .eq('user_id', user_id)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}

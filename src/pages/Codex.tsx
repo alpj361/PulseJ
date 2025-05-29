@@ -28,7 +28,7 @@ import { alpha, useTheme } from '@mui/material/styles';
 import { CloudUpload, Description, Audiotrack, VideoLibrary, Link as LinkIcon, Add, Search, Label, DriveFolderUpload, Lock, Delete } from '@mui/icons-material';
 import LockIcon from '@mui/icons-material/Lock';
 import GoogleIcon from '@mui/icons-material/Google';
-import { supabase } from '../services/supabase';
+import { supabase, saveCodexItem, getCodexItemsByUser } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { jwtDecode } from 'jwt-decode';
 import { GoogleDrivePickerButton } from '../components/GoogleDrivePickerButton';
@@ -88,6 +88,34 @@ const Codex: React.FC = () => {
       if (session.user) console.log('🟦 [Codex] session.user:', session.user);
     }
   }, [user, session, isGoogleUser, canUseDrive]);
+
+  useEffect(() => {
+    async function fetchCodexItems() {
+      if (!user) return;
+      try {
+        const items = await getCodexItemsByUser(user.id);
+        setCodexItems(items.map(item => ({
+          ...item,
+          id: item.id,
+          titulo: item.titulo,
+          tipo: item.tipo,
+          fecha: item.fecha || (item.created_at ? item.created_at.slice(0, 10) : ''),
+          etiquetas: item.etiquetas || [],
+          estado: 'Nuevo',
+          proyecto: item.proyecto || '',
+          storagePath: item.storage_path,
+          url: item.url,
+          isSupabase: !!item.storage_path,
+          descripcion: item.descripcion || '',
+          nombreArchivo: item.nombre_archivo,
+          tamano: item.tamano
+        })));
+      } catch (e) {
+        console.error('Error cargando codex items:', e);
+      }
+    }
+    fetchCodexItems();
+  }, [user]);
 
   // Filtros
   const filteredItems = codexItems.filter(item => {
@@ -185,10 +213,11 @@ const Codex: React.FC = () => {
   );
 
   // Función para manejar archivos seleccionados del picker
-  const handleFileFromDrive = (file: any, tipo: string) => {
-    console.log('🟩 [Codex] Archivo seleccionado de Drive:', file, 'tipo:', tipo);
+  const handleFileFromDrive = async (file: any, tipo: string) => {
+    if (!user) return;
     const newItem = {
       id: 'codex-' + Math.random().toString(36).slice(2, 8),
+      user_id: user.id,
       titulo: file.name,
       tipo: tipo,
       fecha: new Date().toISOString().slice(0, 10),
@@ -197,8 +226,13 @@ const Codex: React.FC = () => {
       proyecto: '',
       driveFileId: file.id,
       url: file.url || '',
+      isDrive: true,
+      descripcion: '',
+      nombreArchivo: file.name,
+      tamano: file.size || null
     };
-    setCodexItems(items => [...items, newItem]);
+    await saveCodexItem(newItem);
+    setCodexItems(items => [newItem, ...items]);
     setTab('explorar');
   };
 
@@ -209,8 +243,68 @@ const Codex: React.FC = () => {
     setGoogleDialogOpen(true);
   };
 
-  // Cards de carga de fuentes
+  // Utilidad para subir archivo a Supabase Storage
+  async function uploadFileToSupabase(file: File, tipo: string, extra: { titulo: string; descripcion: string; etiquetas: string[]; proyecto?: string }) {
+    if (!user) throw new Error('Usuario no autenticado');
+    const userId = user.id;
+    const ext = file.name.split('.').pop();
+    const filePath = `${userId}/${tipo}/${Date.now()}_${file.name}`;
+    
+    // Subir archivo
+    const { data, error } = await supabase.storage.from('digitalstorage').upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false
+    });
+    if (error) throw error;
+    // Obtener URL pública (si el bucket es privado, usar signed URL)
+    const { data: urlData } = await supabase.storage.from('digitalstorage').createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 días
+    const nuevo = {
+      id: 'codex-' + Math.random().toString(36).slice(2, 8),
+      user_id: userId,
+      titulo: extra.titulo || file.name,
+      tipo,
+      fecha: new Date().toISOString().slice(0, 10),
+      etiquetas: extra.etiquetas || [],
+      estado: 'Nuevo',
+      proyecto: extra.proyecto || '',
+      storagePath: filePath,
+      url: urlData?.signedUrl || '',
+      isSupabase: true,
+      descripcion: extra.descripcion || '',
+      nombreArchivo: file.name,
+      tamano: file.size
+    };
+    await saveCodexItem(nuevo);
+    return nuevo;
+  }
+
+  // Card para subir documento desde computadora
   function CardSubirDocumento() {
+    const [file, setFile] = useState<File | null>(null);
+    const [titulo, setTitulo] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [etiquetas, setEtiquetas] = useState<string[]>([]);
+    const [subiendo, setSubiendo] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+      }
+    };
+    const handleUpload = async () => {
+      if (!file) return;
+      setSubiendo(true); setError(null);
+      try {
+        const nuevo = await uploadFileToSupabase(file, 'documento', { titulo, descripcion, etiquetas });
+        setCodexItems(items => [nuevo, ...items]);
+        setFile(null); setTitulo(''); setDescripcion(''); setEtiquetas([]);
+      } catch (err: any) {
+        setError(err.message || 'Error al subir archivo');
+      } finally {
+        setSubiendo(false);
+      }
+    };
     return (
       <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
         <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
@@ -218,16 +312,25 @@ const Codex: React.FC = () => {
             <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
               Subir Documento / Nota / PDF
             </Typography>
-            <TextField label="Título del documento" fullWidth size="medium" />
-            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
-            <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: salud, gobierno" InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
+            <TextField label="Título del documento" fullWidth size="medium" value={titulo} onChange={e => setTitulo(e.target.value)} />
+            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+            <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: salud, gobierno" value={etiquetas.join(', ')} onChange={e => setEtiquetas(e.target.value.split(',').map(s => s.trim()))} InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <Button variant="contained" component="label" startIcon={<CloudUpload />} disabled={subiendo}>
+                {subiendo ? 'Subiendo...' : 'Subir desde computadora'}
+                <input type="file" hidden accept=".pdf,.doc,.docx,.txt,.md,.rtf,.odt,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.mp3,.wav,.mp4,.mov,.avi,.mkv,.webm,.ogg,.csv,.zip,.rar,.7z,.json,.xml,.html,.htm,.epub,.mobi,.azw3,.csv,.tsv" onChange={handleFileChange} />
+              </Button>
               <GoogleDrivePickerButton
                 onFilePicked={(file) => handleFileFromDrive(file, 'documento')}
                 onError={handlePickerError}
                 buttonText="Conectar desde Google Drive"
               />
             </Stack>
+            {file && <Typography variant="body2" color="text.secondary">Archivo seleccionado: {file.name}</Typography>}
+            {error && <Typography variant="body2" color="error">{error}</Typography>}
+            <Button variant="contained" color="primary" onClick={handleUpload} disabled={!file || subiendo} sx={{ fontWeight: 600, borderRadius: 2 }}>
+              Guardar en Codex
+            </Button>
             <InactiveButton icon={<Description />} label="Analizar contenido del PDF" />
           </Stack>
         </CardContent>
@@ -235,7 +338,33 @@ const Codex: React.FC = () => {
     );
   }
 
+  // Card para subir audio desde computadora
   function CardSubirAudio() {
+    const [file, setFile] = useState<File | null>(null);
+    const [titulo, setTitulo] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [etiquetas, setEtiquetas] = useState<string[]>([]);
+    const [proyecto, setProyecto] = useState('');
+    const [subiendo, setSubiendo] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+      }
+    };
+    const handleUpload = async () => {
+      if (!file) return;
+      setSubiendo(true); setError(null);
+      try {
+        const nuevo = await uploadFileToSupabase(file, 'audio', { titulo, descripcion, etiquetas, proyecto });
+        setCodexItems(items => [nuevo, ...items]);
+        setFile(null); setTitulo(''); setDescripcion(''); setEtiquetas([]); setProyecto('');
+      } catch (err: any) {
+        setError(err.message || 'Error al subir archivo');
+      } finally {
+        setSubiendo(false);
+      }
+    };
     return (
       <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
         <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
@@ -243,16 +372,26 @@ const Codex: React.FC = () => {
             <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
               Subir Audio / Entrevista
             </Typography>
-            <TextField label="Nombre del audio" fullWidth size="medium" />
-            <TextField label="Breve descripción o contexto" fullWidth size="medium" multiline rows={2} />
-            <TextField label="Relacionar con proyecto (opcional)" fullWidth size="medium" />
+            <TextField label="Nombre del audio" fullWidth size="medium" value={titulo} onChange={e => setTitulo(e.target.value)} />
+            <TextField label="Breve descripción o contexto" fullWidth size="medium" multiline rows={2} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+            <TextField label="Relacionar con proyecto (opcional)" fullWidth size="medium" value={proyecto} onChange={e => setProyecto(e.target.value)} />
+            <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: entrevista, radio" value={etiquetas.join(', ')} onChange={e => setEtiquetas(e.target.value.split(',').map(s => s.trim()))} InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <Button variant="contained" component="label" startIcon={<CloudUpload />} disabled={subiendo}>
+                {subiendo ? 'Subiendo...' : 'Subir desde computadora'}
+                <input type="file" hidden accept="audio/*,mp3,wav,ogg" onChange={handleFileChange} />
+              </Button>
               <GoogleDrivePickerButton
                 onFilePicked={(file) => handleFileFromDrive(file, 'audio')}
                 onError={handlePickerError}
                 buttonText="Conectar desde Google Drive"
               />
             </Stack>
+            {file && <Typography variant="body2" color="text.secondary">Archivo seleccionado: {file.name}</Typography>}
+            {error && <Typography variant="body2" color="error">{error}</Typography>}
+            <Button variant="contained" color="primary" onClick={handleUpload} disabled={!file || subiendo} sx={{ fontWeight: 600, borderRadius: 2 }}>
+              Guardar en Codex
+            </Button>
             <InactiveButton icon={<Audiotrack />} label="Transcribir audio" />
           </Stack>
         </CardContent>
@@ -260,7 +399,33 @@ const Codex: React.FC = () => {
     );
   }
 
+  // Card para subir video desde computadora
   function CardSubirVideo() {
+    const [file, setFile] = useState<File | null>(null);
+    const [titulo, setTitulo] = useState('');
+    const [descripcion, setDescripcion] = useState('');
+    const [etiquetas, setEtiquetas] = useState<string[]>([]);
+    const [proyecto, setProyecto] = useState('');
+    const [subiendo, setSubiendo] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+      }
+    };
+    const handleUpload = async () => {
+      if (!file) return;
+      setSubiendo(true); setError(null);
+      try {
+        const nuevo = await uploadFileToSupabase(file, 'video', { titulo, descripcion, etiquetas, proyecto });
+        setCodexItems(items => [nuevo, ...items]);
+        setFile(null); setTitulo(''); setDescripcion(''); setEtiquetas([]); setProyecto('');
+      } catch (err: any) {
+        setError(err.message || 'Error al subir archivo');
+      } finally {
+        setSubiendo(false);
+      }
+    };
     return (
       <Card sx={{ mb: 5, borderRadius: 4, p: 2, boxShadow: 0 }}>
         <CardContent sx={{ px: { xs: 2, sm: 4 }, py: { xs: 2, sm: 3 } }}>
@@ -268,16 +433,26 @@ const Codex: React.FC = () => {
             <Typography variant="h6" fontWeight={700} gutterBottom sx={{ fontSize: '1.2rem', letterSpacing: -0.5 }}>
               Subir Video / Conferencia
             </Typography>
-            <TextField label="Título del video" fullWidth size="medium" />
-            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} />
-            <TextField label="Participantes clave (opcional)" fullWidth size="medium" />
+            <TextField label="Título del video" fullWidth size="medium" value={titulo} onChange={e => setTitulo(e.target.value)} />
+            <TextField label="Descripción breve" fullWidth size="medium" multiline rows={2} value={descripcion} onChange={e => setDescripcion(e.target.value)} />
+            <TextField label="Participantes clave (opcional)" fullWidth size="medium" value={proyecto} onChange={e => setProyecto(e.target.value)} />
+            <TextField label="Etiquetas" fullWidth size="medium" placeholder="Ej: conferencia, evento" value={etiquetas.join(', ')} onChange={e => setEtiquetas(e.target.value.split(',').map(s => s.trim()))} InputProps={{ startAdornment: <InputAdornment position="start"><Label fontSize="small" /></InputAdornment> }} />
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2.5}>
+              <Button variant="contained" component="label" startIcon={<CloudUpload />} disabled={subiendo}>
+                {subiendo ? 'Subiendo...' : 'Subir desde computadora'}
+                <input type="file" hidden accept="video/*,mp4,mov,avi,mkv,webm" onChange={handleFileChange} />
+              </Button>
               <GoogleDrivePickerButton
                 onFilePicked={(file) => handleFileFromDrive(file, 'video')}
                 onError={handlePickerError}
                 buttonText="Conectar desde Google Drive"
               />
             </Stack>
+            {file && <Typography variant="body2" color="text.secondary">Archivo seleccionado: {file.name}</Typography>}
+            {error && <Typography variant="body2" color="error">{error}</Typography>}
+            <Button variant="contained" color="primary" onClick={handleUpload} disabled={!file || subiendo} sx={{ fontWeight: 600, borderRadius: 2 }}>
+              Guardar en Codex
+            </Button>
             <InactiveButton icon={<VideoLibrary />} label="Extraer audio" />
           </Stack>
         </CardContent>
@@ -416,9 +591,11 @@ const Codex: React.FC = () => {
                       Proyecto: <b>{item.proyecto || '—'}</b>
                     </Typography>
                     <Stack direction="row" spacing={1} mb={1.5}>
-                      <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                        <Chip label="Ver en Google Drive" icon={<DriveFolderUpload fontSize="small" />} clickable sx={{ bgcolor: 'blue.50', color: 'primary.main', fontWeight: 500, fontSize: '0.98rem' }} />
-                      </a>
+                      {item.isDrive && (
+                        <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                          <Chip label="Ver en Google Drive" icon={<DriveFolderUpload fontSize="small" />} clickable sx={{ bgcolor: 'blue.50', color: 'primary.main', fontWeight: 500, fontSize: '0.98rem' }} />
+                        </a>
+                      )}
                       <Chip 
                         label="Eliminar" 
                         icon={<Delete fontSize="small" />} 
@@ -449,9 +626,24 @@ const Codex: React.FC = () => {
   );
 
   // Función para eliminar un item del Codex
-  const handleDeleteItem = (itemId: string) => {
-    console.log('[Codex] Eliminando item:', itemId);
-    setCodexItems(items => items.filter(item => item.id !== itemId));
+  const handleDeleteItem = async (itemId: string) => {
+    const item = codexItems.find(i => i.id === itemId);
+    if (!item) return;
+    // Si es de Supabase Storage, borrar de Storage y de la tabla
+    if (item.isSupabase && item.storagePath) {
+      try {
+        await supabase.storage.from('digitalstorage').remove([item.storagePath]);
+      } catch (e) {
+        console.error('Error borrando archivo de Storage:', e);
+      }
+    }
+    // Borrar de la tabla codex_items
+    try {
+      await supabase.from('codex_items').delete().eq('id', itemId);
+    } catch (e) {
+      console.error('Error borrando de codex_items:', e);
+    }
+    setCodexItems(items => items.filter(i => i.id !== itemId));
   };
 
   return (

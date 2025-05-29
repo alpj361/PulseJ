@@ -87,6 +87,8 @@ function App() {
         <Routes>
           {/* Ruta principal - Homepage pública */}
           <Route path="/" element={<Home />} />
+          {/* Nueva ruta /home que también muestra Home */}
+          <Route path="/home" element={<Home />} />
           
           {/* Rutas públicas */}
           <Route path="/login" element={<Login />} />
