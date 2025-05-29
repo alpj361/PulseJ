@@ -17,6 +17,8 @@ import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Box, CircularProgress } from '@mui/material';
 import Codex from './pages/Codex';
+import News from './pages/News';
+import Sondeos from './pages/Sondeos';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -151,6 +153,20 @@ function App() {
             <VerifiedRoute>
               <Layout>
                 <Codex />
+              </Layout>
+            </VerifiedRoute>
+          } />
+          <Route path="/news" element={
+            <VerifiedRoute>
+              <Layout>
+                <News />
+              </Layout>
+            </VerifiedRoute>
+          } />
+          <Route path="/sondeos" element={
+            <VerifiedRoute>
+              <Layout>
+                <Sondeos />
               </Layout>
             </VerifiedRoute>
           } />

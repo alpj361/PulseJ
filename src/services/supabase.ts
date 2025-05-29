@@ -178,3 +178,39 @@ export async function getCodexItemsByUser(user_id: string) {
   if (error) throw error;
   return data || [];
 }
+
+/**
+ * Obtener las últimas 10 noticias de la tabla news
+ */
+export async function getLatestNews() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+  const { data, error } = await supabase
+    .from('news')
+    .select('*')
+    .order('fecha', { ascending: false })
+    .limit(10);
+  if (error) throw error;
+  
+  // Función para limpiar HTML y fragmentos de código
+  const cleanText = (text: string) => {
+    if (!text) return '';
+    return text
+      .replace(/<[^>]*>/g, '') // Eliminar etiquetas HTML
+      .replace(/\[&#8230;\]/g, '...') // Reemplazar entidades HTML
+      .replace(/The post .* appeared first on .*/g, '') // Eliminar texto de "appeared first"
+      .replace(/\s+/g, ' ') // Normalizar espacios
+      .trim();
+  };
+  
+  // Mapear a NewsItem
+  return (data || []).map((item: any) => ({
+    id: item.id,
+    title: item.titulo,
+    source: item.fuente,
+    date: item.fecha,
+    excerpt: cleanText(item.resumen),
+    category: item.categoria,
+    keywords: item.keywords || [],
+    url: item.url
+  }));
+}

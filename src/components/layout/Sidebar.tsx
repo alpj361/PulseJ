@@ -5,7 +5,8 @@ import {
   TrendingUp,
   ActivitySquare,
   Search,
-  Database
+  Database,
+  Bookmark
 } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -39,7 +40,7 @@ const translations = {
     administration: 'Administración',
     adminPanel: 'Panel Admin',
     comingSoon: 'Próximamente',
-    version: 'Jornal V.0.0411',
+    version: 'Jornal V.0.0429',
   },
   en: {
     dashboard: 'Dashboard',
@@ -51,7 +52,7 @@ const translations = {
     administration: 'Administration',
     adminPanel: 'Admin Panel',
     comingSoon: 'Coming Soon',
-    version: 'Jornal V.0.0411',
+    version: 'Jornal V.0.0429',
   },
 };
 
@@ -92,6 +93,16 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       icon: <Database size={20} />,
       label: t.library,
       path: '/codex'
+    },
+    {
+      icon: <Bookmark size={20} />,
+      label: 'News',
+      path: '/news'
+    },
+    {
+      icon: <BarChart3 size={20} />,
+      label: 'Sondeos',
+      path: '/sondeos'
     },
     {
       icon: <Search size={20} />,

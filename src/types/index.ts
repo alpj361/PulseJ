@@ -6,6 +6,7 @@ export interface NewsItem {
   excerpt: string;
   category: string;
   keywords: string[];
+  url?: string;
 }
 
 export interface KeywordCount {

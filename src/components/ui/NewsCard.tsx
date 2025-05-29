@@ -6,7 +6,7 @@ interface NewsCardProps {
   news: NewsItem;
 }
 
-const NewsCard: React.FC<NewsCardProps> = ({ news }) => {
+const NewsRecentActivity: React.FC<NewsCardProps> = ({ news }) => {
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -74,4 +74,4 @@ const NewsCard: React.FC<NewsCardProps> = ({ news }) => {
   );
 };
 
-export default NewsCard;
+export default NewsRecentActivity;
