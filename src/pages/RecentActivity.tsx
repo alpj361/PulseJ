@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase';
 import { useAuth } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
 import ActivityCard from '../components/ui/ActivityCard';
+import DocumentGeneratorCard from '../components/ui/DocumentGeneratorCard';
 import { 
   Grid, 
   Box, 
@@ -738,6 +739,14 @@ export default function RecentActivity() {
         )}
       </Paper>
 
+      {/* Document Generator Section */}
+      <DocumentGeneratorCard 
+        onDocumentGenerated={(document) => {
+          // Opcional: hacer algo cuando se genera un documento
+          console.log('Documento generado:', document);
+        }}
+      />
+
       {/* Opciones futuras */}
       <Typography 
         variant="h6" 
@@ -842,6 +851,7 @@ export default function RecentActivity() {
           </Paper>
         </Grid>
       </Grid>
+
     </Container>
   );
 }

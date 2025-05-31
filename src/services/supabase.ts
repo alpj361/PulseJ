@@ -214,3 +214,18 @@ export async function getLatestNews() {
     url: item.url
   }));
 }
+
+/**
+ * Obtiene los sondeos de un usuario desde la tabla 'sondeos'
+ * @param userId UUID del usuario
+ * @returns Array de sondeos
+ */
+export async function getSondeosByUser(userId: string) {
+  const { data, error } = await supabase
+    .from('sondeos')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data;
+}

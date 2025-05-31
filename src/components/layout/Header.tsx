@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivitySquare, Moon, Sun } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
@@ -68,25 +68,45 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
     >
       <Toolbar sx={{ justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <ActivitySquare 
-            size={32} 
-            color="#3b82f6" 
-            style={{ marginRight: 12, transition: 'all 0.3s' }}
-            className="hover:rotate-90"
-          />
-          <Typography 
-            variant="h6" 
-            component="h1" 
-            sx={{ 
-              fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-              fontWeight: 300,
-              letterSpacing: 1.2,
-              textTransform: 'uppercase',
-              color: darkMode ? 'white' : 'text.primary'
-            }}
-          >
-            Pulse Journal
-          </Typography>
+          {/* Logo SVG Component */}
+          <Box sx={{ mr: 2 }}>
+            <svg width={40} height={40} viewBox="0 0 100 100">
+              <defs>
+                <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#60A5FA" />
+                  <stop offset="50%" stopColor="#3B82F6" />
+                  <stop offset="100%" stopColor="#1D4ED8" />
+                </linearGradient>
+              </defs>
+              <path d="M10 50 Q15 25, 20 50 T30 50" stroke="url(#waveGradient)" strokeWidth="6" fill="none" strokeLinecap="round"/>
+              <path d="M20 50 Q25 20, 30 50 T40 50" stroke="url(#waveGradient)" strokeWidth="7" fill="none" strokeLinecap="round"/>
+              <path d="M30 50 Q35 15, 40 50 T50 50" stroke="url(#waveGradient)" strokeWidth="8" fill="none" strokeLinecap="round"/>
+              <path d="M40 50 Q45 10, 50 50 T60 50" stroke="url(#waveGradient)" strokeWidth="9" fill="none" strokeLinecap="round"/>
+            </svg>
+          </Box>
+          
+          <Box sx={{ textAlign: 'left' }}>
+            <Typography 
+              variant="h5" 
+              fontWeight="bold" 
+              color="text.primary"
+              sx={{ lineHeight: 1, mb: 0 }}
+            >
+              pulse
+            </Typography>
+            <Typography 
+              variant="caption" 
+              color="text.secondary" 
+              fontWeight="medium"
+              sx={{ 
+                letterSpacing: 2,
+                lineHeight: 1,
+                fontSize: '0.7rem'
+              }}
+            >
+              JOURNAL
+            </Typography>
+          </Box>
         </Box>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>

@@ -16,18 +16,25 @@ import {
   Assessment,
   Search as SearchIcon
 } from '@mui/icons-material';
-import { getLatestNews, getCodexItemsByUser } from '../services/supabase';
-import { getLatestTrends } from '../services/api';
+import { getLatestNews, getCodexItemsByUser, getSondeosByUser } from '../services/supabase';
+import { sendSondeoToExtractorW } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { NewsItem } from '../types';
 import type { TrendResponse } from '../services/api';
+import SondeosMap, { Sondeo } from '../components/SondeosMap';
 
 // Utilidad mejorada para buscar relevancia por palabras clave del input
 function filtrarPorRelevancia(texto: string, input: string) {
   if (!texto || !input) return false;
-  // Extraer palabras del input (ignorando signos y mayúsculas)
-  const palabrasInput = input.toLowerCase().split(/\W+/).filter(Boolean);
-  const textoLower = texto.toLowerCase();
+  // Extraer palabras del input (ignorando signos y mayúsculas, y palabras cortas)
+  const palabrasInput = input
+    .toLowerCase()
+    .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+    .split(/\W+/)
+    .filter(p => p.length >= 3); // Solo palabras de 3+ letras
+  if (palabrasInput.length === 0) return false;
+  const textoLower = texto.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
+  // Coincidencia: al menos una palabra del input está en el texto
   return palabrasInput.some(palabra => textoLower.includes(palabra));
 }
 
@@ -39,14 +46,18 @@ function resumirTexto(texto: string, maxLen = 220) {
 const Sondeos: React.FC = () => {
   const { user } = useAuth();
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [trends, setTrends] = useState<TrendResponse | null>(null);
   const [codex, setCodex] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // loading de datos iniciales
+  const [loadingSondeo, setLoadingSondeo] = useState(false); // loading solo para el botón Sondear
   const [error, setError] = useState('');
   const [input, setInput] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [contexto, setContexto] = useState<any>(null);
   const [showContext, setShowContext] = useState(false);
+  const [llmResponse, setLlmResponse] = useState<string | null>(null);
+  const [llmSources, setLlmSources] = useState<any>(null);
+  const [sondeos, setSondeos] = useState<Sondeo[]>([]);
+  const [loadingSondeos, setLoadingSondeos] = useState(false);
 
   const questions = [
     {
@@ -86,11 +97,9 @@ const Sondeos: React.FC = () => {
     setError('');
     Promise.all([
       getLatestNews(),
-      getLatestTrends(),
       getCodexItemsByUser(user.id)
-    ]).then(([newsData, trendsData, codexData]) => {
+    ]).then(([newsData, codexData]) => {
       setNews(newsData);
-      setTrends(trendsData);
       setCodex(codexData);
     }).catch(e => {
       setError('Error al obtener contexto: ' + (e.message || e));
@@ -98,40 +107,27 @@ const Sondeos: React.FC = () => {
   }, [user]);
 
   // Armado de contexto relevante
-  const armarContexto = () => {
+  const armarContexto = async () => {
     // Preprocesar palabras del input para todos los filtros
-    const palabrasInput = input.toLowerCase().split(/\W+/).filter(Boolean);
+    const palabrasInput = input
+      .toLowerCase()
+      .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+      .split(/\W+/)
+      .filter(p => p.length >= 3); // Solo palabras de 3+ letras
 
     // Filtrar noticias relevantes
     const noticiasRelevantes = news.filter(n =>
       filtrarPorRelevancia(n.title, input) ||
       filtrarPorRelevancia(n.excerpt, input) ||
-      n.keywords.some(k => filtrarPorRelevancia(k, input))
+      (n.keywords || []).some(k => filtrarPorRelevancia(k, input))
     ).slice(0, 3);
 
     // Filtrar documentos relevantes
     const codexRelevantes = codex.filter((d: any) =>
       filtrarPorRelevancia(d.titulo, input) ||
       filtrarPorRelevancia(d.descripcion, input) ||
-      (d.etiquetas || []).some((k: string) => filtrarPorRelevancia(k, input))
+      ((d.etiquetas || []).some((k: string) => filtrarPorRelevancia(k, input)))
     ).slice(0, 3);
-
-    // Filtrar tendencias relevantes (about)
-    let tendenciasRelevantes: any[] = [];
-    if (trends && trends.about && Array.isArray(trends.about)) {
-      tendenciasRelevantes = trends.about.filter((t: any) => {
-        // Filtro robusto para palabras_clave
-        const keywordMatch = (t.palabras_clave || []).some((k: string) => {
-          const keywordLower = k.toLowerCase();
-          return palabrasInput.some(palabra => keywordLower.includes(palabra) || palabra.includes(keywordLower));
-        });
-        return (
-          filtrarPorRelevancia(t.nombre, input) ||
-          filtrarPorRelevancia(t.resumen, input) ||
-          keywordMatch
-        );
-      }).slice(0, 3);
-    }
 
     // Armar contexto estructurado
     const contextoArmado = {
@@ -153,19 +149,57 @@ const Sondeos: React.FC = () => {
         etiquetas: d.etiquetas,
         url: d.url
       })),
-      tendencias: tendenciasRelevantes.map((t: any) => ({
-        nombre: t.nombre,
-        resumen: resumirTexto(t.resumen),
-        categoria: t.categoria,
-        relevancia: t.relevancia,
-        fecha_evento: t.fecha_evento,
-        palabras_clave: t.palabras_clave,
-        razon_tendencia: t.razon_tendencia
-      }))
     };
     setContexto(contextoArmado);
     setShowContext(true);
+
+    // --- Llamada a ExtractorW/Perplexity ---
+    setLlmResponse(null);
+    setLlmSources(null);
+    setLoadingSondeo(true);
+    setError('');
+    try {
+      const result = await sendSondeoToExtractorW(contextoArmado, input);
+      // Asumimos que la respuesta principal está en result.about[0].resumen o similar
+      let respuesta = '';
+      if (result.about && Array.isArray(result.about) && result.about.length > 0) {
+        respuesta = result.about[0].resumen || result.about[0].summary || JSON.stringify(result.about[0]);
+      } else if (result.llm_response) {
+        respuesta = result.llm_response;
+      } else {
+        respuesta = 'No se obtuvo respuesta del LLM.';
+      }
+      setLlmResponse(respuesta);
+      setLlmSources(result);
+    } catch (e: any) {
+      setError('Error al consultar Perplexity: ' + (e.message || e));
+    } finally {
+      setLoadingSondeo(false);
+    }
   };
+
+  useEffect(() => {
+    if (!user) return;
+    setLoadingSondeos(true);
+    getSondeosByUser(user.id)
+      .then((data) => {
+        // Mapear los datos de Supabase al tipo Sondeo
+        const mapped = (data || []).map((s: any) => ({
+          id: s.id,
+          lat: s.lat,
+          lng: s.lng,
+          zona: s.zona || undefined,
+          lugar: s.lugar || undefined,
+          municipio: s.municipio || undefined,
+          departamento: s.departamento || undefined,
+          pregunta: s.pregunta,
+          created_at: s.created_at
+        }));
+        setSondeos(mapped);
+      })
+      .catch(() => setSondeos([]))
+      .finally(() => setLoadingSondeos(false));
+  }, [user]);
 
   return (
     <Box sx={{ p: 4 }}>
@@ -196,13 +230,24 @@ const Sondeos: React.FC = () => {
             🧠 Sondear
           </Button>
         </Box>
-        {loading && <Typography color="primary">Cargando contexto...</Typography>}
+        {loading && <Typography color="primary">Cargando contexto inicial...</Typography>}
+        {loadingSondeo && <Typography color="primary">Cargando contexto y respuesta de IA...</Typography>}
         {error && <Typography color="error">{error}</Typography>}
-        {showContext && contexto && (
+        {llmResponse && (
           <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Contexto armado para la consulta:</Typography>
-            <pre style={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f7fafc', padding: 12, borderRadius: 8, maxHeight: 350, overflow: 'auto' }}>{JSON.stringify(contexto, null, 2)}</pre>
-            <Button size="small" onClick={() => setShowContext(false)} sx={{ mt: 1 }}>Ocultar</Button>
+            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Respuesta de la IA:</Typography>
+            <Typography variant="body1" sx={{ mb: 1 }}>{llmResponse}</Typography>
+            <Button size="small" onClick={() => setShowContext(v => !v)} sx={{ mt: 1 }}>
+              {showContext ? 'Ocultar contexto' : 'Ver contexto enviado'}
+            </Button>
+            {showContext && contexto && (
+              <pre style={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f7fafc', padding: 12, borderRadius: 8, maxHeight: 350, overflow: 'auto' }}>{JSON.stringify(contexto, null, 2)}</pre>
+            )}
+            {llmSources && (
+              <Button size="small" onClick={() => setLlmSources(null)} sx={{ mt: 1, ml: 2 }} disabled>
+                Fuentes usadas (ver JSON)
+              </Button>
+            )}
           </Box>
         )}
       </Box>
@@ -306,7 +351,8 @@ const Sondeos: React.FC = () => {
           backgroundColor: 'grey.50',
           borderRadius: 2,
           border: '2px dashed',
-          borderColor: 'grey.300'
+          borderColor: 'grey.300',
+          mb: 4
         }}
       >
         <Box sx={{ textAlign: 'center' }}>
@@ -319,6 +365,18 @@ const Sondeos: React.FC = () => {
           </Typography>
         </Box>
       </Paper>
+
+      {/* Mapa de Sondeos */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" gutterBottom fontWeight="semibold" color="primary">
+          🗺️ Mapa de Exploración de Sondeos
+        </Typography>
+        {loadingSondeos ? (
+          <Typography color="primary">Cargando mapa...</Typography>
+        ) : (
+          <SondeosMap sondeos={sondeos} />
+        )}
+      </Box>
     </Box>
   );
 };

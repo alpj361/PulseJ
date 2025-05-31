@@ -421,4 +421,32 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
     console.error('❌ Error in getLatestTrends:', error);
     return null;
   }
+}
+
+/**
+ * Envía un sondeo personalizado (contexto y pregunta) a ExtractorW y espera la respuesta del LLM
+ * @param contextoArmado Objeto con contexto (noticias, codex, tendencias, input, etc)
+ * @param pregunta Pregunta del usuario (puede ser igual a input)
+ * @returns Respuesta completa del LLM y contexto usado
+ */
+export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: string): Promise<any> {
+  try {
+    // 1. Enviar el contexto y pregunta a ExtractorW (nuevo endpoint /api/sondeo)
+    const response = await fetch('https://extractorw.onrender.com/api/sondeo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contexto: contextoArmado,
+        pregunta: pregunta
+      })
+    });
+    if (!response.ok) {
+      throw new Error(`Error enviando sondeo: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('❌ Error en sendSondeoToExtractorW:', error);
+    throw error;
+  }
 } 
