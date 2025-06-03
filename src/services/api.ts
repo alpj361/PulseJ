@@ -47,8 +47,8 @@ export interface Statistics {
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
-// ExtractorW Backend URL - FORZAR URL DE RENDER EN PRODUCCIÓN
-const EXTRACTORW_API_URL = 'https://extractorw.onrender.com/api';
+// ExtractorW Backend URL - ACTUALIZADO PARA USAR VPS PROPIO
+const EXTRACTORW_API_URL = 'https://server.standatpd.com/api';
 
 console.log('🔧 Configuración de APIs:');
 console.log(`   ExtractorW: ${EXTRACTORW_API_URL}`);
@@ -301,14 +301,20 @@ export async function getLatestTrendsFromExtractorW(): Promise<TrendResponse | n
   try {
     console.log('📡 Obteniendo últimas tendencias de ExtractorW...');
     
+    // Intentar el endpoint de latestTrends
     const response = await fetch(`${EXTRACTORW_API_URL}/latestTrends`);
     
     if (!response.ok) {
+      if (response.status === 404) {
+        console.log('📭 No hay tendencias previas en ExtractorW backend');
+        // NO generar datos on-demand, simplemente retornar null para hacer fallback a Supabase
+        return null;
+      }
       throw new Error(`Error getting latest trends: ${response.statusText}`);
     }
     
     const data = await response.json();
-    console.log('✅ Últimas tendencias obtenidas:', {
+    console.log('✅ Últimas tendencias obtenidas de ExtractorW:', {
       timestamp: data.timestamp,
       status: data.processing_status,
       has_about: data.about?.length > 0,
@@ -325,7 +331,7 @@ export async function getLatestTrendsFromExtractorW(): Promise<TrendResponse | n
       processing_status: data.processing_status || 'unknown'
     };
   } catch (error) {
-    console.error('❌ Error getting latest trends:', error);
+    console.error('❌ Error getting latest trends from ExtractorW:', error);
     return null;
   }
 }
@@ -397,14 +403,19 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
     }
     
     // 2. Fallback to Supabase
-    console.log('🔄 Fallback a Supabase...');
+    console.log('🔄 ExtractorW no tiene datos previos, fallback a Supabase...');
     const supabaseData = await getLatestTrendData();
     
     if (supabaseData) {
-      console.log('✅ Datos obtenidos de Supabase');
+      console.log('✅ Datos obtenidos de Supabase:', {
+        timestamp: supabaseData.timestamp,
+        wordCloudCount: supabaseData.word_cloud_data?.length || 0,
+        keywordsCount: supabaseData.top_keywords?.length || 0,
+        categoriesCount: supabaseData.category_data?.length || 0
+      });
       
       // Asegurar que los datos de Supabase tienen la estructura correcta
-    return {
+      return {
         wordCloudData: supabaseData.word_cloud_data || [],
         topKeywords: supabaseData.top_keywords || [],
         categoryData: supabaseData.category_data || [],
@@ -415,7 +426,7 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
       };
     }
     
-    console.log('⚠️  No se encontraron datos, retornando null');
+    console.log('⚠️  No se encontraron datos en ExtractorW ni en Supabase');
     return null;
   } catch (error) {
     console.error('❌ Error in getLatestTrends:', error);
@@ -432,7 +443,7 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
 export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: string): Promise<any> {
   try {
     // 1. Enviar el contexto y pregunta a ExtractorW (nuevo endpoint /api/sondeo)
-    const response = await fetch('https://extractorw.onrender.com/api/sondeo', {
+    const response = await fetch('https://server.standatpd.com/api/sondeo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

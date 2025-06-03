@@ -1,6 +1,7 @@
 import React from 'react';
 import { TrendingUp } from 'lucide-react';
 import { KeywordCount } from '../../types';
+import { formatMentions } from '../../utils/formatNumbers';
 import { 
   Box, 
   Paper, 
@@ -152,7 +153,7 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
                 
                 <Chip
                   icon={<TagIcon sx={{ fontSize: '0.8rem !important' }} />}
-                  label={`${keyword.count >= 1000 ? `${(keyword.count/1000).toFixed(1)}K` : keyword.count} menciones`}
+                  label={formatMentions(keyword.count)}
                   size="small"
                   sx={{ 
                     height: 20,

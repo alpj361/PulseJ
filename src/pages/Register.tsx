@@ -60,7 +60,7 @@ export default function Register() {
     }
   }, [searchParams]);
 
-  const validateInvitationCode = async (code: string): Promise<boolean> => {
+  const validateInvitationCode = async (code: string): Promise<any> => {
     try {
       const { data, error } = await supabase
         .from('invitation_codes')
@@ -69,11 +69,26 @@ export default function Register() {
         .eq('used', false)
         .single();
       
-      return !error && data;
+      if (error || !data) {
+        return null;
+      }
+      
+      return {
+        id: data.id,
+        user_type: data.user_type,
+        credits: data.credits,
+        description: data.description
+      };
     } catch (error) {
-      // Fallback temporal para desarrollo - códigos de ejemplo
-      const validCodes = ['JOURNALIST2024', 'PRESS-INVITE', 'MEDIA-ACCESS'];
-      return validCodes.includes(code.toUpperCase());
+      // Fallback temporal para desarrollo - códigos de ejemplo con configuraciones
+      const validCodes: Record<string, any> = {
+        'JOURNALIST2024': { user_type: 'Beta', credits: 150, description: 'Código de desarrollo para periodistas' },
+        'PRESS-INVITE': { user_type: 'Alpha', credits: 300, description: 'Código de desarrollo para prensa' },
+        'MEDIA-ACCESS': { user_type: 'Creador', credits: 500, description: 'Código de desarrollo para medios' }
+      };
+      
+      const codeData = validCodes[code.toUpperCase()];
+      return codeData || null;
     }
   };
 
@@ -89,14 +104,14 @@ export default function Register() {
       return;
     }
 
-    const isValidCode = await validateInvitationCode(invitationCode);
-    if (!isValidCode) {
+    const codeData = await validateInvitationCode(invitationCode);
+    if (!codeData) {
       setError('Código de invitación inválido o ya utilizado');
       setLoading(false);
       return;
     }
 
-    // Si es válido, guardar el código y avanzar al paso 2
+    // Si es válido, guardar el código y sus datos, y avanzar al paso 2
     setValidatedCode(invitationCode);
     setStep(2);
     setLoading(false);
@@ -117,6 +132,14 @@ export default function Register() {
     }
 
     try {
+      // Obtener datos del código validado
+      const codeData = await validateInvitationCode(validatedCode);
+      if (!codeData) {
+        setError('El código de invitación ya no es válido');
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -127,16 +150,34 @@ export default function Register() {
 
       if (error) throw error;
       
-      // Si el registro fue exitoso, guardar el número en profiles y marcar código como usado
+      // Si el registro fue exitoso, guardar datos en profiles con configuración del código
       if (data.user) {
         await supabase.from('profiles').upsert({ 
           id: data.user.id,
           email: data.user.email,
-          phone
+          phone,
+          user_type: codeData.user_type,
+          credits: codeData.credits
         });
+
+        // Marcar código como usado
+        try {
+          const { data: markResult, error: markError } = await supabase.rpc('mark_invitation_code_used', {
+            invitation_code: validatedCode,
+            user_id: data.user.id
+          });
+          
+          if (markError) {
+            console.log('⚠️ Error marcando código como usado:', markError);
+          } else {
+            console.log('✅ Código marcado como usado:', markResult);
+          }
+        } catch (codeError) {
+          console.log('⚠️ Error marcando código como usado:', codeError);
+        }
       }
       
-      setSuccess('Se ha enviado un enlace de confirmación a tu correo electrónico.');
+      setSuccess(`Se ha enviado un enlace de confirmación a tu correo electrónico. Tu cuenta será de tipo ${codeData.user_type} con ${codeData.credits} créditos.`);
       
       // Redirigir a login después de 3 segundos
       setTimeout(() => {

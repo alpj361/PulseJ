@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { CategoryCount } from '../../types';
-import { useTheme } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { formatCount } from '../../utils/formatNumbers';
 
 interface BarChartProps {
   data: CategoryCount[];
@@ -100,7 +101,7 @@ const BarChart: React.FC<BarChartProps> = ({ data, title = 'Distribución por Ca
         
         // Etiqueta
         ctx.fillStyle = textColor;
-        ctx.fillText(value.toString(), padding.left - 10, y + 4);
+        ctx.fillText(formatCount(value), padding.left - 10, y + 4);
       }
       
       // Dibujar barras y etiquetas del eje X
@@ -158,7 +159,7 @@ const BarChart: React.FC<BarChartProps> = ({ data, title = 'Distribución por Ca
         if (currentBarHeight > 25) {
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 14px "Helvetica Neue", Arial, sans-serif';
-          ctx.fillText(item.count.toString(), x + barWidth / 2, y + 18);
+          ctx.fillText(formatCount(item.count), x + barWidth / 2, y + 18);
         }
         
         // Etiqueta del eje X

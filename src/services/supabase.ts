@@ -93,7 +93,22 @@ export async function getLatestTrendData(): Promise<any | null> {
       .limit(1)
       .single();
     
-    if (error) throw error;
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found
+        console.log('📭 No se encontraron datos de tendencias en Supabase');
+        return null;
+      }
+      throw error;
+    }
+    
+    console.log('📋 Datos encontrados en Supabase:', {
+      timestamp: data.timestamp,
+      hasWordCloud: !!data.word_cloud_data,
+      hasKeywords: !!data.top_keywords,
+      hasCategories: !!data.category_data,
+      keywordCount: data.top_keywords?.length || 0
+    });
     
     // Verificar si los datos tienen la estructura completa
     if (!data.top_keywords || data.top_keywords.length < 10) {
@@ -124,8 +139,9 @@ export async function getLatestTrendData(): Promise<any | null> {
     
     return data;
   } catch (error) {
-    console.error('Error fetching latest trend data:', error);
-    return mockTrendData;
+    console.error('Error fetching latest trend data from Supabase:', error);
+    // Solo retornar mock data si Supabase no está configurado, no por errores de query
+    return null;
   }
 }
 
@@ -161,8 +177,8 @@ export async function saveCodexItem(item: any) {
       nombre_archivo: item.nombreArchivo,
       tamano: item.tamano,
       fecha: item.fecha,
-      isDrive: item.isDrive || false,
-      driveFileId: item.driveFileId || null
+      is_drive: item.isDrive || false,
+      drive_file_id: item.driveFileId || null
     }
   ]);
   if (error) throw error;
@@ -228,4 +244,97 @@ export async function getSondeosByUser(userId: string) {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
+}
+
+/**
+ * Obtener tweets de trending topics de las últimas 24 horas
+ * @param limit Número máximo de tweets a obtener (default: 20)
+ * @param categoria Filtrar por categoría específica (opcional)
+ * @returns Array de tweets con datos limpios
+ */
+export async function getTrendingTweets(limit: number = 20, categoria?: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+  
+  try {
+    let query = supabase
+      .from('trending_tweets')
+      .select('*')
+      .gte('fecha_captura', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .order('fecha_captura', { ascending: false })
+      .limit(limit);
+    
+    // Filtrar por categoría si se especifica
+    if (categoria) {
+      query = query.eq('categoria', categoria);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    
+    // Función para limpiar texto de tweets (similar a cleanText de noticias)
+    const cleanTweetText = (text: string) => {
+      if (!text) return '';
+      return text
+        .replace(/https?:\/\/[^\s]+/g, '') // Eliminar URLs
+        .replace(/@\w+/g, (match) => match) // Mantener mentions pero limpiar
+        .replace(/#\w+/g, (match) => match) // Mantener hashtags pero limpiar
+        .replace(/\s+/g, ' ') // Normalizar espacios
+        .trim();
+    };
+    
+    // Mapear y limpiar datos
+    return (data || []).map((tweet: any) => ({
+      id: tweet.id,
+      trend_original: tweet.trend_original,
+      trend_clean: tweet.trend_clean,
+      categoria: tweet.categoria,
+      tweet_id: tweet.tweet_id,
+      usuario: tweet.usuario,
+      fecha_tweet: tweet.fecha_tweet,
+      texto: cleanTweetText(tweet.texto),
+      enlace: tweet.enlace,
+      likes: tweet.likes || 0,
+      retweets: tweet.retweets || 0,
+      replies: tweet.replies || 0,
+      verified: tweet.verified || false,
+      location: tweet.location,
+      fecha_captura: tweet.fecha_captura,
+      raw_data: tweet.raw_data,
+      created_at: tweet.created_at,
+      updated_at: tweet.updated_at
+    }));
+  } catch (error) {
+    console.error('Error fetching trending tweets:', error);
+    return [];
+  }
+}
+
+/**
+ * Obtener estadísticas de tweets por categoría
+ * @returns Objeto con conteos por categoría
+ */
+export async function getTweetStatsByCategory() {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return {};
+  
+  try {
+    const { data, error } = await supabase
+      .from('trending_tweets')
+      .select('categoria')
+      .gte('fecha_captura', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    
+    if (error) throw error;
+    
+    // Contar por categoría
+    const stats = (data || []).reduce((acc: any, tweet: any) => {
+      const cat = tweet.categoria || 'General';
+      acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return stats;
+  } catch (error) {
+    console.error('Error fetching tweet stats:', error);
+    return {};
+  }
 }

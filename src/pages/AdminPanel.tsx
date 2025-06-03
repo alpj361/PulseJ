@@ -29,7 +29,11 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
-  Fab
+  Fab,
+  FormControl,
+  InputLabel,
+  Select,
+  Divider
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -39,7 +43,9 @@ import {
   Groups as GroupsIcon,
   VpnKey as KeyIcon,
   CheckCircle as CheckIcon,
-  Cancel as CancelIcon
+  Cancel as CancelIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 
 interface InvitationCode {
@@ -53,6 +59,8 @@ interface InvitationCode {
   used_at: string | null;
   max_uses: number;
   current_uses: number;
+  user_type: string;
+  credits: number;
 }
 
 interface CodeStats {
@@ -62,17 +70,29 @@ interface CodeStats {
   expired: number;
 }
 
+// Tipos de usuario disponibles
+const USER_TYPES = [
+  { value: 'Alpha', label: 'Alpha', color: '#ff6b6b', description: 'Acceso completo y funciones avanzadas' },
+  { value: 'Beta', label: 'Beta', color: '#4ecdc4', description: 'Acceso estándar con funciones principales' },
+  { value: 'Admin', label: 'Admin', color: '#45b7d1', description: 'Acceso administrativo completo' },
+  { value: 'Creador', label: 'Creador', color: '#96ceb4', description: 'Permisos de creación de contenido' }
+];
+
 export default function AdminPanel() {
   const { isAdmin, loading: adminLoading } = useAdmin();
   const [codes, setCodes] = useState<InvitationCode[]>([]);
   const [stats, setStats] = useState<CodeStats>({ total: 0, active: 0, used: 0, expired: 0 });
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [codeToDelete, setCodeToDelete] = useState<InvitationCode | null>(null);
   const [newCodeData, setNewCodeData] = useState({
     prefix: 'PRESS',
     description: '',
     expiresIn: '30', // días
-    maxUses: 1
+    maxUses: 1,
+    userType: 'Beta',
+    credits: 100
   });
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -126,7 +146,7 @@ export default function AdminPanel() {
     return <Navigate to="/" replace />;
   }
 
-  const generateCode = async (preset?: { prefix: string; description: string }) => {
+  const generateCode = async (preset?: { prefix: string; description: string; userType?: string; credits?: number }) => {
     try {
       setError(null);
       
@@ -135,7 +155,9 @@ export default function AdminPanel() {
         prefix: preset.prefix,
         description: preset.description,
         expiresIn: '30', // valor por defecto para presets
-        maxUses: 1 // valor por defecto para presets
+        maxUses: 1, // valor por defecto para presets
+        userType: preset.userType || 'Beta',
+        credits: preset.credits || 100
       } : newCodeData;
       
       // Calcular fecha de expiración
@@ -152,24 +174,53 @@ export default function AdminPanel() {
 
       if (codeError) throw codeError;
 
-      // Insertar en la base de datos
+      // Insertar en la base de datos con los nuevos campos
       const { error: insertError } = await supabase
         .from('invitation_codes')
         .insert({
           code: generatedCode,
           description: codeData.description,
           expires_at: expiresAt,
-          max_uses: codeData.maxUses
+          max_uses: codeData.maxUses,
+          user_type: codeData.userType,
+          credits: codeData.credits
         });
 
       if (insertError) throw insertError;
 
-      setSuccess(`Código generado: ${generatedCode}`);
+      setSuccess(`Código generado: ${generatedCode} (${codeData.userType}, ${codeData.credits} créditos)`);
       setOpenDialog(false);
-      setNewCodeData({ prefix: 'PRESS', description: '', expiresIn: '30', maxUses: 1 });
+      setNewCodeData({ 
+        prefix: 'PRESS', 
+        description: '', 
+        expiresIn: '30', 
+        maxUses: 1,
+        userType: 'Beta',
+        credits: 100
+      });
       loadCodes();
     } catch (error: any) {
       setError('Error generando código: ' + error.message);
+    }
+  };
+
+  const deleteCode = async (code: InvitationCode) => {
+    try {
+      setError(null);
+      
+      const { error } = await supabase
+        .from('invitation_codes')
+        .delete()
+        .eq('id', code.id);
+
+      if (error) throw error;
+
+      setSuccess(`Código eliminado: ${code.code}`);
+      setOpenDeleteDialog(false);
+      setCodeToDelete(null);
+      loadCodes();
+    } catch (error: any) {
+      setError('Error eliminando código: ' + error.message);
     }
   };
 
@@ -192,12 +243,46 @@ export default function AdminPanel() {
     return <Chip label="Activo" color="success" size="small" icon={<CheckIcon />} />;
   };
 
+  const getUserTypeChip = (userType: string) => {
+    const typeConfig = USER_TYPES.find(t => t.value === userType);
+    return (
+      <Chip 
+        label={userType} 
+        size="small" 
+        style={{ 
+          backgroundColor: typeConfig?.color || '#gray',
+          color: 'white',
+          fontWeight: 'bold'
+        }}
+      />
+    );
+  };
+
   const presetCodes = [
-    { prefix: 'JOURNALIST', description: 'Código para periodistas profesionales' },
-    { prefix: 'MEDIA', description: 'Código para empresas de medios' },
-    { prefix: 'PRESS', description: 'Código general de prensa' },
-    { prefix: 'INVESTIGATIVE', description: 'Código para periodistas de investigación' },
-    { prefix: 'SPORTS', description: 'Código para periodistas deportivos' }
+    { 
+      prefix: 'CREADOR', 
+      description: 'Código para creadores de contenido',
+      userType: 'Creador',
+      credits: 100
+    },
+    { 
+      prefix: 'SPORTS', 
+      description: 'Código Alpha para periodistas deportivos',
+      userType: 'Alpha',
+      credits: 100
+    },
+    { 
+      prefix: 'PRESS', 
+      description: 'Código Alpha para prensa general',
+      userType: 'Alpha',
+      credits: 100
+    },
+    { 
+      prefix: 'BETA-PRESS', 
+      description: 'Código Beta para prensa',
+      userType: 'Beta',
+      credits: 100
+    }
   ];
 
   return (
@@ -312,9 +397,17 @@ export default function AdminPanel() {
                   <Typography variant="subtitle1" fontWeight="bold">
                     {preset.prefix}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     {preset.description}
                   </Typography>
+                  <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                    {getUserTypeChip(preset.userType)}
+                    <Chip 
+                      label={`${preset.credits} créditos`} 
+                      size="small" 
+                      variant="outlined"
+                    />
+                  </Box>
                 </CardContent>
                 <CardActions>
                   <Button size="small" onClick={() => generateCode(preset)}>
@@ -343,6 +436,8 @@ export default function AdminPanel() {
               <TableRow>
                 <TableCell>Código</TableCell>
                 <TableCell>Descripción</TableCell>
+                <TableCell>Tipo Usuario</TableCell>
+                <TableCell>Créditos</TableCell>
                 <TableCell>Estado</TableCell>
                 <TableCell>Usos</TableCell>
                 <TableCell>Creado</TableCell>
@@ -353,13 +448,13 @@ export default function AdminPanel() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={9} align="center">
                     <CircularProgress />
                   </TableCell>
                 </TableRow>
               ) : codes.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center">
+                  <TableCell colSpan={9} align="center">
                     No hay códigos generados
                   </TableCell>
                 </TableRow>
@@ -372,6 +467,15 @@ export default function AdminPanel() {
                       </Typography>
                     </TableCell>
                     <TableCell>{code.description}</TableCell>
+                    <TableCell>{getUserTypeChip(code.user_type)}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={code.credits} 
+                        size="small" 
+                        variant="outlined"
+                        color="primary"
+                      />
+                    </TableCell>
                     <TableCell>{getStatusChip(code)}</TableCell>
                     <TableCell>
                       {code.current_uses}/{code.max_uses}
@@ -386,14 +490,30 @@ export default function AdminPanel() {
                       }
                     </TableCell>
                     <TableCell>
-                      <Tooltip title="Copiar código">
-                        <IconButton 
-                          size="small" 
-                          onClick={() => copyToClipboard(code.code)}
-                        >
-                          <CopyIcon />
-                        </IconButton>
-                      </Tooltip>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Tooltip title="Copiar código">
+                          <IconButton 
+                            size="small" 
+                            onClick={() => copyToClipboard(code.code)}
+                          >
+                            <CopyIcon />
+                          </IconButton>
+                        </Tooltip>
+                        {!code.used && (
+                          <Tooltip title="Eliminar código">
+                            <IconButton 
+                              size="small" 
+                              color="error"
+                              onClick={() => {
+                                setCodeToDelete(code);
+                                setOpenDeleteDialog(true);
+                              }}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 ))
@@ -436,6 +556,42 @@ export default function AdminPanel() {
                 inputProps={{ min: 1, max: 100 }}
               />
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel>Tipo de Usuario</InputLabel>
+                <Select
+                  value={newCodeData.userType}
+                  label="Tipo de Usuario"
+                  onChange={(e) => setNewCodeData({...newCodeData, userType: e.target.value})}
+                >
+                  {USER_TYPES.map((type) => (
+                    <MenuItem key={type.value} value={type.value}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            backgroundColor: type.color
+                          }}
+                        />
+                        {type.label}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                label="Créditos"
+                type="number"
+                value={newCodeData.credits}
+                onChange={(e) => setNewCodeData({...newCodeData, credits: parseInt(e.target.value)})}
+                inputProps={{ min: 0, max: 10000 }}
+              />
+            </Grid>
             <Grid item xs={12}>
               <TextField
                 fullWidth
@@ -461,12 +617,92 @@ export default function AdminPanel() {
                 <MenuItem value="365">1 año</MenuItem>
               </TextField>
             </Grid>
+            
+            {/* Vista previa del código */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                Vista previa:
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {getUserTypeChip(newCodeData.userType)}
+                <Chip 
+                  label={`${newCodeData.credits} créditos`} 
+                  size="small" 
+                  variant="outlined"
+                />
+                <Chip 
+                  label={`${newCodeData.maxUses} uso${newCodeData.maxUses > 1 ? 's' : ''}`} 
+                  size="small" 
+                  variant="outlined"
+                />
+              </Box>
+            </Grid>
           </Grid>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenDialog(false)}>Cancelar</Button>
           <Button onClick={() => generateCode()} variant="contained">
             Generar Código
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog de confirmación para eliminar */}
+      <Dialog 
+        open={openDeleteDialog} 
+        onClose={() => setOpenDeleteDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: 'error.main' }}>
+          Confirmar Eliminación
+        </DialogTitle>
+        <DialogContent>
+          {codeToDelete && (
+            <Box>
+              <Typography variant="body1" gutterBottom>
+                ¿Estás seguro de que quieres eliminar este código?
+              </Typography>
+              <Box sx={{ 
+                p: 2, 
+                mt: 2, 
+                border: '1px solid', 
+                borderColor: 'divider', 
+                borderRadius: 1,
+                bgcolor: 'background.paper'
+              }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Código: {codeToDelete.code}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {codeToDelete.description}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
+                  {getUserTypeChip(codeToDelete.user_type)}
+                  <Chip 
+                    label={`${codeToDelete.credits} créditos`} 
+                    size="small" 
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
+              <Typography variant="body2" color="error.main" sx={{ mt: 2 }}>
+                Esta acción no se puede deshacer.
+              </Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDeleteDialog(false)}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={() => codeToDelete && deleteCode(codeToDelete)} 
+            variant="contained"
+            color="error"
+          >
+            Eliminar
           </Button>
         </DialogActions>
       </Dialog>

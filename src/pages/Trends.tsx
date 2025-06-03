@@ -5,6 +5,7 @@ import BarChart from '../components/ui/BarChart';
 import KeywordListCard from '../components/ui/KeywordListCard';
 import AboutCard from '../components/ui/AboutCard';
 import StatisticsCard from '../components/ui/StatisticsCard';
+import TrendingTweetsSection from '../components/ui/TrendingTweetsSection';
 import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, categoryData as mockCategoryData } from '../data/mockData';
 import { fetchAndStoreTrends, getLatestTrends, AboutInfo, Statistics } from '../services/api';
 import { LanguageContext } from '../context/LanguageContext';
@@ -224,7 +225,7 @@ export const Trends = () => {
       console.log(`📡 Polling intento ${attempt}/${maxAttempts} para timestamp: ${timestamp}`);
       
       try {
-        const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://extractorw.onrender.com/api'}/processingStatus/${encodeURIComponent(timestamp)}`);
+        const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(timestamp)}`);
         
         if (response.ok) {
           const statusData = await response.json();
@@ -286,7 +287,7 @@ export const Trends = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://extractorw.onrender.com/api'}/processingStatus/${encodeURIComponent(lastProcessingTimestamp)}`);
+      const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(lastProcessingTimestamp)}`);
       if (response.ok) {
         const statusData = await response.json();
         if (statusData.status === 'complete' && statusData.has_about && statusData.has_statistics) {
@@ -1041,6 +1042,9 @@ export const Trends = () => {
           </Box>
         )}
       </Paper>
+
+      {/* Trending Tweets Section */}
+      <TrendingTweetsSection />
 
       {/* Error Dialog */}
       <Dialog 

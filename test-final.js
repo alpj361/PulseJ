@@ -7,7 +7,7 @@ async function testCompleteSetup() {
   // 1. Verificar backend en Render
   console.log('\n🌐 1. Probando backend en Render...');
   try {
-    const backendResponse = await fetch('https://extractorw.onrender.com/health');
+    const backendResponse = await fetch('https://server.standatpd.com/health');
     if (backendResponse.ok) {
       const data = await backendResponse.json();
       console.log('✅ Backend funcionando correctamente');
@@ -22,7 +22,7 @@ async function testCompleteSetup() {
   // 2. Probar endpoint principal
   console.log('\n📊 2. Probando endpoint de procesamiento...');
   try {
-    const processResponse = await fetch('https://extractorw.onrender.com/api/processTrends', {
+    const processResponse = await fetch('https://server.standatpd.com/api/processTrends', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({})
@@ -76,7 +76,7 @@ async function testCompleteSetup() {
       const jsFiles = fs.readdirSync('dist/assets').filter(f => f.endsWith('.js'));
       if (jsFiles.length > 0) {
         const jsContent = fs.readFileSync(path.join('dist/assets', jsFiles[0]), 'utf8');
-        if (jsContent.includes('extractorw.onrender.com')) {
+        if (jsContent.includes('server.standatpd.com')) {
           console.log('   ✅ Build incluye URL de producción correcta');
         } else {
           console.log('   ⚠️  Build podría no incluir URL de producción');

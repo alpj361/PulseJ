@@ -106,6 +106,8 @@ const Codex: React.FC = () => {
           storagePath: item.storage_path,
           url: item.url,
           isSupabase: !!item.storage_path,
+          isDrive: item.is_drive || false,
+          driveFileId: item.drive_file_id || null,
           descripcion: item.descripcion || '',
           nombreArchivo: item.nombre_archivo,
           tamano: item.tamano

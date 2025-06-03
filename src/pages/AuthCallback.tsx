@@ -2,13 +2,14 @@ import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../services/supabase';
 import { CircularProgress, Box, Typography } from '@mui/material';
+import PulseLogoComponent from '../components/common/Logo';
 
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Función para validar código de invitación
-  const validateInvitationCode = async (code: string): Promise<boolean> => {
+  const validateInvitationCode = async (code: string): Promise<any> => {
     try {
       const { data, error } = await supabase
         .from('invitation_codes')
@@ -17,11 +18,26 @@ export default function AuthCallback() {
         .eq('used', false)
         .single();
       
-      return !error && data;
+      if (error || !data) {
+        return null;
+      }
+      
+      return {
+        id: data.id,
+        user_type: data.user_type,
+        credits: data.credits,
+        description: data.description
+      };
     } catch (error) {
-      // Fallback temporal para desarrollo - códigos de ejemplo
-      const validCodes = ['JOURNALIST2024', 'PRESS-INVITE', 'MEDIA-ACCESS'];
-      return validCodes.includes(code.toUpperCase());
+      // Fallback temporal para desarrollo - códigos de ejemplo con configuraciones
+      const validCodes: Record<string, any> = {
+        'JOURNALIST2024': { user_type: 'Beta', credits: 150, description: 'Código de desarrollo para periodistas' },
+        'PRESS-INVITE': { user_type: 'Alpha', credits: 300, description: 'Código de desarrollo para prensa' },
+        'MEDIA-ACCESS': { user_type: 'Creador', credits: 500, description: 'Código de desarrollo para medios' }
+      };
+      
+      const codeData = validCodes[code.toUpperCase()];
+      return codeData || null;
     }
   };
 
@@ -94,30 +110,39 @@ export default function AuthCallback() {
         // Usuario viene desde registro con código, validar código y crear perfil
         console.log('🔍 AuthCallback - Usuario viene desde registro, validando código:', codeParam);
         
-        const isValidCode = await validateInvitationCode(codeParam);
-        console.log('🔍 AuthCallback - Código válido:', isValidCode);
+        const codeData = await validateInvitationCode(codeParam);
+        console.log('🔍 AuthCallback - Datos del código:', codeData);
         
-        if (isValidCode) {
-          // Crear perfil del usuario
+        if (codeData) {
+          // Crear perfil del usuario con datos del código
           try {
-            console.log('🔍 AuthCallback - Creando perfil del usuario...');
+            console.log('🔍 AuthCallback - Creando perfil del usuario con tipo:', codeData.user_type, 'y créditos:', codeData.credits);
+            
             await supabase.from('profiles').upsert({
               id: sessionData.session.user.id,
               email: sessionData.session.user.email,
-              phone: '' // Inicializar con string vacío, el usuario lo puede llenar después
+              phone: '', // Inicializar con string vacío, el usuario lo puede llenar después
+              user_type: codeData.user_type,
+              credits: codeData.credits
             });
             
-            // Marcar código como usado
+            // Marcar código como usado usando la nueva función que retorna JSON
             try {
-              await supabase.rpc('mark_invitation_code_used', {
+              const { data: markResult, error: markError } = await supabase.rpc('mark_invitation_code_used', {
                 invitation_code: codeParam,
                 user_id: sessionData.session.user.id
               });
+              
+              if (markError) {
+                console.log('⚠️ AuthCallback - Error marcando código como usado (RPC):', markError);
+              } else {
+                console.log('✅ AuthCallback - Código marcado como usado:', markResult);
+              }
             } catch (codeError) {
-              console.log('⚠️ AuthCallback - Error marcando código como usado:', codeError);
+              console.log('⚠️ AuthCallback - Error marcando código como usado (catch):', codeError);
             }
             
-            console.log('✅ AuthCallback - Perfil creado exitosamente, redirigiendo a verificación');
+            console.log('✅ AuthCallback - Perfil creado exitosamente con configuración personalizada, redirigiendo a verificación');
             setTimeout(() => {
               navigate('/auth/verify');
             }, 500);
@@ -150,12 +175,14 @@ export default function AuthCallback() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '100vh',
-        gap: 2,
+        gap: 3,
         background: 'linear-gradient(to right, #3b82f6, #4f46e5)',
+        p: 3
       }}
     >
-      <CircularProgress size={60} sx={{ color: 'white' }} />
-      <Typography variant="h6" sx={{ color: 'white' }}>
+      <PulseLogoComponent size={60} variant="full" />
+      <CircularProgress size={50} sx={{ color: 'white' }} />
+      <Typography variant="h6" sx={{ color: 'white', textAlign: 'center' }}>
         Procesando autenticación...
       </Typography>
     </Box>
