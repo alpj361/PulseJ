@@ -168,12 +168,52 @@ export default function Register() {
           });
           
           if (markError) {
-            console.log('⚠️ Error marcando código como usado:', markError);
+            console.log('⚠️ Error marcando código como usado con RPC:', markError);
+            
+            // Fallback: marcar directamente en la tabla
+            const { error: directUpdateError } = await supabase
+              .from('invitation_codes')
+              .update({
+                used: true,
+                used_by: data.user.id,
+                used_at: new Date().toISOString(),
+                current_uses: 1
+              })
+              .eq('code', validatedCode);
+              
+            if (directUpdateError) {
+              console.error('❌ Error marcando código directamente:', directUpdateError);
+              // Mostrar warning pero continuar con el registro
+              setError('⚠️ Advertencia: El código puede seguir siendo válido para otros usuarios');
+            } else {
+              console.log('✅ Código marcado como usado directamente en la tabla');
+            }
           } else {
-            console.log('✅ Código marcado como usado:', markResult);
+            console.log('✅ Código marcado como usado con RPC:', markResult);
           }
         } catch (codeError) {
-          console.log('⚠️ Error marcando código como usado:', codeError);
+          console.log('⚠️ Error marcando código como usado (catch):', codeError);
+          
+          // Fallback directo
+          try {
+            const { error: directUpdateError } = await supabase
+              .from('invitation_codes')
+              .update({
+                used: true,
+                used_by: data.user.id,
+                used_at: new Date().toISOString(),
+                current_uses: 1
+              })
+              .eq('code', validatedCode);
+              
+            if (directUpdateError) {
+              console.error('❌ Error en fallback directo:', directUpdateError);
+            } else {
+              console.log('✅ Código marcado como usado con fallback directo');
+            }
+          } catch (fallbackError) {
+            console.error('❌ Error en fallback:', fallbackError);
+          }
         }
       }
       

@@ -10,6 +10,16 @@ interface DocumentGenerationResponse {
   tipo: string;
 }
 
+interface ImproveEmailRequest {
+  emailContent: string;
+  emailSignature: string;
+  signatureImageUrl?: string;
+}
+
+interface ImproveEmailResponse {
+  improved: string;
+}
+
 class OpenAIService {
   private baseURL = 'https://api.openai.com/v1/chat/completions';
 
@@ -129,7 +139,67 @@ Incluye estilos CSS inline para que el documento se vea profesional y esté list
       return 'Documento General';
     }
   }
+
+  async generateImprovedEmail(request: ImproveEmailRequest): Promise<ImproveEmailResponse> {
+    const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error('OpenAI API Key no configurada en las variables de entorno. Verifica tu archivo .env');
+    }
+
+    const prompt = this.buildImproveEmailPrompt(request);
+
+    try {
+      const response = await fetch(this.baseURL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: `Eres un asistente experto en redacción profesional de emails para comunicación institucional, prensa y negocios. Tu tarea es mejorar la redacción del correo proporcionado, hacerlo más claro, profesional y persuasivo, y agregar la firma digital proporcionada (texto y/o imagen). Responde SOLO con el HTML final del correo, listo para enviar.`
+            },
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.6,
+          max_tokens: 1200
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Error de OpenAI: ${errorData.error?.message || response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+        throw new Error('Respuesta inválida de OpenAI');
+      }
+      const improved = data.choices[0].message.content;
+      return { improved };
+    } catch (error) {
+      console.error('Error mejorando email:', error);
+      throw error;
+    }
+  }
+
+  private buildImproveEmailPrompt(request: ImproveEmailRequest): string {
+    let signatureBlock = '';
+    if (request.emailSignature) {
+      signatureBlock += `\n\n${request.emailSignature}`;
+    }
+    if (request.signatureImageUrl) {
+      signatureBlock += `\n<img src=\"${request.signatureImageUrl}\" alt=\"Firma digital\" style=\"max-width:220px;margin-top:8px;border-radius:4px;border:1px solid #eee;\" />`;
+    }
+    return `Este es el contenido original del correo (puede contener HTML):\n\n${request.emailContent}\n\nPor favor, mejora la redacción y agrega la siguiente firma digital al final del correo:${signatureBlock}`;
+  }
 }
 
 export const openAIService = new OpenAIService();
-export type { DocumentRequest, DocumentGenerationResponse }; 
+export type { DocumentRequest, DocumentGenerationResponse, ImproveEmailRequest, ImproveEmailResponse }; 

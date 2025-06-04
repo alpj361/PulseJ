@@ -82,13 +82,20 @@ const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+function RootRedirect() {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  if (user) return <Navigate to="/dashboard" replace />;
+  return <Home />;
+}
+
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Ruta principal - Homepage pública */}
-          <Route path="/" element={<Home />} />
+          {/* Ruta principal - Redirección inteligente */}
+          <Route path="/" element={<RootRedirect />} />
           {/* Nueva ruta /home que también muestra Home */}
           <Route path="/home" element={<Home />} />
           

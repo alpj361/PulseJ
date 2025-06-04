@@ -1,31 +1,32 @@
-// Función para formatear números con K y M
+// Función para formatear números con K y M según las especificaciones
 export const formatNumber = (count: number): string => {
-  if (count >= 1000000) {
-    // Para millones
-    return `${(count / 1000000).toFixed(1)}M`;
-  } else if (count >= 1000) {
-    // Para miles
-    return `${(count / 1000).toFixed(1)}K`;
+  // Si el número tiene decimales, usar M
+  if (count % 1 !== 0) {
+    return `${count.toFixed(1)}M`;
   } else {
-    // Para números menores a 1000
-    return count.toString();
+    // Siempre agregar K por defecto para números enteros
+    return `${count}K`;
   }
 };
 
-// Función específica para menciones
+// Función específica para menciones - ahora siempre agrega K o M según la regla
 export const formatMentions = (count: number): string => {
-  return `${formatNumber(count)} menciones`;
+  // Si el número tiene decimales, usar M
+  if (count % 1 !== 0) {
+    return `${count.toFixed(1)}M menciones`;
+  } else {
+    // Siempre agregar K por defecto para números enteros
+    return `${count}K menciones`;
+  }
 };
 
-// Función para formatear conteos sin decimales innecesarios
+// Función para formatear conteos con la nueva lógica
 export const formatCount = (count: number): string => {
-  if (count >= 1000000) {
-    const millions = count / 1000000;
-    return millions % 1 === 0 ? `${millions.toFixed(0)}M` : `${millions.toFixed(1)}M`;
-  } else if (count >= 1000) {
-    const thousands = count / 1000;
-    return thousands % 1 === 0 ? `${thousands.toFixed(0)}K` : `${thousands.toFixed(1)}K`;
+  // Si el número tiene decimales, usar M
+  if (count % 1 !== 0) {
+    return `${count.toFixed(1)}M`;
   } else {
-    return count.toString();
+    // Siempre agregar K por defecto para números enteros
+    return `${count}K`;
   }
 }; 

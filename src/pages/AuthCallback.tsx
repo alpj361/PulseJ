@@ -134,12 +134,50 @@ export default function AuthCallback() {
               });
               
               if (markError) {
-                console.log('⚠️ AuthCallback - Error marcando código como usado (RPC):', markError);
+                console.log('⚠️ AuthCallback - Error marcando código como usado con RPC:', markError);
+                
+                // Fallback: marcar directamente en la tabla
+                const { error: directUpdateError } = await supabase
+                  .from('invitation_codes')
+                  .update({
+                    used: true,
+                    used_by: sessionData.session.user.id,
+                    used_at: new Date().toISOString(),
+                    current_uses: 1
+                  })
+                  .eq('code', codeParam);
+                  
+                if (directUpdateError) {
+                  console.error('❌ AuthCallback - Error marcando código directamente:', directUpdateError);
+                } else {
+                  console.log('✅ AuthCallback - Código marcado como usado directamente en la tabla');
+                }
               } else {
-                console.log('✅ AuthCallback - Código marcado como usado:', markResult);
+                console.log('✅ AuthCallback - Código marcado como usado con RPC:', markResult);
               }
             } catch (codeError) {
               console.log('⚠️ AuthCallback - Error marcando código como usado (catch):', codeError);
+              
+              // Fallback directo
+              try {
+                const { error: directUpdateError } = await supabase
+                  .from('invitation_codes')
+                  .update({
+                    used: true,
+                    used_by: sessionData.session.user.id,
+                    used_at: new Date().toISOString(),
+                    current_uses: 1
+                  })
+                  .eq('code', codeParam);
+                  
+                if (directUpdateError) {
+                  console.error('❌ AuthCallback - Error en fallback directo:', directUpdateError);
+                } else {
+                  console.log('✅ AuthCallback - Código marcado como usado con fallback directo');
+                }
+              } catch (fallbackError) {
+                console.error('❌ AuthCallback - Error en fallback:', fallbackError);
+              }
             }
             
             console.log('✅ AuthCallback - Perfil creado exitosamente con configuración personalizada, redirigiendo a verificación');

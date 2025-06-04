@@ -372,23 +372,12 @@ export default function RecentActivity() {
           >
             {t.whatsappBot}
           </Typography>
-          <Button 
-            variant="contained" 
+          <Chip
+            label="WhatsApp Bot Coming Soon"
             color="success"
-            href={`https://wa.me/${WHATSAPP_BOT_NUMBER}?text=Hola%20Bot%2C%20quiero%20consultar%20actividad%20reciente...`}
-            target="_blank"
-            rel="noopener noreferrer"
-            sx={{
-              boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                transform: 'translateY(-2px)',
-                boxShadow: '0 6px 12px rgba(0, 0, 0, 0.15)',
-              }
-            }}
-          >
-            {t.chatWithBot}
-          </Button>
+            variant="outlined"
+            sx={{ fontWeight: 'medium', fontSize: '0.95em', ml: 1 }}
+          />
         </Box>
         <Typography 
           variant="body2" 
