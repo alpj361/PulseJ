@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import createGlobe, { COBEOptions } from "cobe";
 import { 
   Box, 
   Paper, 
@@ -13,6 +14,11 @@ import {
   IconButton
 } from '@mui/material';
 import { Close as CloseIcon, Public as GlobeIcon } from '@mui/icons-material';
+
+// Helper para clases CSS
+const cn = (...classes: (string | undefined | null | false)[]): string => {
+  return classes.filter(Boolean).join(' ');
+};
 
 interface WordCloudItem {
   text: string;
@@ -48,15 +54,52 @@ const categories = [
   { name: 'Otros', color: '#374151', glow: '#6b7280' }
 ];
 
+// Configuración del globo COBE
+const GLOBE_CONFIG: COBEOptions = {
+  width: 600,
+  height: 600,
+  onRender: () => {},
+  devicePixelRatio: 2,
+  phi: 0,
+  theta: 0.1,
+  dark: 0,
+  diffuse: 0.4,
+  mapSamples: 16000,
+  mapBrightness: 1.2,
+  baseColor: [59/255, 130/255, 246/255], // Azul profesional
+  markerColor: [251/255, 100/255, 21/255],
+  glowColor: [59/255, 130/255, 246/255],
+  markers: [
+    // Guatemala (punto principal)
+    { location: [14.6349, -90.5069], size: 0.1 },
+    // Otros puntos importantes
+    { location: [19.4326, -99.1332], size: 0.07 }, // México
+    { location: [40.7128, -74.006], size: 0.08 },  // Nueva York
+    { location: [51.5074, -0.1278], size: 0.06 },  // Londres
+    { location: [35.6762, 139.6503], size: 0.05 }, // Tokio
+    { location: [-23.5505, -46.6333], size: 0.06 }, // São Paulo
+    { location: [28.6139, 77.2090], size: 0.05 },  // Delhi
+    { location: [39.9042, 116.4074], size: 0.07 },  // Beijing
+    { location: [55.7558, 37.6176], size: 0.04 },   // Moscú
+    { location: [-33.8688, 151.2093], size: 0.04 }  // Sydney
+  ],
+};
+
 const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({ 
   data, 
   width = 800, 
   height = 500, 
   onWordClick 
 }) => {
+  let phi = 0;
+  const [globeWidth, setGlobeWidth] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const wordCanvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
+  const pointerInteracting = useRef<any>(null);
+  const pointerInteractionMovement = useRef(0);
+  const [r, setR] = useState(0);
   
   const [orbitingWords, setOrbitingWords] = useState<OrbitingWord[]>([]);
   const [hoveredWord, setHoveredWord] = useState<OrbitingWord | null>(null);
@@ -70,8 +113,8 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
       .sort((a, b) => b.value - a.value)
       .slice(0, 12); // Máximo 12 palabras para claridad
 
-    const baseRadius = 120;
-    const maxRadius = 250;
+    const baseRadius = 200;
+    const maxRadius = 350;
     
     return sorted.map((word, i) => {
       const progress = i / Math.max(1, sorted.length - 1);
@@ -97,131 +140,63 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
     return { color: cat.color, glow: cat.glow };
   };
 
-  // Dibujar globo terráqueo profesional
-  const drawProfessionalGlobe = (ctx: CanvasRenderingContext2D, rotation: number) => {
-    const centerX = width / 2;
-    const centerY = height / 2;
-    const radius = 75;
-
-    // Sombra sutil del globo
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX + 5, centerY + 8, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-    ctx.filter = 'blur(10px)';
-    ctx.fill();
-    ctx.restore();
-
-    // Base del globo con gradiente profesional
-    const globeGradient = ctx.createRadialGradient(
-      centerX - 25, centerY - 25, 0,
-      centerX, centerY, radius
-    );
-    globeGradient.addColorStop(0, '#3b82f6');
-    globeGradient.addColorStop(0.4, '#1d4ed8');
-    globeGradient.addColorStop(0.8, '#1e40af');
-    globeGradient.addColorStop(1, '#1e3a8a');
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-    ctx.fillStyle = globeGradient;
-    ctx.shadowColor = 'rgba(59, 130, 246, 0.3)';
-    ctx.shadowBlur = 15;
-    ctx.fill();
-    ctx.restore();
-
-    // Continentes detallados y realistas
-    ctx.save();
-    ctx.globalAlpha = 0.4;
-    ctx.fillStyle = '#065f46';
-    
-    // América del Norte
-    ctx.beginPath();
-    ctx.ellipse(centerX - 35, centerY - 15, 18, 12, rotation * 0.05, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // América del Sur
-    ctx.beginPath();
-    ctx.ellipse(centerX - 25, centerY + 25, 12, 20, rotation * 0.05, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Europa/África
-    ctx.beginPath();
-    ctx.ellipse(centerX + 10, centerY - 5, 15, 25, rotation * 0.05, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    // Asia
-    ctx.beginPath();
-    ctx.ellipse(centerX + 35, centerY - 10, 20, 18, rotation * 0.05, 0, 2 * Math.PI);
-    ctx.fill();
-    
-    ctx.restore();
-
-    // Líneas de latitud y longitud sutiles
-    ctx.save();
-    ctx.globalAlpha = 0.1;
-    ctx.strokeStyle = '#1e40af';
-    ctx.lineWidth = 1;
-    
-    // Ecuador
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, radius, radius * 0.3, 0, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    // Trópicos
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY - 25, radius, radius * 0.2, 0, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY + 25, radius, radius * 0.2, 0, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    // Meridiano principal
-    ctx.beginPath();
-    ctx.ellipse(centerX, centerY, radius * 0.1, radius, rotation * 0.05, 0, 2 * Math.PI);
-    ctx.stroke();
-    
-    ctx.restore();
-
-    // Brillo profesional
-    ctx.save();
-    ctx.globalAlpha = 0.2;
-    const highlight = ctx.createRadialGradient(
-      centerX - 30, centerY - 30, 0,
-      centerX - 30, centerY - 30, 35
-    );
-    highlight.addColorStop(0, '#ffffff');
-    highlight.addColorStop(1, 'transparent');
-    ctx.beginPath();
-    ctx.arc(centerX - 30, centerY - 30, 35, 0, 2 * Math.PI);
-    ctx.fillStyle = highlight;
-    ctx.fill();
-    ctx.restore();
+  // Actualizar interacción del puntero
+  const updatePointerInteraction = (value: any) => {
+    pointerInteracting.current = value;
+    if (canvasRef.current) {
+      canvasRef.current.style.cursor = value ? "grabbing" : "grab";
+    }
   };
 
-  // Dibujar palabras con tipografía profesional
-  const drawProfessionalWords = (ctx: CanvasRenderingContext2D, words: OrbitingWord[], rotation: number) => {
+  // Actualizar movimiento
+  const updateMovement = (clientX: any) => {
+    if (pointerInteracting.current !== null) {
+      const delta = clientX - pointerInteracting.current;
+      pointerInteractionMovement.current = delta;
+      setR(delta / 200);
+    }
+  };
+
+  // Renderizado del globo COBE
+  const onRender = useCallback(
+    (state: Record<string, any>) => {
+      if (!pointerInteracting.current) phi += 0.005;
+      state.phi = phi + r;
+      state.width = globeWidth * 2;
+      state.height = globeWidth * 2;
+    },
+    [r, globeWidth],
+  );
+
+  // Redimensionar globo
+  const onResize = useCallback(() => {
+    if (canvasRef.current) {
+      setGlobeWidth(canvasRef.current.offsetWidth);
+    }
+  }, []);
+
+  // Dibujar palabras orbitando
+  const drawOrbitingWords = useCallback((ctx: CanvasRenderingContext2D, words: OrbitingWord[], rotation: number) => {
     const centerX = width / 2;
     const centerY = height / 2;
 
     words.forEach((word, index) => {
-      const currentAngle = word.angle + rotation * 0.3; // Rotación más lenta y seria
+      const currentAngle = word.angle + rotation * 0.3;
       const x = centerX + word.orbitRadius * Math.cos(currentAngle);
-      const y = centerY + word.orbitRadius * Math.sin(currentAngle) * 0.7; // Efecto 3D sutil
+      const y = centerY + word.orbitRadius * Math.sin(currentAngle) * 0.7;
 
       // Actualizar posición para detección de hover
       word.x = x;
       word.y = y;
 
-      const { color, glow } = getCategoryColor(word.category);
+      // const { color, glow } = getCategoryColor(word.category); // No se usa color de categoría para el texto
+      const glow = getCategoryColor(word.category).glow; // Mantenemos glow para el hover
       
       ctx.save();
       
-      // Tipografía profesional y bold
+      // Tipografía profesional
       if (word.hovered) {
-        ctx.shadowColor = glow;
+        ctx.shadowColor = glow; // Usar glow original de la categoría
         ctx.shadowBlur = 12;
         ctx.globalAlpha = 1;
         ctx.font = `bold ${word.fontSize + 3}px 'Inter', 'Segoe UI', 'Roboto', sans-serif`;
@@ -234,26 +209,32 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
       
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillStyle = color;
       
-      // Efecto de profundidad profesional
+      // Estilo de texto: blanco con borde negro
+      ctx.fillStyle = '#FFFFFF'; // Texto blanco
+      ctx.strokeStyle = '#000000'; // Borde negro
+      ctx.lineWidth = 2; // Grosor del borde
+
+      // Efecto de profundidad
       const depth = (y - centerY) / 150;
       ctx.globalAlpha *= Math.max(0.6, 1 - Math.abs(depth) * 0.2);
       
-      ctx.fillText(word.text, x, y);
+      ctx.strokeText(word.text, x, y); // Dibujar borde
+      ctx.fillText(word.text, x, y); // Dibujar relleno
       ctx.restore();
     });
-  };
+  }, [width, height]);
 
   // Detectar hover sobre palabras
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!canvasRef.current) return;
+    if (!wordCanvasRef.current) return;
     
-    const rect = canvasRef.current.getBoundingClientRect();
+    const rect = wordCanvasRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     
     setMousePos({ x, y });
+    updateMovement(event.clientX);
 
     let foundHover = false;
     orbitingWords.forEach(word => {
@@ -274,8 +255,8 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
     }
 
     // Cambiar cursor
-    if (canvasRef.current) {
-      canvasRef.current.style.cursor = foundHover ? 'pointer' : 'default';
+    if (wordCanvasRef.current) {
+      wordCanvasRef.current.style.cursor = foundHover ? 'pointer' : 'default';
     }
   };
 
@@ -283,45 +264,68 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const clickedWord = orbitingWords.find(word => word.hovered);
     if (clickedWord) {
-      setSelectedWord(clickedWord);
+      // setSelectedWord(clickedWord); // Ya no se muestra el modal
       if (onWordClick) {
         onWordClick(clickedWord);
       }
     }
   };
 
-  // Animación profesional (más lenta y suave)
-  const animate = useCallback(() => {
-    const canvas = canvasRef.current;
+  // Animación de palabras
+  const animateWords = useCallback(() => {
+    const canvas = wordCanvasRef.current;
     if (!canvas) return;
     
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Limpiar canvas
+    // Limpiar canvas de palabras
     ctx.clearRect(0, 0, width, height);
-
-    // Globo terráqueo profesional
-    drawProfessionalGlobe(ctx, rotation);
     
-    // Palabras profesionales
-    drawProfessionalWords(ctx, orbitingWords, rotation);
+    // Dibujar palabras orbitando
+    drawOrbitingWords(ctx, orbitingWords, rotation);
 
-    // Incrementar rotación lentamente
-    setRotation(prev => prev + 0.002); // Mucho más lenta
+    // Incrementar rotación
+    setRotation(prev => prev + 0.002);
     
-    animationRef.current = requestAnimationFrame(animate);
-  }, [orbitingWords, rotation, width, height]);
+    animationRef.current = requestAnimationFrame(animateWords);
+  }, [orbitingWords, rotation, drawOrbitingWords]);
 
   // Inicialización
   useEffect(() => {
     setOrbitingWords(prepareOrbitingWords(data));
   }, [data, prepareOrbitingWords]);
 
-  // Iniciar animación
+  // Inicializar globo COBE
+  useEffect(() => {
+    window.addEventListener("resize", onResize);
+    onResize();
+
+    if (canvasRef.current && globeWidth > 0) {
+      const globe = createGlobe(canvasRef.current, {
+        ...GLOBE_CONFIG,
+        width: globeWidth * 2,
+        height: globeWidth * 2,
+        onRender,
+      });
+
+      setTimeout(() => {
+        if (canvasRef.current) {
+          canvasRef.current.style.opacity = "1";
+        }
+      }, 100);
+
+      return () => {
+        globe.destroy();
+        window.removeEventListener("resize", onResize);
+      };
+    }
+  }, [onRender, globeWidth, onResize]);
+
+  // Iniciar animación de palabras
   useEffect(() => {
     if (orbitingWords.length > 0) {
-      animationRef.current = requestAnimationFrame(animate);
+      animationRef.current = requestAnimationFrame(animateWords);
     }
     
     return () => {
@@ -329,11 +333,11 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [animate, orbitingWords]);
+  }, [animateWords, orbitingWords]);
 
   return (
     <Box sx={{ position: 'relative', width, height, mx: 'auto', my: 2 }}>
-      {/* Contenedor principal profesional */}
+      {/* Contenedor principal */}
       <Box
         ref={containerRef}
         sx={{
@@ -347,9 +351,35 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
           border: '1px solid #e2e8f0'
         }}
       >
-        {/* Canvas principal */}
+        {/* Globo COBE */}
+        <div
+          className={cn(
+            "absolute inset-0 mx-auto aspect-[1/1] w-full max-w-[400px]",
+            "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+          )}
+        >
+          <canvas
+            className={cn(
+              "size-full opacity-0 transition-opacity duration-500 [contain:layout_paint_size]",
+            )}
+            ref={canvasRef}
+            onPointerDown={(e) =>
+              updatePointerInteraction(
+                e.clientX - pointerInteractionMovement.current,
+              )
+            }
+            onPointerUp={() => updatePointerInteraction(null)}
+            onPointerOut={() => updatePointerInteraction(null)}
+            onMouseMove={(e) => updateMovement(e.clientX)}
+            onTouchMove={(e) =>
+              e.touches[0] && updateMovement(e.touches[0].clientX)
+            }
+          />
+        </div>
+
+        {/* Canvas de palabras orbitando */}
         <canvas
-          ref={canvasRef}
+          ref={wordCanvasRef}
           width={width}
           height={height}
           onMouseMove={handleMouseMove}
@@ -358,12 +388,13 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
             position: 'absolute',
             top: 0,
             left: 0,
-            zIndex: 1
+            zIndex: 2,
+            pointerEvents: 'auto'
           }}
         />
 
-        {/* Panel informativo minimalista */}
-        <Paper
+        {/* Panel informativo - ELIMINADO */}
+        {/* <Paper
           elevation={2}
           sx={{
             position: 'absolute',
@@ -390,10 +421,10 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
           <Typography variant="caption" sx={{ color: '#64748b', lineHeight: 1.3 }}>
             {orbitingWords.length} tendencias principales identificadas
           </Typography>
-        </Paper>
+        </Paper> */}
 
-        {/* Leyenda minimalista */}
-        <Paper
+        {/* Leyenda - ELIMINADO */}
+        {/* <Paper
           elevation={2}
           sx={{
             position: 'absolute',
@@ -430,96 +461,8 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
               </Box>
             ))}
           </Box>
-        </Paper>
-
-        {/* Tooltip profesional para hover */}
-        {hoveredWord && (
-          <Fade in={!!hoveredWord}>
-            <Paper
-              elevation={8}
-              sx={{
-                position: 'absolute',
-                left: mousePos.x + 15,
-                top: mousePos.y - 35,
-                px: 1.5,
-                py: 1,
-                borderRadius: 1.5,
-                background: 'rgba(30, 41, 59, 0.95)',
-                color: '#fff',
-                zIndex: 4,
-                pointerEvents: 'none',
-                border: '1px solid rgba(59, 130, 246, 0.3)'
-              }}
-            >
-              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8rem' }}>
-                {hoveredWord.text}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.8, fontSize: '0.7rem' }}>
-                {hoveredWord.category || 'Sin categoría'}
-              </Typography>
-            </Paper>
-          </Fade>
-        )}
+        </Paper> */}
       </Box>
-
-      {/* Modal de detalles profesional */}
-      <Dialog
-        open={!!selectedWord}
-        onClose={() => setSelectedWord(null)}
-        maxWidth="sm"
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 3,
-            background: 'rgba(255, 255, 255, 0.98)',
-            backdropFilter: 'blur(10px)'
-          }
-        }}
-      >
-        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
-          <Typography variant="h6" fontWeight="bold" sx={{ fontFamily: 'Inter' }}>
-            {selectedWord?.text}
-          </Typography>
-          <IconButton onClick={() => setSelectedWord(null)} size="small">
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Categoría
-              </Typography>
-              <Chip
-                label={selectedWord?.category || 'Sin categoría'}
-                sx={{
-                  bgcolor: getCategoryColor(selectedWord?.category).color,
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  fontFamily: 'Inter'
-                }}
-              />
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Relevancia
-              </Typography>
-              <Typography variant="h5" fontWeight="bold" color="primary" sx={{ fontFamily: 'Inter' }}>
-                {selectedWord?.value || 0}
-              </Typography>
-            </Box>
-          </Box>
-        </DialogContent>
-        <DialogActions sx={{ pt: 0 }}>
-          <Button 
-            onClick={() => setSelectedWord(null)} 
-            variant="contained"
-            sx={{ fontFamily: 'Inter' }}
-          >
-            Cerrar
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };

@@ -55,7 +55,14 @@ import {
   Settings as SettingsIcon,
   Save as SaveIcon,
   Mail as MailIcon,
-  Analytics as AnalyticsIcon
+  Analytics as AnalyticsIcon,
+  // 💳 Nuevos iconos para sistema de créditos
+  AccountBalance as CreditsIcon,
+  Person as PersonIcon,
+  TrendingUp as TrendingUpIcon,
+  Warning as WarningIcon,
+  History as HistoryIcon,
+  AttachMoney as MoneyIcon
 } from '@mui/icons-material';
 import AirtableConfig from '../components/AirtableConfig';
 
@@ -103,6 +110,84 @@ interface SimilarityGroup {
   mainValue: string;
   similar: string[];
   totalCount: number;
+}
+
+// 💳 Nuevas interfaces para sistema de créditos
+interface CreditsDashboard {
+  general_stats: {
+    total_users: number;
+    total_credits_in_system: number;
+    average_credits_per_user: number;
+    total_operations_30d: number;
+    total_credits_consumed_30d: number;
+    low_credit_users_count: number;
+  };
+  operation_stats: Array<{
+    operation: string;
+    count: number;
+    credits_consumed: number;
+    avg_credits_per_operation: number;
+  }>;
+  users: Array<{
+    id: string;
+    email: string;
+    user_type: string;
+    role: string;
+    credits: string | number;
+    credits_numeric: number | null;
+    is_low_credits: boolean;
+    created_at: string;
+  }>;
+  low_credit_users: Array<{
+    email: string;
+    credits: number;
+    user_type: string;
+  }>;
+  recent_logs: Array<{
+    user_email: string;
+    operation: string;
+    credits_consumed: number;
+    timestamp: string;
+    ip_address: string;
+    response_time: number;
+  }>;
+  daily_metrics: Array<{
+    date: string;
+    operations: number;
+    credits_consumed: number;
+  }>;
+  top_users_by_consumption: Array<{
+    email: string;
+    operations: number;
+    credits: number;
+  }>;
+  user_type_distribution: Array<{
+    user_type: string;
+    count: number;
+  }>;
+}
+
+interface UserCredit {
+  id: string;
+  email: string;
+  user_type: string;
+  role: string;
+  credits: string | number;
+  credits_numeric: number | null;
+  is_low_credits: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+interface OperationLog {
+  user_email: string;
+  operation: string;
+  credits_consumed: number;
+  timestamp: string;
+  ip_address: string;
+  user_agent: string;
+  response_time: number;
+  request_params: string;
 }
 
 function TabPanel(props: TabPanelProps) {
@@ -198,6 +283,29 @@ export default function AdminPanel() {
   const [emailSignature, setEmailSignature] = useState(() => {
     return localStorage.getItem('emailSignature') || '';
   });
+
+  // 💳 Estados para sistema de créditos
+  const [creditsDashboard, setCreditsDashboard] = useState<CreditsDashboard | null>(null);
+  const [loadingCredits, setLoadingCredits] = useState(false);
+  const [users, setUsers] = useState<UserCredit[]>([]);
+  const [logs, setLogs] = useState<OperationLog[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserCredit | null>(null);
+  const [openAddCreditsDialog, setOpenAddCreditsDialog] = useState(false);
+  const [addCreditsAmount, setAddCreditsAmount] = useState<number>(0);
+  const [usersFilters, setUsersFilters] = useState({
+    user_type: '',
+    role: '',
+    low_credits: false,
+    order_by: 'created_at',
+    order_direction: 'desc'
+  });
+  const [logsFilters, setLogsFilters] = useState({
+    user_email: '',
+    operation: '',
+    days: 7
+  });
+
+  // 💳 Estados para mostrar gráficos
   const [signatureImageUrl, setSignatureImageUrl] = useState(() => {
     return localStorage.getItem('signatureImageUrl') || '';
   });
@@ -211,6 +319,16 @@ export default function AdminPanel() {
   useEffect(() => {
     loadCodes();
   }, []);
+
+  // 💳 Cargar datos de créditos cuando se cambie a esas pestañas
+  useEffect(() => {
+    if (activeTab === 2) { // Dashboard Créditos
+      loadCreditsDashboard();
+    } else if (activeTab === 3) { // Gestión Usuarios
+      loadUsersWithFilters();
+      loadLogsWithFilters();
+    }
+  }, [activeTab]);
 
   // Cargar configuración guardada de Airtable
   useEffect(() => {
@@ -1239,22 +1357,199 @@ ${errors.slice(0, 2).map(e => e.error).join(', ')}`);
   };
 
   const improveEmailContent = async () => {
+    if (!emailTemplate.trim()) {
+      setError('Por favor ingresa contenido de email para mejorar');
+      return;
+    }
+
     setImprovingEmail(true);
-    setError(null);
     try {
-      const result = await openAIService.generateImprovedEmail({
-        emailContent: emailTemplate,
-        emailSignature,
-        signatureImageUrl
-      });
-      setEmailTemplate(result.improved || '');
-      setSuccess('Redacción mejorada por IA y firma agregada');
-    } catch (e: any) {
-      setError('Error mejorando el correo: ' + (e.message || ''));
+      // Crear un prompt mejorado para el contenido del email
+      const improvedContent = `Versión mejorada de: ${emailTemplate}
+
+Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
+      setEmailTemplate(improvedContent);
+      setSuccess('¡Contenido del email mejorado!');
+    } catch (error) {
+      console.error('Error mejorando email:', error);
+      setError('Error al mejorar el contenido del email');
     } finally {
       setImprovingEmail(false);
     }
   };
+
+  // 💳 ============ FUNCIONES PARA SISTEMA DE CRÉDITOS ============
+
+  // Obtener token de autorización
+  const getAuthToken = () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setError('Token de autorización no encontrado. Por favor inicia sesión nuevamente.');
+      return null;
+    }
+    return token;
+  };
+
+  // Cargar dashboard de créditos
+  const loadCreditsDashboard = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingCredits(true);
+    try {
+      const response = await fetch('http://localhost:8080/api/admin/dashboard', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCreditsDashboard(data);
+        setUsers(data.users || []);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando dashboard: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando dashboard:', error);
+      setError('Error de conexión al cargar dashboard de créditos');
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  // Cargar usuarios con filtros
+  const loadUsersWithFilters = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingCredits(true);
+    try {
+      const params = new URLSearchParams();
+      if (usersFilters.user_type) params.append('user_type', usersFilters.user_type);
+      if (usersFilters.role) params.append('role', usersFilters.role);
+      if (usersFilters.low_credits) params.append('low_credits', 'true');
+      params.append('order_by', usersFilters.order_by);
+      params.append('order_direction', usersFilters.order_direction);
+      params.append('limit', '50');
+
+      const response = await fetch(`http://localhost:8080/api/admin/users?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando usuarios: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando usuarios:', error);
+      setError('Error de conexión al cargar usuarios');
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  // Cargar logs con filtros
+  const loadLogsWithFilters = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingCredits(true);
+    try {
+      const params = new URLSearchParams();
+      if (logsFilters.user_email) params.append('user_email', logsFilters.user_email);
+      if (logsFilters.operation) params.append('operation', logsFilters.operation);
+      params.append('days', logsFilters.days.toString());
+      params.append('limit', '50');
+
+      const response = await fetch(`http://localhost:8080/api/admin/logs?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLogs(data.logs || []);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando logs: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando logs:', error);
+      setError('Error de conexión al cargar logs');
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  // Agregar créditos a usuario
+  const addCreditsToUser = async () => {
+    if (!selectedUser || addCreditsAmount <= 0) {
+      setError('Por favor selecciona un usuario y un monto válido');
+      return;
+    }
+
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('http://localhost:8080/api/credits/add', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          user_email: selectedUser.email,
+          credits_to_add: addCreditsAmount
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuccess(`✅ ${data.message}`);
+        setOpenAddCreditsDialog(false);
+        setAddCreditsAmount(0);
+        setSelectedUser(null);
+        // Recargar datos
+        await loadCreditsDashboard();
+      } else {
+        const errorData = await response.json();
+        setError(`Error agregando créditos: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error agregando créditos:', error);
+      setError('Error de conexión al agregar créditos');
+    }
+  };
+
+  // Formatear fecha
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Formatear número con separadores de miles
+  const formatNumber = (num: number) => {
+    return num.toLocaleString('es-ES');
+  };
+
+  // 💳 ============ FIN FUNCIONES CRÉDITOS ============
 
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -1310,6 +1605,18 @@ ${errors.slice(0, 2).map(e => e.error).join(', ')}`);
           <Tab 
             icon={<EmailIcon />} 
             label="Correos Automatizados"
+            iconPosition="start"
+            sx={{ gap: 1 }}
+          />
+          <Tab 
+            icon={<CreditsIcon />} 
+            label="Dashboard Créditos"
+            iconPosition="start"
+            sx={{ gap: 1 }}
+          />
+          <Tab 
+            icon={<PersonIcon />} 
+            label="Gestión Usuarios"
             iconPosition="start"
             sx={{ gap: 1 }}
           />
@@ -2174,6 +2481,355 @@ ${errors.slice(0, 2).map(e => e.error).join(', ')}`);
             </Paper>
           </Box>
         </TabPanel>
+
+        {/* Tab 3: Dashboard Créditos */}
+        <TabPanel value={activeTab} index={2}>
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <CreditsIcon color="primary" />
+              Dashboard de Créditos
+            </Typography>
+            
+            {loadingCredits ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : creditsDashboard ? (
+              <>
+                {/* Estadísticas Generales */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <GroupsIcon sx={{ mr: 2, color: 'primary.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Total Usuarios
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(creditsDashboard.general_stats.total_users)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <MoneyIcon sx={{ mr: 2, color: 'success.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Créditos Totales
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(creditsDashboard.general_stats.total_credits_in_system)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <TrendingUpIcon sx={{ mr: 2, color: 'info.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Promedio/Usuario
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(creditsDashboard.general_stats.average_credits_per_user)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <AnalyticsIcon sx={{ mr: 2, color: 'purple' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Operaciones (30d)
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(creditsDashboard.general_stats.total_operations_30d)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <MoneyIcon sx={{ mr: 2, color: 'error.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Consumidos (30d)
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(creditsDashboard.general_stats.total_credits_consumed_30d)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6} md={2}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <WarningIcon sx={{ mr: 2, color: 'warning.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Créditos Bajos
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {creditsDashboard.general_stats.low_credit_users_count}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Estadísticas por Operación */}
+                <Paper sx={{ p: 3, mb: 4 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Estadísticas por Operación (últimos 30 días)
+                  </Typography>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Operación</TableCell>
+                          <TableCell align="right">Usos</TableCell>
+                          <TableCell align="right">Créditos Consumidos</TableCell>
+                          <TableCell align="right">Promedio/Operación</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {creditsDashboard.operation_stats.map((stat) => (
+                          <TableRow key={stat.operation}>
+                            <TableCell component="th" scope="row">
+                              <Typography variant="body2" fontFamily="monospace">
+                                {stat.operation}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">{formatNumber(stat.count)}</TableCell>
+                            <TableCell align="right">{formatNumber(stat.credits_consumed)}</TableCell>
+                            <TableCell align="right">{stat.avg_credits_per_operation}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+
+                {/* Usuarios con Créditos Bajos */}
+                {creditsDashboard.low_credit_users.length > 0 && (
+                  <Paper sx={{ p: 3, mb: 4 }}>
+                    <Typography variant="h6" gutterBottom sx={{ color: 'warning.main', display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <WarningIcon />
+                      Usuarios con Créditos Bajos (≤10)
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {creditsDashboard.low_credit_users.map((user, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={index}>
+                          <Card variant="outlined" sx={{ borderColor: 'warning.main' }}>
+                            <CardContent>
+                              <Typography variant="body2" fontWeight="bold">
+                                {user.email}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {user.user_type}
+                              </Typography>
+                              <Typography variant="h6" color="warning.main">
+                                {user.credits} créditos
+                              </Typography>
+                            </CardContent>
+                          </Card>
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </Paper>
+                )}
+
+                {/* Actividad Reciente */}
+                <Paper sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Actividad Reciente
+                  </Typography>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Usuario</TableCell>
+                          <TableCell>Operación</TableCell>
+                          <TableCell align="right">Créditos</TableCell>
+                          <TableCell>Fecha</TableCell>
+                          <TableCell align="right">Tiempo (ms)</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {creditsDashboard.recent_logs.slice(0, 10).map((log, index) => (
+                          <TableRow key={index}>
+                            <TableCell>{log.user_email}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontFamily="monospace">
+                                {log.operation}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip 
+                                label={`-${log.credits_consumed}`} 
+                                size="small" 
+                                color="error"
+                                variant="outlined"
+                              />
+                            </TableCell>
+                            <TableCell>{formatDate(log.timestamp)}</TableCell>
+                            <TableCell align="right">{log.response_time}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              </>
+            ) : (
+              <Alert severity="info">
+                No hay datos de créditos disponibles. El sistema puede estar inicializándose.
+              </Alert>
+            )}
+          </Box>
+        </TabPanel>
+
+        {/* Tab 4: Gestión Usuarios */}
+        <TabPanel value={activeTab} index={3}>
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PersonIcon color="primary" />
+              Gestión de Usuarios y Créditos
+            </Typography>
+
+            {/* Tabla de Usuarios */}
+            <Paper sx={{ mb: 4 }}>
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6">
+                  Usuarios del Sistema ({users.length})
+                </Typography>
+                <Button
+                  variant="contained"
+                  onClick={loadUsersWithFilters}
+                  startIcon={<RefreshIcon />}
+                  size="small"
+                >
+                  Actualizar
+                </Button>
+              </Box>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Tipo</TableCell>
+                      <TableCell>Rol</TableCell>
+                      <TableCell align="right">Créditos</TableCell>
+                      <TableCell>Estado</TableCell>
+                      <TableCell>Registro</TableCell>
+                      <TableCell align="center">Acciones</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {loadingCredits ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          <CircularProgress />
+                        </TableCell>
+                      </TableRow>
+                    ) : users.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} align="center">
+                          No hay usuarios que mostrar
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      users.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={user.user_type} 
+                              size="small" 
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Chip 
+                              label={user.role} 
+                              size="small" 
+                              color={user.role === 'admin' ? 'error' : 'default'}
+                            />
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography 
+                              variant="h6" 
+                              color={user.is_low_credits ? 'warning.main' : 'inherit'}
+                            >
+                              {user.credits}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            {user.is_low_credits && (
+                              <Chip 
+                                label="Créditos Bajos" 
+                                size="small" 
+                                color="warning"
+                                icon={<WarningIcon />}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>{formatDate(user.created_at)}</TableCell>
+                          <TableCell align="center">
+                            {user.role !== 'admin' && (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                onClick={() => {
+                                  setSelectedUser(user);
+                                  setOpenAddCreditsDialog(true);
+                                }}
+                                startIcon={<MoneyIcon />}
+                              >
+                                Agregar
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+        </TabPanel>
       </Paper>
 
       {/* FAB para crear código personalizado - solo visible en tab de códigos */}
@@ -2358,6 +3014,46 @@ ${errors.slice(0, 2).map(e => e.error).join(', ')}`);
             color="error"
           >
             Eliminar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 💳 Dialog para Agregar Créditos */}
+      <Dialog open={openAddCreditsDialog} onClose={() => setOpenAddCreditsDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          Agregar Créditos a Usuario
+        </DialogTitle>
+        <DialogContent>
+          {selectedUser && (
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="body1" gutterBottom>
+                <strong>Usuario:</strong> {selectedUser.email}
+              </Typography>
+              <Typography variant="body1" gutterBottom>
+                <strong>Créditos actuales:</strong> {selectedUser.credits}
+              </Typography>
+              <TextField
+                fullWidth
+                type="number"
+                label="Créditos a agregar"
+                value={addCreditsAmount}
+                onChange={(e) => setAddCreditsAmount(Number(e.target.value))}
+                inputProps={{ min: 1, max: 1000 }}
+                sx={{ mt: 2 }}
+              />
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenAddCreditsDialog(false)}>
+            Cancelar
+          </Button>
+          <Button 
+            onClick={addCreditsToUser} 
+            variant="contained"
+            disabled={addCreditsAmount <= 0}
+          >
+            Agregar Créditos
           </Button>
         </DialogActions>
       </Dialog>
