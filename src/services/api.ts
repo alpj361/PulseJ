@@ -153,7 +153,13 @@ export async function storeTrendsInSupabase(trendsData: TrendResponse): Promise<
   try {
     await insertTrendData(trendsData);
     console.log('Trends data successfully stored in Supabase');
-  } catch (error) {
+  } catch (error: any) {
+    // Ignorar errores de duplicados (es normal cuando se hacen múltiples requests)
+    if (error?.code === '23505') {
+      console.log('🔄 Timestamp duplicado ignorado - los datos ya existen en Supabase');
+      return; // No es un error real, continuar normalmente
+    }
+    
     console.error('Error storing trends in Supabase:', error);
     // Just log the error, but don't throw to prevent UI breaking
   }
@@ -181,18 +187,29 @@ async function testFetch() {
 /**
  * Fetches trending data from ExtractorW backend with fast response + background processing
  */
-export async function fetchTrendsFromExtractorW(rawTrendsData?: any): Promise<TrendResponse> {
+export async function fetchTrendsFromExtractorW(rawTrendsData?: any, authToken?: string): Promise<TrendResponse> {
   try {
     console.log('🚀 Iniciando fetchTrendsFromExtractorW');
     
     const requestBody = rawTrendsData ? { rawData: rawTrendsData } : undefined;
     
+    // Preparar headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    // Agregar token de autenticación si está disponible
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+      console.log('🔑 Token de autenticación agregado');
+    } else {
+      console.log('⚠️  No se proporcionó token de autenticación - endpoint puede requerir auth');
+    }
+    
     console.log('📡 Llamando a ExtractorW backend para procesamiento rápido...');
     const response = await fetch(`${EXTRACTORW_API_URL}/processTrends`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: requestBody ? JSON.stringify(requestBody) : JSON.stringify({})
     });
     
@@ -340,7 +357,7 @@ export async function getLatestTrendsFromExtractorW(): Promise<TrendResponse | n
  * Fetches and stores trending data with AI processing
  * Now uses ExtractorW backend with fast response + background processing
  */
-export async function fetchAndStoreTrends(): Promise<TrendResponse> {
+export async function fetchAndStoreTrends(authToken?: string): Promise<TrendResponse> {
   try {
     console.log('🚀 Iniciando fetchAndStoreTrends con ExtractorW');
     
@@ -348,9 +365,9 @@ export async function fetchAndStoreTrends(): Promise<TrendResponse> {
     console.log('📡 Obteniendo datos raw de VPS...');
     const rawTrendsData = await fetchRawTrendsFromVPS();
     
-    // 2. Process with ExtractorW (fast response)
+    // 2. Process with ExtractorW (fast response) - now with auth token
     console.log('⚡ Procesando con ExtractorW (respuesta rápida)...');
-    const initialData = await fetchTrendsFromExtractorW(rawTrendsData);
+    const initialData = await fetchTrendsFromExtractorW(rawTrendsData, authToken);
     
     // 3. Start polling for complete data in background
     if (initialData.timestamp && initialData.processing_status === 'basic_completed') {

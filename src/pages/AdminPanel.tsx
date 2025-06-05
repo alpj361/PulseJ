@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAdmin } from '../hooks/useAdmin';
+import { useAuth } from '../context/AuthContext';
 import { supabase } from '../services/supabase';
 import { openAIService } from '../services/openai';
 import {
@@ -214,6 +215,7 @@ const USER_TYPES = [
 
 export default function AdminPanel() {
   const { isAdmin, loading: adminLoading } = useAdmin();
+  const { session } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   
   // Estados para códigos de invitación
@@ -363,6 +365,18 @@ export default function AdminPanel() {
     const savedImage = localStorage.getItem('signatureImageUrl');
     if (savedImage) setSignatureImageUrl(savedImage);
   }, []);
+
+  // 🔍 Debug useEffect para sesión
+  useEffect(() => {
+    console.log('🔍 [AdminPanel] Session Debug:', {
+      session: session,
+      hasSession: !!session,
+      sessionKeys: session ? Object.keys(session) : [],
+      accessToken: session?.access_token,
+      user: session?.user,
+      userEmail: session?.user?.email
+    });
+  }, [session]);
 
   // Cargar códigos de invitación
   const loadCodes = async () => {
@@ -1382,11 +1396,21 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
 
   // Obtener token de autorización
   const getAuthToken = () => {
-    const token = localStorage.getItem('access_token');
+    // Debug: verificar sesión completa
+    console.log('🔍 Debug getAuthToken - session completa:', session);
+    console.log('🔍 Debug getAuthToken - session?.access_token:', session?.access_token);
+    console.log('🔍 Debug getAuthToken - session?.user:', session?.user);
+    
+    // Usar el token de la sesión de Supabase
+    // El token está en session.access_token según la documentación de Supabase
+    const token = session?.access_token;
     if (!token) {
+      console.error('❌ No se encontró token en session?.access_token');
+      console.log('🔍 Estructura de session disponible:', Object.keys(session || {}));
       setError('Token de autorización no encontrado. Por favor inicia sesión nuevamente.');
       return null;
     }
+    console.log('✅ Token encontrado:', token.substring(0, 20) + '...');
     return token;
   };
 
@@ -1397,7 +1421,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
 
     setLoadingCredits(true);
     try {
-      const response = await fetch('http://localhost:8080/api/admin/dashboard', {
+      const response = await fetch('https://server.standatpd.com/api/admin/dashboard', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1435,7 +1459,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
       params.append('order_direction', usersFilters.order_direction);
       params.append('limit', '50');
 
-      const response = await fetch(`http://localhost:8080/api/admin/users?${params}`, {
+      const response = await fetch(`https://server.standatpd.com/api/admin/users?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1470,7 +1494,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
       params.append('days', logsFilters.days.toString());
       params.append('limit', '50');
 
-      const response = await fetch(`http://localhost:8080/api/admin/logs?${params}`, {
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -1503,7 +1527,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
     if (!token) return;
 
     try {
-      const response = await fetch('http://localhost:8080/api/credits/add', {
+      const response = await fetch('https://server.standatpd.com/api/credits/add', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

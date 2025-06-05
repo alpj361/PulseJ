@@ -9,6 +9,7 @@ import TrendingTweetsSection from '../components/ui/TrendingTweetsSection';
 import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, categoryData as mockCategoryData } from '../data/mockData';
 import { fetchAndStoreTrends, getLatestTrends, AboutInfo, Statistics } from '../services/api';
 import { LanguageContext } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import {
   Box,
   Typography,
@@ -84,6 +85,7 @@ const translations = {
 
 export const Trends = () => {
   const { language } = useContext(LanguageContext);
+  const { session } = useAuth();
   const t = translations[language];
   const theme = useTheme();
   const [isLoading, setIsLoading] = useState(false);
@@ -148,9 +150,18 @@ export const Trends = () => {
     setIsLoading(true);
     setError(null);
     
-      try {
-      console.log('📡 Llamando a fetchAndStoreTrends()...');
-        const data = await fetchAndStoreTrends();
+    try {
+      // Obtener token de autenticación
+      const authToken = session?.access_token;
+      if (!authToken) {
+        console.warn('⚠️  No se encontró token de autenticación');
+        setError('No se encontró token de autenticación. Por favor, inicia sesión nuevamente.');
+        return;
+      }
+      
+      console.log('🔑 Token de autenticación obtenido');
+      console.log('📡 Llamando a fetchAndStoreTrends() con token...');
+      const data = await fetchAndStoreTrends(authToken);
       console.log('✅ Datos recibidos de fetchAndStoreTrends:', data);
         
       // Validar que tenemos datos básicos mínimos
