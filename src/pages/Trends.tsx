@@ -357,7 +357,6 @@ export const Trends = () => {
   if (!hasData && !isLoading) {
     return (
       <Box sx={{ '& > *': { mb: 4 }, animation: 'fadeIn 0.4s ease-out' }}>
-        {/* Header Section */}
         <Paper
           elevation={0}
           sx={{
@@ -530,19 +529,6 @@ export const Trends = () => {
           overflow: 'hidden'
         }}
       >
-        {/* Subtle background pattern */}
-        <Box sx={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          opacity: 0.03,
-          backgroundImage: `radial-gradient(circle, ${theme.palette.primary.main} 1px, transparent 1px)`,
-          backgroundSize: '20px 20px',
-          zIndex: 0
-        }} />
-        
         <Box sx={{ 
           display: 'flex', 
           flexDirection: { xs: 'column', md: 'row' }, 
@@ -1028,9 +1014,9 @@ export const Trends = () => {
             {isPollingForDetails ? (
               <>
                 <CircularProgress size={32} />
-        <Typography color="text.secondary">
+                <Typography color="text.secondary">
                   Generando estadísticas de procesamiento...
-        </Typography>
+                </Typography>
                 <Typography variant="caption" color="text.disabled">
                   Analizando resultados de IA
                 </Typography>

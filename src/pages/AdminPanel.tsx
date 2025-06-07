@@ -63,7 +63,13 @@ import {
   TrendingUp as TrendingUpIcon,
   Warning as WarningIcon,
   History as HistoryIcon,
-  AttachMoney as MoneyIcon
+  AttachMoney as MoneyIcon,
+  // 📊 Iconos para sistema de logs
+  Assessment as AssessmentIcon,
+  ShowChart as ShowChartIcon,
+  Timeline as TimelineIcon,
+  Error as ErrorIcon,
+  BugReport as BugReportIcon
 } from '@mui/icons-material';
 import AirtableConfig from '../components/AirtableConfig';
 
@@ -191,6 +197,92 @@ interface OperationLog {
   request_params: string;
 }
 
+// 📊 Interfaces para Sistema de Logs
+interface SystemExecutionLog {
+  id: number;
+  execution_id: string;
+  script_name: string;
+  started_at: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  status: 'running' | 'completed' | 'failed' | 'partial';
+  trends_found: number;
+  tweets_found: number;
+  tweets_processed: number;
+  tweets_saved: number;
+  tweets_failed: number;
+  duplicates_skipped: number;
+  ai_requests_made: number;
+  ai_requests_successful: number;
+  ai_requests_failed: number;
+  total_tokens_used: number;
+  estimated_cost_usd: number;
+  categoria_stats: Record<string, number>;
+  sentimiento_stats: Record<string, number>;
+  intencion_stats: Record<string, number>;
+  propagacion_stats: Record<string, number>;
+  error_details: Array<{
+    timestamp: string;
+    error: string;
+    context: string;
+    stack?: string;
+  }>;
+  warnings: Array<{
+    timestamp: string;
+    warning: string;
+    context: string;
+  }>;
+  metadata: Record<string, any>;
+}
+
+interface ExecutionSummary {
+  execution_id: string;
+  script_name: string;
+  started_at: string;
+  completed_at?: string;
+  duration_seconds?: number;
+  status: string;
+  tweets_processed: number;
+  tweets_saved: number;
+  ai_requests_made: number;
+  estimated_cost_usd: number;
+  success_rate_percent: number;
+  ai_success_rate_percent: number;
+  cost_per_tweet: number;
+}
+
+interface DailyCostStats {
+  date: string;
+  executions: number;
+  total_tweets: number;
+  total_cost: number;
+  avg_cost_per_execution: number;
+  max_cost: number;
+  total_ai_requests: number;
+}
+
+interface WeeklyPerformanceStats {
+  week: string;
+  executions: number;
+  avg_duration: number;
+  avg_tweets_per_execution: number;
+  total_cost: number;
+  failed_executions: number;
+}
+
+interface SystemLogsDashboard {
+  executions: ExecutionSummary[];
+  daily_costs: DailyCostStats[];
+  weekly_performance: WeeklyPerformanceStats[];
+  total_stats: {
+    total_executions: number;
+    total_cost_month: number;
+    avg_success_rate: number;
+    total_tweets_processed: number;
+    avg_cost_per_tweet: number;
+  };
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
   return (
@@ -313,6 +405,20 @@ export default function AdminPanel() {
   });
   const [improvingEmail, setImprovingEmail] = useState(false);
 
+  // 📊 Estados para Sistema de Logs
+  const [systemLogsDashboard, setSystemLogsDashboard] = useState<SystemLogsDashboard | null>(null);
+  const [loadingSystemLogs, setLoadingSystemLogs] = useState(false);
+  const [systemExecutions, setSystemExecutions] = useState<ExecutionSummary[]>([]);
+  const [dailyCosts, setDailyCosts] = useState<DailyCostStats[]>([]);
+  const [weeklyPerformance, setWeeklyPerformance] = useState<WeeklyPerformanceStats[]>([]);
+  const [selectedExecution, setSelectedExecution] = useState<SystemExecutionLog | null>(null);
+  const [openExecutionDialog, setOpenExecutionDialog] = useState(false);
+  const [systemLogsFilters, setSystemLogsFilters] = useState({
+    script_name: '',
+    status: '',
+    days: 7
+  });
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
@@ -329,6 +435,8 @@ export default function AdminPanel() {
     } else if (activeTab === 3) { // Gestión Usuarios
       loadUsersWithFilters();
       loadLogsWithFilters();
+    } else if (activeTab === 4) { // Sistema de Logs
+      loadSystemLogsDashboard();
     }
   }, [activeTab]);
 
@@ -1575,6 +1683,149 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
 
   // 💳 ============ FIN FUNCIONES CRÉDITOS ============
 
+  // 📊 Funciones para Sistema de Logs (conectando directamente a Supabase)
+  const loadSystemLogsDashboard = async () => {
+    try {
+      setLoadingSystemLogs(true);
+      setError(null);
+
+      // Conectar directamente a Supabase (mismas credenciales que NewsCron)
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        'https://qqshdccpmypelhmyqnut.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxc2hkY2NwbXlwZWxobXlxbnV0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjAzNjcxMSwiZXhwIjoyMDYxNjEyNzExfQ.BaJ_z3Gp2pUnmYEDpfNTCIxpHloSjmxi43aKwm-93ZI'
+      );
+
+      // Obtener datos del dashboard
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const [
+        { data: executions, error: executionsError },
+        { data: dailyCosts, error: dailyCostsError },
+        { data: weeklyPerformance, error: weeklyError }
+      ] = await Promise.all([
+        supabase
+          .from('admin_execution_summary')
+          .select('*')
+          .gte('started_at', thirtyDaysAgo.toISOString())
+          .order('started_at', { ascending: false })
+          .limit(20),
+        supabase
+          .from('daily_cost_stats')
+          .select('*')
+          .gte('date', thirtyDaysAgo.toISOString().split('T')[0])
+          .order('date', { ascending: false })
+          .limit(30),
+        supabase
+          .from('weekly_performance_stats')
+          .select('*')
+          .order('week', { ascending: false })
+          .limit(8)
+      ]);
+
+      if (executionsError) throw executionsError;
+      if (dailyCostsError) throw dailyCostsError;
+      if (weeklyError) throw weeklyError;
+
+      // Calcular estadísticas generales
+      const totalExecutions = executions?.length || 0;
+      const completedExecutions = executions?.filter(e => e.status === 'completed') || [];
+      const totalCost = completedExecutions.reduce((sum, e) => sum + parseFloat(e.estimated_cost_usd || 0), 0);
+      const totalTweets = completedExecutions.reduce((sum, e) => sum + (e.tweets_processed || 0), 0);
+      const avgSuccessRate = totalExecutions > 0 
+        ? completedExecutions.reduce((sum, e) => sum + (e.success_rate_percent || 0), 0) / completedExecutions.length 
+        : 0;
+
+      const dashboard = {
+        executions: executions || [],
+        daily_costs: dailyCosts || [],
+        weekly_performance: weeklyPerformance || [],
+        total_stats: {
+          total_executions: totalExecutions,
+          total_cost_month: totalCost,
+          avg_success_rate: avgSuccessRate,
+          total_tweets_processed: totalTweets,
+          avg_cost_per_tweet: totalTweets > 0 ? totalCost / totalTweets : 0
+        }
+      };
+
+      setSystemLogsDashboard(dashboard);
+      setSystemExecutions(executions || []);
+      setDailyCosts(dailyCosts || []);
+      setWeeklyPerformance(weeklyPerformance || []);
+
+    } catch (error: any) {
+      console.error('Error cargando dashboard de logs:', error);
+      setError('Error cargando datos del sistema de logs: ' + error.message);
+    } finally {
+      setLoadingSystemLogs(false);
+    }
+  };
+
+  const loadExecutionDetails = async (executionId: string) => {
+    try {
+      setError(null);
+
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        'https://qqshdccpmypelhmyqnut.supabase.co',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxc2hkY2NwbXlwZWxobXlxbnV0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NjAzNjcxMSwiZXhwIjoyMDYxNjEyNzExfQ.BaJ_z3Gp2pUnmYEDpfNTCIxpHloSjmxi43aKwm-93ZI'
+      );
+
+      const { data, error } = await supabase
+        .from('system_execution_logs')
+        .select('*')
+        .eq('execution_id', executionId)
+        .single();
+
+      if (error) throw error;
+
+      setSelectedExecution(data);
+      setOpenExecutionDialog(true);
+
+    } catch (error: any) {
+      console.error('Error cargando detalles de ejecución:', error);
+      setError('Error cargando detalles de ejecución: ' + error.message);
+    }
+  };
+
+  const getStatusChipForExecution = (status: string) => {
+    const statusConfig = {
+      completed: { color: 'success' as const, label: 'Completado' },
+      failed: { color: 'error' as const, label: 'Fallido' },
+      running: { color: 'info' as const, label: 'Ejecutando' },
+      partial: { color: 'warning' as const, label: 'Parcial' }
+    };
+
+    const config = statusConfig[status as keyof typeof statusConfig] || 
+                   { color: 'default' as const, label: status };
+
+    return (
+      <Chip
+        label={config.label}
+        color={config.color}
+        size="small"
+        variant="outlined"
+      />
+    );
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 6,
+      maximumFractionDigits: 6
+    }).format(amount);
+  };
+
+  const formatDuration = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
@@ -1641,6 +1892,12 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
           <Tab 
             icon={<PersonIcon />} 
             label="Gestión Usuarios"
+            iconPosition="start"
+            sx={{ gap: 1 }}
+          />
+          <Tab 
+            icon={<AssessmentIcon />} 
+            label="Sistema de Logs"
             iconPosition="start"
             sx={{ gap: 1 }}
           />
@@ -2854,6 +3111,282 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
             </Paper>
           </Box>
         </TabPanel>
+
+        {/* Tab 5: Sistema de Logs */}
+        <TabPanel value={activeTab} index={4}>
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AssessmentIcon color="primary" />
+              Sistema de Logs y Monitoreo
+            </Typography>
+
+            {loadingSystemLogs ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : systemLogsDashboard ? (
+              <>
+                {/* Estadísticas Generales */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <ShowChartIcon sx={{ mr: 2, color: 'primary.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Total Ejecuciones
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {systemLogsDashboard.total_stats.total_executions}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <MoneyIcon sx={{ mr: 2, color: 'warning.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Costo Total (Mes)
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatCurrency(systemLogsDashboard.total_stats.total_cost_month)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <CheckIcon sx={{ mr: 2, color: 'success.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Tasa de Éxito
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {systemLogsDashboard.total_stats.avg_success_rate.toFixed(1)}%
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <TrendingUpIcon sx={{ mr: 2, color: 'info.main' }} />
+                          <Box>
+                            <Typography color="text.secondary" gutterBottom>
+                              Tweets Procesados
+                            </Typography>
+                            <Typography variant="h5" component="div">
+                              {formatNumber(systemLogsDashboard.total_stats.total_tweets_processed)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </Grid>
+
+                {/* Tabla de Ejecuciones Recientes */}
+                <Paper sx={{ mb: 4 }}>
+                  <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">
+                      Ejecuciones Recientes ({systemExecutions.length})
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      onClick={loadSystemLogsDashboard}
+                      startIcon={<RefreshIcon />}
+                      size="small"
+                    >
+                      Actualizar
+                    </Button>
+                  </Box>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Fecha/Hora</TableCell>
+                          <TableCell>Script</TableCell>
+                          <TableCell>Estado</TableCell>
+                          <TableCell align="right">Duración</TableCell>
+                          <TableCell align="right">Tweets</TableCell>
+                          <TableCell align="right">Costo</TableCell>
+                          <TableCell align="right">Éxito %</TableCell>
+                          <TableCell align="center">Acciones</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {systemExecutions.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} align="center">
+                              No hay ejecuciones registradas
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          systemExecutions.map((execution) => (
+                            <TableRow key={execution.execution_id}>
+                              <TableCell>
+                                <Typography variant="body2">
+                                  {formatDate(execution.started_at)}
+                                </Typography>
+                                {execution.completed_at && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    Terminó: {formatDate(execution.completed_at)}
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={execution.script_name} 
+                                  size="small" 
+                                  variant="outlined"
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {getStatusChipForExecution(execution.status)}
+                              </TableCell>
+                              <TableCell align="right">
+                                {execution.duration_seconds ? formatDuration(execution.duration_seconds) : '-'}
+                              </TableCell>
+                              <TableCell align="right">
+                                <Box>
+                                  <Typography variant="body2">
+                                    {execution.tweets_saved}/{execution.tweets_processed}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    guardados/procesados
+                                  </Typography>
+                                </Box>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography 
+                                  variant="body2" 
+                                  color={execution.estimated_cost_usd > 0.1 ? 'warning.main' : 'inherit'}
+                                >
+                                  {formatCurrency(execution.estimated_cost_usd)}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Typography 
+                                  variant="body2"
+                                  color={execution.success_rate_percent < 80 ? 'warning.main' : 'success.main'}
+                                >
+                                  {execution.success_rate_percent.toFixed(1)}%
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="center">
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  onClick={() => loadExecutionDetails(execution.execution_id)}
+                                  startIcon={<TimelineIcon />}
+                                >
+                                  Detalles
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+
+                {/* Gráficos de Costos y Performance */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3 }}>
+                      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <MoneyIcon color="warning" />
+                        Costos Diarios (Últimos 7 días)
+                      </Typography>
+                      {dailyCosts.length > 0 ? (
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Fecha</TableCell>
+                                <TableCell align="right">Ejecuciones</TableCell>
+                                <TableCell align="right">Tweets</TableCell>
+                                <TableCell align="right">Costo</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {dailyCosts.map((day) => (
+                                <TableRow key={day.date}>
+                                  <TableCell>{day.date}</TableCell>
+                                  <TableCell align="right">{day.executions}</TableCell>
+                                  <TableCell align="right">{day.total_tweets}</TableCell>
+                                  <TableCell align="right">{formatCurrency(day.total_cost)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      ) : (
+                        <Typography color="text.secondary">No hay datos de costos disponibles</Typography>
+                      )}
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Paper sx={{ p: 3 }}>
+                      <Typography variant="h6" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <ShowChartIcon color="info" />
+                        Performance Semanal
+                      </Typography>
+                      {weeklyPerformance.length > 0 ? (
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>Semana</TableCell>
+                                <TableCell align="right">Ejecuciones</TableCell>
+                                <TableCell align="right">Duración Prom.</TableCell>
+                                <TableCell align="right">Fallos</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {weeklyPerformance.map((week) => (
+                                <TableRow key={week.week}>
+                                  <TableCell>{week.week}</TableCell>
+                                  <TableCell align="right">{week.executions}</TableCell>
+                                  <TableCell align="right">{formatDuration(week.avg_duration)}</TableCell>
+                                  <TableCell align="right">
+                                    <Typography color={week.failed_executions > 0 ? 'error.main' : 'inherit'}>
+                                      {week.failed_executions}
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      ) : (
+                        <Typography color="text.secondary">No hay datos de performance disponibles</Typography>
+                      )}
+                    </Paper>
+                  </Grid>
+                </Grid>
+              </>
+            ) : (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                No hay datos del sistema de logs disponibles. El sistema puede estar inicializándose.
+              </Alert>
+            )}
+          </Box>
+        </TabPanel>
       </Paper>
 
       {/* FAB para crear código personalizado - solo visible en tab de códigos */}
@@ -3078,6 +3611,258 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
             disabled={addCreditsAmount <= 0}
           >
             Agregar Créditos
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Dialog para Detalles de Ejecución */}
+      <Dialog 
+        open={openExecutionDialog} 
+        onClose={() => setOpenExecutionDialog(false)} 
+        maxWidth="lg" 
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <TimelineIcon color="primary" />
+            Detalles de Ejecución
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedExecution && (
+            <Box sx={{ pt: 2 }}>
+              {/* Información General */}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Información General
+                </Typography>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      ID de Ejecución
+                    </Typography>
+                    <Typography variant="body1" fontFamily="monospace">
+                      {selectedExecution.execution_id}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Script
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedExecution.script_name}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Estado
+                    </Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      {getStatusChipForExecution(selectedExecution.status)}
+                    </Box>
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Duración
+                    </Typography>
+                    <Typography variant="body1">
+                      {selectedExecution.duration_seconds ? formatDuration(selectedExecution.duration_seconds) : 'N/A'}
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Métricas de Procesamiento */}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Métricas de Procesamiento
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="primary.main">
+                        {selectedExecution.trends_found}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Trends Encontrados
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="info.main">
+                        {selectedExecution.tweets_processed}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tweets Procesados
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="success.main">
+                        {selectedExecution.tweets_saved}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tweets Guardados
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="error.main">
+                        {selectedExecution.tweets_failed}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tweets Fallidos
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Métricas de IA */}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Métricas de IA y Costos
+                </Typography>
+                <Grid container spacing={3}>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="primary.main">
+                        {selectedExecution.ai_requests_made}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Requests IA
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="info.main">
+                        {formatNumber(selectedExecution.total_tokens_used)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tokens Usados
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography variant="h4" color="warning.main">
+                        {formatCurrency(selectedExecution.estimated_cost_usd)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Costo Estimado
+                      </Typography>
+                    </Box>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Box textAlign="center">
+                      <Typography 
+                        variant="h4" 
+                        color={selectedExecution.ai_requests_successful / selectedExecution.ai_requests_made * 100 < 80 ? 'error.main' : 'success.main'}
+                      >
+                        {((selectedExecution.ai_requests_successful / selectedExecution.ai_requests_made) * 100).toFixed(1)}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Tasa Éxito IA
+                      </Typography>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Estadísticas de Análisis */}
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} md={6}>
+                  <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Distribución de Sentimientos
+                    </Typography>
+                    {Object.entries(selectedExecution.sentimiento_stats || {}).map(([sentimiento, count]) => (
+                      <Box key={sentimiento} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">{sentimiento}</Typography>
+                        <Typography variant="body2" fontWeight="bold">{count}</Typography>
+                      </Box>
+                    ))}
+                  </Paper>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" gutterBottom>
+                      Distribución de Categorías
+                    </Typography>
+                    {Object.entries(selectedExecution.categoria_stats || {}).map(([categoria, count]) => (
+                      <Box key={categoria} sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                        <Typography variant="body2">{categoria}</Typography>
+                        <Typography variant="body2" fontWeight="bold">{count}</Typography>
+                      </Box>
+                    ))}
+                  </Paper>
+                </Grid>
+              </Grid>
+
+              {/* Errores y Advertencias */}
+              {(selectedExecution.error_details.length > 0 || selectedExecution.warnings.length > 0) && (
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Errores y Advertencias
+                  </Typography>
+                  
+                  {selectedExecution.error_details.length > 0 && (
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" color="error.main" gutterBottom>
+                        Errores ({selectedExecution.error_details.length})
+                      </Typography>
+                      {selectedExecution.error_details.slice(0, 5).map((error, index) => (
+                        <Alert key={index} severity="error" sx={{ mb: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {error.timestamp}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>{error.context}:</strong> {error.error}
+                          </Typography>
+                        </Alert>
+                      ))}
+                      {selectedExecution.error_details.length > 5 && (
+                        <Typography variant="caption" color="text.secondary">
+                          ... y {selectedExecution.error_details.length - 5} errores más
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+
+                  {selectedExecution.warnings.length > 0 && (
+                    <Box>
+                      <Typography variant="subtitle2" color="warning.main" gutterBottom>
+                        Advertencias ({selectedExecution.warnings.length})
+                      </Typography>
+                      {selectedExecution.warnings.slice(0, 3).map((warning, index) => (
+                        <Alert key={index} severity="warning" sx={{ mb: 1 }}>
+                          <Typography variant="caption" color="text.secondary">
+                            {warning.timestamp}
+                          </Typography>
+                          <Typography variant="body2">
+                            <strong>{warning.context}:</strong> {warning.warning}
+                          </Typography>
+                        </Alert>
+                      ))}
+                      {selectedExecution.warnings.length > 3 && (
+                        <Typography variant="caption" color="text.secondary">
+                          ... y {selectedExecution.warnings.length - 3} advertencias más
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
+                </Paper>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenExecutionDialog(false)}>
+            Cerrar
           </Button>
         </DialogActions>
       </Dialog>

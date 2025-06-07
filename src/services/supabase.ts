@@ -302,7 +302,12 @@ export async function getTrendingTweets(limit: number = 20, categoria?: string) 
       fecha_captura: tweet.fecha_captura,
       raw_data: tweet.raw_data,
       created_at: tweet.created_at,
-      updated_at: tweet.updated_at
+      updated_at: tweet.updated_at,
+      // Incluir campos de análisis de sentimiento e intención si existen
+      sentimiento: tweet.sentimiento || null,
+      intencion_comunicativa: tweet.intencion_comunicativa || null,
+      score_sentimiento: tweet.score_sentimiento || null,
+      propagacion_viral: tweet.propagacion_viral || null
     }));
   } catch (error) {
     console.error('Error fetching trending tweets:', error);

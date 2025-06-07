@@ -38,6 +38,29 @@ export interface TrendingTweet {
   location: string;
   fecha_captura: string;
   raw_data: any;
+  sentimiento: 'positivo' | 'negativo' | 'neutral';
+  score_sentimiento: number;
+  confianza_sentimiento: number;
+  emociones_detectadas: string[];
+  // Campos de análisis avanzado
+  intencion_comunicativa: 'informativo' | 'opinativo' | 'humoristico' | 'alarmista' | 'critico' | 'promocional' | 'conversacional' | 'protesta';
+  propagacion_viral: 'viral' | 'alto_engagement' | 'medio_engagement' | 'bajo_engagement' | 'sin_engagement';
+  score_propagacion: number;
+  entidades_mencionadas: Array<{
+    nombre: string;
+    tipo: 'persona' | 'organizacion' | 'lugar' | 'evento';
+    contexto?: string;
+  }>;
+  analisis_ai_metadata: {
+    modelo?: string;
+    timestamp?: string;
+    contexto_local?: string;
+    intensidad?: 'alta' | 'media' | 'baja';
+    categoria?: string;
+    tokens_usados?: number;
+    costo_estimado?: number;
+    error?: string;
+  };
   created_at: string;
   updated_at: string;
 }
