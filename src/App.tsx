@@ -19,6 +19,7 @@ import { Box, CircularProgress } from '@mui/material';
 import Codex from './pages/Codex';
 import News from './pages/News';
 import Sondeos from './pages/Sondeos';
+import Projects from './pages/Projects';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -174,6 +175,13 @@ function App() {
             <VerifiedRoute>
               <Layout>
                 <Sondeos />
+              </Layout>
+            </VerifiedRoute>
+          } />
+          <Route path="/projects" element={
+            <VerifiedRoute>
+              <Layout>
+                <Projects />
               </Layout>
             </VerifiedRoute>
           } />

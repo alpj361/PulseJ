@@ -37,7 +37,9 @@ import {
   Select,
   Divider,
   Tabs,
-  Tab
+  Tab,
+  FormControlLabel,
+  Checkbox
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -69,7 +71,12 @@ import {
   ShowChart as ShowChartIcon,
   Timeline as TimelineIcon,
   Error as ErrorIcon,
-  BugReport as BugReportIcon
+  BugReport as BugReportIcon,
+  // 🔍 Iconos adicionales para logs avanzados
+  Search as SearchIcon,
+  Clear as ClearIcon,
+  Computer as ComputerIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import AirtableConfig from '../components/AirtableConfig';
 
@@ -283,6 +290,112 @@ interface SystemLogsDashboard {
   };
 }
 
+// 📊 Nuevas interfaces para estadísticas avanzadas de logs
+interface LogsStatsResponse {
+  success: boolean;
+  statistics: {
+    overview: {
+      total_logs: number;
+      user_logs: number;
+      system_logs: number;
+      success_logs: number;
+      error_logs: number;
+      total_credits_consumed: number;
+      period_days: number;
+    };
+    by_type: {
+      user: {
+        total: number;
+        success: number;
+        errors: number;
+        credits_consumed: number;
+        operations: Record<string, { count: number; credits: number; errors: number }>;
+      };
+      system: {
+        total: number;
+        success: number;
+        errors: number;
+        credits_consumed: number;
+        operations: Record<string, { count: number; credits: number; errors: number }>;
+      };
+    };
+    top_operations: Array<{
+      operation: string;
+      count: number;
+      credits: number;
+      errors: number;
+      types: string[];
+      success_rate: string;
+    }>;
+    daily_breakdown: Array<{
+      date: string;
+      user_logs: number;
+      system_logs: number;
+      success_logs: number;
+      error_logs: number;
+      credits_consumed: number;
+    }>;
+    error_summary: Array<{
+      operation: string;
+      log_type: string;
+      timestamp: string;
+      user_role: string;
+      source: string;
+    }>;
+    sources: {
+      usage_logs: number;
+      system_execution_logs: number;
+    };
+  };
+  metadata: {
+    period: string;
+    generated_at: string;
+    generated_by: string;
+    timezone: string;
+    tables_consulted: string[];
+  };
+}
+
+interface EnhancedLog {
+  id?: string;
+  user_id?: string;
+  user_email: string;
+  user_role: string;
+  operation: string;
+  log_type: 'user' | 'system';
+  credits_consumed: number;
+  ip_address: string;
+  user_agent: string;
+  timestamp: string;
+  request_data: any;
+  error_data?: any;
+  is_system: boolean;
+  is_success: boolean;
+  formatted_time: string;
+  source_table: string;
+  execution_time?: string;
+  system_metrics?: {
+    trends_found?: number;
+    tweets_found?: number;
+    tweets_processed?: number;
+    tweets_saved?: number;
+    tweets_failed?: number;
+    ai_requests_made?: number;
+    ai_requests_successful?: number;
+    estimated_cost_usd?: number;
+  };
+}
+
+interface LogsFiltersAdvanced {
+  user_email: string;
+  operation: string;
+  log_type: 'all' | 'user' | 'system';
+  success: 'all' | 'true' | 'false';
+  days: number;
+  limit: number;
+  offset: number;
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
   return (
@@ -419,6 +532,35 @@ export default function AdminPanel() {
     days: 7
   });
 
+  // 🔄 Estados para Re-análisis de Tweets
+  const [reanalyzingTweets, setReanalyzingTweets] = useState(false);
+  const [reanalysisOptions, setReanalysisOptions] = useState({
+    limit: 20,
+    force_all: false,
+    only_failed: false
+  });
+  const [openReanalysisDialog, setOpenReanalysisDialog] = useState(false);
+  const [reanalysisResult, setReanalysisResult] = useState<any>(null);
+
+  // 📊 Estados para estadísticas avanzadas de logs
+  const [logsStatsData, setLogsStatsData] = useState<LogsStatsResponse | null>(null);
+  const [enhancedLogs, setEnhancedLogs] = useState<EnhancedLog[]>([]);
+  const [loadingLogsStats, setLoadingLogsStats] = useState(false);
+  const [loadingAdvancedLogs, setLoadingAdvancedLogs] = useState(false);
+  const [logsFiltersAdvanced, setLogsFiltersAdvanced] = useState<LogsFiltersAdvanced>({
+    user_email: '',
+    operation: '',
+    log_type: 'all',
+    success: 'all',
+    days: 7,
+    limit: 50,
+    offset: 0
+  });
+  const [showErrorsOnly, setShowErrorsOnly] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<string[]>([]);
+  const [selectedLogForDetails, setSelectedLogForDetails] = useState<EnhancedLog | null>(null);
+  const [openLogDetailsDialog, setOpenLogDetailsDialog] = useState(false);
+
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
   };
@@ -437,6 +579,9 @@ export default function AdminPanel() {
       loadLogsWithFilters();
     } else if (activeTab === 4) { // Sistema de Logs
       loadSystemLogsDashboard();
+    } else if (activeTab === 5) { // Logs Avanzados
+      loadAdvancedLogsStats(); // Cargar estadísticas avanzadas
+      loadAdvancedLogs(); // Cargar logs detallados
     }
   }, [activeTab]);
 
@@ -1681,6 +1826,21 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
     return num.toLocaleString('es-ES');
   };
 
+  // 📊 Funciones para estadísticas avanzadas de logs
+
+
+  const loadAdvancedLogs = async () => {
+    await loadUserLogs();
+  };
+
+  const resetLogsFilters = () => {
+    resetUserLogsFilters();
+  };
+
+  const applyErrorsFilter = () => {
+    applyUserErrorsFilter();
+  };
+
   // 💳 ============ FIN FUNCIONES CRÉDITOS ============
 
   // 📊 Funciones para Sistema de Logs (conectando directamente a Supabase)
@@ -1826,6 +1986,182 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
     return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
   };
 
+  // 🔄 Función para re-analizar tweets
+  const reanalyzeTweets = async () => {
+    if (!session?.access_token) {
+      setError('Token de autorización no disponible');
+      return;
+    }
+
+    setReanalyzingTweets(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🔄 Iniciando re-análisis de tweets...', reanalysisOptions);
+
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/reanalyze-tweets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify(reanalysisOptions)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `Error ${response.status}: ${data.error}`);
+      }
+
+      console.log('✅ Re-análisis completado:', data);
+      
+      setReanalysisResult(data);
+      setSuccess(
+        `Re-análisis completado exitosamente. ` +
+        `${data.results?.tweets_processed || reanalysisOptions.limit} tweets procesados, ` +
+        `${data.results?.tweets_updated || 0} actualizados. ` +
+        `Tasa de éxito: ${data.results?.success_rate || 'No disponible'}.`
+      );
+      
+      // Cerrar el diálogo y refrescar datos
+      setOpenReanalysisDialog(false);
+      
+      // Refrescar dashboard del sistema si está cargado
+      if (systemLogsDashboard) {
+        loadSystemLogsDashboard();
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error en re-análisis:', error);
+      setError(`Error al re-analizar tweets: ${error.message}`);
+    } finally {
+      setReanalyzingTweets(false);
+    }
+  };
+
+  // 📊 Funciones para estadísticas avanzadas de logs - SOLO USUARIOS
+  const loadAdvancedLogsStats = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingLogsStats(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('days', logsFiltersAdvanced.days.toString());
+      params.append('log_type', 'user'); // Solo logs de usuario
+
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs/stats?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLogsStatsData(data);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando estadísticas de logs de usuario: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando estadísticas de logs de usuario:', error);
+      setError('Error de conexión al cargar estadísticas de logs de usuario');
+    } finally {
+      setLoadingLogsStats(false);
+    }
+  };
+
+  const loadUserLogs = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingAdvancedLogs(true);
+    try {
+      const params = new URLSearchParams();
+      if (logsFiltersAdvanced.user_email) params.append('user_email', logsFiltersAdvanced.user_email);
+      if (logsFiltersAdvanced.operation && logsFiltersAdvanced.operation !== 'all') params.append('operation', logsFiltersAdvanced.operation);
+      params.append('log_type', 'user'); // Forzar solo logs de usuario
+      if (logsFiltersAdvanced.success !== 'all') params.append('success', logsFiltersAdvanced.success);
+      params.append('days', logsFiltersAdvanced.days.toString());
+      params.append('limit', logsFiltersAdvanced.limit.toString());
+      params.append('offset', logsFiltersAdvanced.offset.toString());
+
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // Filtrar solo logs de usuario por seguridad adicional
+        const userOnlyLogs = (data.logs || []).filter((log: EnhancedLog) => log.log_type === 'user');
+        setEnhancedLogs(userOnlyLogs);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando logs de usuario: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando logs de usuario:', error);
+      setError('Error de conexión al cargar logs de usuario');
+    } finally {
+      setLoadingAdvancedLogs(false);
+    }
+  };
+
+  const resetUserLogsFilters = () => {
+    setLogsFiltersAdvanced({
+      user_email: '',
+      operation: '',
+      log_type: 'user', // Solo usuario
+      success: 'all',
+      days: 7,
+      limit: 50,
+      offset: 0
+    });
+    setShowErrorsOnly(false);
+  };
+
+  const applyUserErrorsFilter = () => {
+    setLogsFiltersAdvanced(prev => ({
+      ...prev,
+      success: 'false',
+      log_type: 'user' // Asegurar que sigue siendo solo usuario
+    }));
+    setShowErrorsOnly(true);
+    loadUserLogs();
+  };
+
+  // 📋 Obtener lista de usuarios para el filtro (reutilizando la variable existente)
+  
+  const loadAvailableUsers = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch('https://server.standatpd.com/api/admin/users?limit=200', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const emails = data.users.map((user: any) => user.email).sort();
+        setAvailableUsers(emails);
+      }
+    } catch (error) {
+      console.error('Error cargando lista de usuarios:', error);
+    }
+  };
+
+
+
   return (
     <Container maxWidth="xl" sx={{ py: 4 }}>
       {/* Header */}
@@ -1898,6 +2234,12 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
           <Tab 
             icon={<AssessmentIcon />} 
             label="Sistema de Logs"
+            iconPosition="start"
+            sx={{ gap: 1 }}
+          />
+          <Tab 
+            icon={<ErrorIcon />} 
+            label="Logs Avanzados"
             iconPosition="start"
             sx={{ gap: 1 }}
           />
@@ -3204,14 +3546,26 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                     <Typography variant="h6">
                       Ejecuciones Recientes ({systemExecutions.length})
                     </Typography>
-                    <Button
-                      variant="contained"
-                      onClick={loadSystemLogsDashboard}
-                      startIcon={<RefreshIcon />}
-                      size="small"
-                    >
-                      Actualizar
-                    </Button>
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <Button
+                        variant="outlined"
+                        onClick={() => setOpenReanalysisDialog(true)}
+                        startIcon={<RefreshIcon />}
+                        size="small"
+                        disabled={reanalyzingTweets}
+                        color="secondary"
+                      >
+                        Re-analizar Tweets
+                      </Button>
+                      <Button
+                        variant="contained"
+                        onClick={loadSystemLogsDashboard}
+                        startIcon={<RefreshIcon />}
+                        size="small"
+                      >
+                        Actualizar
+                      </Button>
+                    </Box>
                   </Box>
                   <TableContainer>
                     <Table>
@@ -3384,6 +3738,470 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
               <Alert severity="info" sx={{ mb: 2 }}>
                 No hay datos del sistema de logs disponibles. El sistema puede estar inicializándose.
               </Alert>
+            )}
+          </Box>
+        </TabPanel>
+
+        {/* Tab 6: Logs Avanzados */}
+        <TabPanel value={activeTab} index={5}>
+          <Box sx={{ p: 3 }}>
+            <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <PersonIcon color="primary" />
+              Logs de Usuario - Análisis Avanzado
+            </Typography>
+
+            <Alert severity="info" sx={{ mb: 2 }}>
+              Esta vista muestra únicamente los logs de operaciones de usuario (usage_logs). 
+              Los logs del sistema están disponibles en la pestaña "Sistema de Logs".
+            </Alert>
+
+            {/* Filtros Avanzados */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Filtros de Búsqueda
+              </Typography>
+              
+              <Grid container spacing={2}>
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Período</InputLabel>
+                    <Select
+                      value={logsFiltersAdvanced.days}
+                      label="Período"
+                      onChange={(e) => setLogsFiltersAdvanced(prev => ({
+                        ...prev,
+                        days: Number(e.target.value)
+                      }))}
+                    >
+                      <MenuItem value={1}>Último día</MenuItem>
+                      <MenuItem value={7}>Última semana</MenuItem>
+                      <MenuItem value={14}>2 semanas</MenuItem>
+                      <MenuItem value={30}>Último mes</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Usuario Específico</InputLabel>
+                    <Select
+                      value={logsFiltersAdvanced.user_email}
+                      label="Usuario Específico"
+                      onChange={(e) => setLogsFiltersAdvanced(prev => ({
+                        ...prev,
+                        user_email: e.target.value
+                      }))}
+                    >
+                      <MenuItem value="">Todos los usuarios</MenuItem>
+                      {availableUsers.map((email) => (
+                        <MenuItem key={email} value={email}>
+                          {email}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Estado</InputLabel>
+                    <Select
+                      value={logsFiltersAdvanced.success}
+                      label="Estado"
+                      onChange={(e) => setLogsFiltersAdvanced(prev => ({
+                        ...prev,
+                        success: e.target.value as 'all' | 'true' | 'false'
+                      }))}
+                    >
+                      <MenuItem value="all">Todos</MenuItem>
+                      <MenuItem value="true">Exitosos</MenuItem>
+                      <MenuItem value="false">Con errores</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Usuario/Email"
+                    value={logsFiltersAdvanced.user_email}
+                    onChange={(e) => setLogsFiltersAdvanced(prev => ({
+                      ...prev,
+                      user_email: e.target.value
+                    }))}
+                    placeholder="Filtrar por email..."
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Operación"
+                    value={logsFiltersAdvanced.operation}
+                    onChange={(e) => setLogsFiltersAdvanced(prev => ({
+                      ...prev,
+                      operation: e.target.value
+                    }))}
+                    placeholder="Ej: /api/processTrends"
+                  />
+                </Grid>
+
+                <Grid item xs={12} md={6}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="contained"
+                      onClick={loadAdvancedLogsStats}
+                      startIcon={<SearchIcon />}
+                      disabled={loadingLogsStats}
+                    >
+                      Buscar
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={resetLogsFilters}
+                      startIcon={<ClearIcon />}
+                    >
+                      Limpiar
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={applyErrorsFilter}
+                      startIcon={<ErrorIcon />}
+                    >
+                      Solo Errores
+                    </Button>
+                  </Box>
+                </Grid>
+              </Grid>
+            </Paper>
+
+            {/* Estadísticas de Logs */}
+            {logsStatsData && (
+              <Grid container spacing={3} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <AssessmentIcon sx={{ mr: 2, color: 'primary.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Total Logs
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.total_logs}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <PersonIcon sx={{ mr: 2, color: 'info.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Usuario
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.user_logs}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <ComputerIcon sx={{ mr: 2, color: 'secondary.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Sistema
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.system_logs}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <CheckIcon sx={{ mr: 2, color: 'success.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Exitosos
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.success_logs}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <ErrorIcon sx={{ mr: 2, color: 'error.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Errores
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.error_logs}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <Card>
+                    <CardContent>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <MoneyIcon sx={{ mr: 2, color: 'warning.main' }} />
+                        <Box>
+                          <Typography color="text.secondary" gutterBottom>
+                            Créditos
+                          </Typography>
+                          <Typography variant="h5" component="div">
+                            {logsStatsData.statistics.overview.total_credits_consumed}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
+            )}
+
+            {/* Top Operaciones */}
+            {logsStatsData && logsStatsData.statistics.top_operations.length > 0 && (
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Top Operaciones ({logsStatsData.statistics.overview.period_days} días)
+                </Typography>
+                <TableContainer>
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Operación</TableCell>
+                        <TableCell align="right">Total</TableCell>
+                        <TableCell align="right">Errores</TableCell>
+                        <TableCell align="right">Créditos</TableCell>
+                        <TableCell align="right">Tasa Éxito</TableCell>
+                        <TableCell align="center">Tipos</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {logsStatsData.statistics.top_operations.slice(0, 10).map((op, index) => (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <Typography variant="body2" fontFamily="monospace">
+                              {op.operation}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">{op.count}</TableCell>
+                          <TableCell align="right">
+                            <Typography 
+                              variant="body2" 
+                              color={op.errors > 0 ? 'error.main' : 'text.secondary'}
+                            >
+                              {op.errors}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">{op.credits}</TableCell>
+                          <TableCell align="right">
+                            <Typography 
+                              variant="body2"
+                              color={parseFloat(op.success_rate) < 80 ? 'error.main' : 'success.main'}
+                            >
+                              {op.success_rate}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                              {op.types.map((type) => (
+                                <Chip 
+                                  key={type} 
+                                  label={type} 
+                                  size="small" 
+                                  variant="outlined"
+                                  color={type === 'user' ? 'info' : 'secondary'}
+                                />
+                              ))}
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            )}
+
+            {/* Tabla de Logs Detallados */}
+            <Paper sx={{ mb: 3 }}>
+              <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h6">
+                  Logs Detallados {enhancedLogs && `(${enhancedLogs.length})`}
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button
+                    variant="outlined"
+                    onClick={loadAdvancedLogs}
+                    startIcon={<RefreshIcon />}
+                    size="small"
+                    disabled={loadingAdvancedLogs}
+                  >
+                    Actualizar
+                  </Button>
+                </Box>
+              </Box>
+
+              {loadingAdvancedLogs ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : enhancedLogs && enhancedLogs.length > 0 ? (
+                <TableContainer sx={{ maxHeight: 600 }}>
+                  <Table stickyHeader size="small">
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Fecha/Hora</TableCell>
+                        <TableCell>Usuario/Tipo</TableCell>
+                        <TableCell>Operación</TableCell>
+                        <TableCell align="center">Estado</TableCell>
+                        <TableCell align="right">Créditos</TableCell>
+                        <TableCell align="right">Tiempo</TableCell>
+                        <TableCell align="center">Detalles</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {enhancedLogs.map((log: EnhancedLog, index: number) => (
+                        <TableRow 
+                          key={index}
+                          sx={{ 
+                            backgroundColor: !log.is_success ? 'error.light' : 'inherit',
+                            opacity: !log.is_success ? 0.9 : 1
+                          }}
+                        >
+                          <TableCell>
+                            <Typography variant="body2">
+                              {log.formatted_time}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Box>
+                              <Typography variant="body2">
+                                {log.is_system ? 'SISTEMA' : log.user_email}
+                              </Typography>
+                              <Chip 
+                                label={log.log_type.toUpperCase()} 
+                                size="small" 
+                                variant="outlined"
+                                color={log.log_type === 'user' ? 'info' : 'secondary'}
+                              />
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <Typography 
+                              variant="body2" 
+                              fontFamily="monospace"
+                              sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                            >
+                              {log.operation}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            {log.is_success ? (
+                              <CheckIcon color="success" />
+                            ) : (
+                              <ErrorIcon color="error" />
+                            )}
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography 
+                              variant="body2"
+                              color={log.credits_consumed > 0 ? 'warning.main' : 'text.secondary'}
+                            >
+                              {log.credits_consumed}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="right">
+                            <Typography variant="body2">
+                              {log.execution_time || '-'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell align="center">
+                            <Button
+                              size="small"
+                              variant="outlined"
+                              onClick={() => {
+                                // Mostrar detalles del log en un dialog
+                                console.log('Ver detalles del log:', log);
+                              }}
+                              startIcon={<VisibilityIcon />}
+                            >
+                              Ver
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              ) : (
+                <Box sx={{ p: 4, textAlign: 'center' }}>
+                  <Typography color="text.secondary">
+                    No se encontraron logs con los filtros aplicados
+                  </Typography>
+                </Box>
+              )}
+            </Paper>
+
+            {/* Resumen de Errores Recientes */}
+            {logsStatsData && logsStatsData.statistics.error_summary.length > 0 && (
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Errores Recientes ({logsStatsData.statistics.error_summary.length})
+                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {logsStatsData.statistics.error_summary.slice(0, 5).map((error, index) => (
+                    <Alert key={index} severity="error" variant="outlined">
+                      <Box>
+                        <Typography variant="body2" fontWeight="bold">
+                          {error.operation} - {error.log_type.toUpperCase()}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(error.timestamp).toLocaleString('es-ES')} | {error.user_role} | {error.source}
+                        </Typography>
+                      </Box>
+                    </Alert>
+                  ))}
+                  {logsStatsData.statistics.error_summary.length > 5 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                      ... y {logsStatsData.statistics.error_summary.length - 5} errores más
+                    </Typography>
+                  )}
+                </Box>
+              </Paper>
             )}
           </Box>
         </TabPanel>
@@ -4000,6 +4818,108 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
           }
         </Paper>
       </Grid>
+
+      {/* Diálogo para Re-análisis de Tweets */}
+      <Dialog 
+        open={openReanalysisDialog} 
+        onClose={() => setOpenReanalysisDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <RefreshIcon color="primary" />
+          Re-análisis de Tweets
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Esta función re-analizará los tweets más recientes para actualizar los datos de sentimiento, 
+            categorías e intención comunicativa. El proceso se ejecuta en el VPS y puede tomar algunos minutos.
+          </Typography>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Número de Tweets a Procesar"
+                type="number"
+                value={reanalysisOptions.limit}
+                onChange={(e) => setReanalysisOptions(prev => ({ 
+                  ...prev, 
+                  limit: Math.max(1, Math.min(100, parseInt(e.target.value) || 20))
+                }))}
+                inputProps={{ min: 1, max: 100 }}
+                helperText="Número de tweets más recientes a re-analizar (máximo 100)"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                                 control={
+                   <Checkbox
+                     checked={reanalysisOptions.force_all}
+                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReanalysisOptions(prev => ({ 
+                       ...prev, 
+                       force_all: e.target.checked 
+                     }))}
+                   />
+                 }
+                label="Forzar re-análisis de todos"
+                sx={{ mb: 1 }}
+              />
+              <Typography variant="caption" color="text.secondary" display="block">
+                Si está marcado, re-analizará incluso tweets que ya tienen análisis completo
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                                 control={
+                   <Checkbox
+                     checked={reanalysisOptions.only_failed}
+                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => setReanalysisOptions(prev => ({ 
+                       ...prev, 
+                       only_failed: e.target.checked 
+                     }))}
+                   />
+                 }
+                label="Solo tweets con errores"
+                sx={{ mb: 1 }}
+              />
+              <Typography variant="caption" color="text.secondary" display="block">
+                Si está marcado, solo procesará tweets que fallaron en análisis anteriores
+              </Typography>
+            </Grid>
+          </Grid>
+
+          {reanalysisResult && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              <Typography variant="body2">
+                <strong>Último resultado:</strong><br/>
+                Tweets procesados: {reanalysisResult.results?.tweets_processed || 0}<br/>
+                Tweets actualizados: {reanalysisResult.results?.tweets_updated || 0}<br/>
+                Tiempo de ejecución: {reanalysisResult.results?.execution_time || 'No disponible'}
+              </Typography>
+            </Alert>
+          )}
+        </DialogContent>
+        
+        <DialogActions>
+          <Button 
+            onClick={() => setOpenReanalysisDialog(false)}
+            disabled={reanalyzingTweets}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            onClick={reanalyzeTweets} 
+            variant="contained"
+            disabled={reanalyzingTweets}
+            startIcon={reanalyzingTweets ? <CircularProgress size={16} /> : <RefreshIcon />}
+          >
+            {reanalyzingTweets ? 'Procesando...' : 'Iniciar Re-análisis'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Container>
   );

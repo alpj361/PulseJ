@@ -6,7 +6,8 @@ import {
   ActivitySquare,
   Search,
   Database,
-  Bookmark
+  Bookmark,
+  Layers
 } from 'lucide-react';
 import { LanguageContext } from '../../context/LanguageContext';
 import { useAdmin } from '../../hooks/useAdmin';
@@ -103,6 +104,11 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       icon: <BarChart3 size={20} />,
       label: 'Sondeos',
       path: '/sondeos'
+    },
+    {
+      icon: <Layers size={20} />,
+      label: language === 'es' ? 'Proyectos' : 'Projects',
+      path: '/projects'
     },
     {
       icon: <Search size={20} />,
