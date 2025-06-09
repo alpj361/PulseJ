@@ -20,6 +20,7 @@ import Codex from './pages/Codex';
 import News from './pages/News';
 import Sondeos from './pages/Sondeos';
 import Projects from './pages/Projects';
+import { DecisionTimelineDemo } from './pages/DecisionTimelineDemo';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -185,7 +186,15 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
+          <Route path="/timeline-demo" element={
+            <VerifiedRoute>
+              <Layout>
+                <DecisionTimelineDemo />
+              </Layout>
+            </VerifiedRoute>
+          } />
           
+
           {/* Redirección para rutas no encontradas */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

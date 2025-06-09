@@ -1,41 +1,32 @@
 import React, { useState } from 'react';
 import { ProjectDashboard } from '../components/ui/ProjectDashboard';
-import { CreateProjectModal } from '../components/ui/CreateProjectModal';
 import { useProjects, useProjectDecisions } from '../hooks';
 import { CreateProjectData, CreateProjectDecisionData } from '../types/projects';
 
-export default function Projects() {
+export function ProjectsPage() {
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  
-  const { createProject, deleteProject } = useProjects();
+  const { createProject } = useProjects();
   const { createDecision } = useProjectDecisions(selectedProjectId || '');
 
-  const handleCreateProject = async (projectData: CreateProjectData) => {
+  const handleCreateProject = async () => {
     try {
-      setIsCreating(true);
-      console.log('🚀 Creating project with data:', projectData);
-      
-      const project = await createProject(projectData);
-      console.log('✅ Project created successfully:', project);
+      const newProjectData: CreateProjectData = {
+        title: 'New Investigation Project',
+        description: 'A new project for strategic investigation and decision tracking',
+        category: 'investigation',
+        priority: 'medium',
+        status: 'active',
+        tags: ['trending', 'investigation']
+      };
+
+      const project = await createProject(newProjectData);
+      console.log('✅ Project created:', project);
       
       // Optionally select the new project
       setSelectedProjectId(project.id);
-      
-      // Show success message
-      alert(`✅ Project "${project.title}" created successfully!`);
     } catch (error) {
       console.error('❌ Error creating project:', error);
-      alert(`❌ Error creating project: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      throw error; // Re-throw to prevent modal from closing
-    } finally {
-      setIsCreating(false);
     }
-  };
-
-  const handleOpenCreateModal = () => {
-    setIsCreateModalOpen(true);
   };
 
   const handleCreateDecision = async (projectId: string) => {
@@ -61,7 +52,7 @@ export default function Projects() {
             description: 'Implementation Success Rate'
           }
         }
-  };
+      };
 
       const decision = await createDecision(newDecisionData);
       console.log('✅ Decision created:', decision);
@@ -79,36 +70,13 @@ export default function Projects() {
     console.log('⚖️ Selected decision:', decisionId);
   };
 
-  const handleDeleteProject = async (projectId: string) => {
-    try {
-      await deleteProject(projectId);
-      console.log('✅ Project deleted successfully');
-      
-      // If the deleted project was selected, clear selection
-      if (selectedProjectId === projectId) {
-        setSelectedProjectId(null);
-      }
-    } catch (error) {
-      console.error('❌ Error deleting project:', error);
-      alert(`❌ Error deleting project: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
   return (
     <div className="min-h-screen">
       <ProjectDashboard
-        onCreateProject={handleOpenCreateModal}
+        onCreateProject={handleCreateProject}
         onCreateDecision={handleCreateDecision}
         onSelectProject={handleSelectProject}
         onSelectDecision={handleSelectDecision}
-        onDeleteProject={handleDeleteProject}
-      />
-      
-      <CreateProjectModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={handleCreateProject}
-        loading={isCreating}
       />
     </div>
   );

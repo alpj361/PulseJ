@@ -64,3 +64,6 @@ export interface TrendingTweet {
   created_at: string;
   updated_at: string;
 }
+
+// Re-export project types
+export * from './projects';
