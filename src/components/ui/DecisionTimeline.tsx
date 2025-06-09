@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { ProjectDecision, DecisionTimelineItem } from '../../types/projects';
-import { useDecisionTimeline, useParentChildDecisions } from '../../hooks/useProjectDecisions';
+import { useDecisionTimeline, useParentChildDecisions, useProjectDecisions } from '../../hooks/useProjectDecisions';
+import { QuickDecisionCreator } from './QuickDecisionCreator';
 
 interface DecisionTimelineProps {
   projectId: string;
@@ -13,8 +14,11 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
 }) => {
   const { timelineData, loading, error, refreshTimeline } = useDecisionTimeline(projectId);
   const { createChildDecision } = useParentChildDecisions(projectId);
+  const { createDecision, refreshDecisions } = useProjectDecisions(projectId);
   
   const [expandedDecisions, setExpandedDecisions] = useState<Set<string>>(new Set());
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [selectedParentDecisionId, setSelectedParentDecisionId] = useState<string | null>(null);
 
   // Organizar decisiones en estructura de árbol
   const organizeDecisions = useCallback((decisions: DecisionTimelineItem[]) => {
@@ -44,6 +48,23 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
       return newSet;
     });
   }, []);
+
+  // Handlers para modal de decisiones
+  const handleOpenCreateModal = useCallback((parentDecisionId?: string) => {
+    setSelectedParentDecisionId(parentDecisionId || null);
+    setIsCreateModalOpen(true);
+  }, []);
+
+  const handleCloseCreateModal = useCallback(() => {
+    setIsCreateModalOpen(false);
+    setSelectedParentDecisionId(null);
+  }, []);
+
+  const handleDecisionCreated = useCallback(async () => {
+    handleCloseCreateModal();
+    await refreshTimeline();
+    await refreshDecisions();
+  }, [refreshTimeline, refreshDecisions, handleCloseCreateModal]);
 
   const renderDecisionCard = useCallback((decision: DecisionTimelineItem) => {
     return (
@@ -98,7 +119,7 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
           <span className="px-2 py-1 rounded-full text-xs bg-orange-50 text-orange-600 border border-orange-200">
             {decision.urgency}
           </span>
-          {decision.tags.slice(0, 2).map((tag, index) => (
+          {decision.tags?.slice(0, 2).map((tag, index) => (
             <span key={index} className="px-2 py-1 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
               {tag}
             </span>
@@ -106,13 +127,13 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
         </div>
 
         {/* Quick stats */}
-        {(decision.risks_identified?.length > 0 || Object.keys(decision.success_metrics).length > 0) && (
+        {((decision.risks_identified?.length || 0) > 0 || Object.keys(decision.success_metrics || {}).length > 0) && (
           <div className="mb-3 p-2 bg-gray-50 rounded border text-xs text-gray-600">
-            {decision.risks_identified?.length > 0 && (
-              <div>⚠️ {decision.risks_identified.length} riesgo{decision.risks_identified.length !== 1 ? 's' : ''}</div>
+            {(decision.risks_identified?.length || 0) > 0 && (
+              <div>⚠️ {decision.risks_identified?.length || 0} riesgo{(decision.risks_identified?.length || 0) !== 1 ? 's' : ''}</div>
             )}
-            {Object.keys(decision.success_metrics).length > 0 && (
-              <div>📊 {Object.keys(decision.success_metrics).length} métrica{Object.keys(decision.success_metrics).length !== 1 ? 's' : ''}</div>
+            {Object.keys(decision.success_metrics || {}).length > 0 && (
+              <div>📊 {Object.keys(decision.success_metrics || {}).length} métrica{Object.keys(decision.success_metrics || {}).length !== 1 ? 's' : ''}</div>
             )}
           </div>
         )}
@@ -228,6 +249,7 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
         </div>
         
         <button
+          onClick={() => handleOpenCreateModal()}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors"
         >
           + Nueva Decisión
@@ -238,14 +260,9 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
       {timelineData.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <div className="text-gray-400 text-lg mb-2">No hay decisiones aún</div>
-          <p className="text-gray-500 mb-4">
-            Comienza creando la primera decisión de este proyecto
+          <p className="text-gray-500">
+            Usa el botón "Nueva Decisión" para crear la primera decisión de este proyecto
           </p>
-          <button
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg inline-flex items-center gap-2 transition-colors"
-          >
-            + Crear Primera Decisión
-          </button>
         </div>
       ) : (
         <div className="space-y-0">
@@ -257,6 +274,19 @@ export const DecisionTimeline: React.FC<DecisionTimelineProps> = ({
           })}
         </div>
       )}
+
+      {/* Modal de Creación de Decisiones */}
+      <QuickDecisionCreator
+        isOpen={isCreateModalOpen}
+        onClose={handleCloseCreateModal}
+        projectId={projectId}
+        parentDecisionId={selectedParentDecisionId}
+        onSubmit={async (decisionData) => {
+          await createDecision(decisionData);
+        }}
+        onSuccess={handleDecisionCreated}
+        loading={loading}
+      />
     </div>
   );
 }; 

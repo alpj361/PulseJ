@@ -4,7 +4,6 @@ export const GOOGLE_DEVELOPER_KEY = 'AIzaSyA0oumyL3f8EaXraPvdYOVE2IYLbcO6lEo';
 
 // Scopes para Google Drive
 export const GOOGLE_DRIVE_SCOPES = [
-  'https://www.googleapis.com/auth/drive.readonly',
   'https://www.googleapis.com/auth/drive.file',
   'openid',
   'email',

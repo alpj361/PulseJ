@@ -29,4 +29,4 @@ export const getCallbackUrl = () => {
 export const GOOGLE_SCOPES = 'openid email profile';
 
 // Scopes con Drive (para usar en login/register)
-export const GOOGLE_SCOPES_WITH_DRIVE = 'openid email profile https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly'; 
+export const GOOGLE_SCOPES_WITH_DRIVE = 'openid email profile https://www.googleapis.com/auth/drive.file'; 

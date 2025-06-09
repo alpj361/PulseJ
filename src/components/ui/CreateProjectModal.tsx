@@ -158,8 +158,6 @@ export function CreateProjectModal({
                     />
                   </div>
 
-
-
                   {/* Category, Priority, Status */}
                   <div className="grid grid-cols-3 gap-4">
                     <div>
@@ -175,12 +173,12 @@ export function CreateProjectModal({
                           bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                         disabled={loading}
                       >
-                        <option value="research">Research</option>
-                        <option value="development">Development</option>
-                        <option value="analysis">Analysis</option>
-                        <option value="strategy">Strategy</option>
+                        <option value="investigacion">Investigación</option>
+                        <option value="campana">Campaña</option>
+                        <option value="fiscalizacion">Fiscalización</option>
+                        <option value="auditoria">Auditoría</option>
+                        <option value="monitoreo">Monitoreo</option>
                         <option value="marketing">Marketing</option>
-                        <option value="other">Other</option>
                       </select>
                     </div>
 

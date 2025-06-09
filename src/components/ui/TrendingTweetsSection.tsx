@@ -112,7 +112,8 @@ const TrendingTweetsSection: React.FC = () => {
     setLoading(true);
     try {
       const categoria = selectedCategory === 'all' ? undefined : selectedCategory;
-      const tweetsData = await getTrendingTweets(24, categoria);
+      // Obtener 150 tweets para las métricas mejoradas
+      const tweetsData = await getTrendingTweets(150, categoria);
       
       // Ordenar tweets según el criterio seleccionado
       const sortedTweets = [...tweetsData].sort((a, b) => {
@@ -503,6 +504,10 @@ const TrendingTweetsSection: React.FC = () => {
               <Paper
                 sx={{
                   p: 2,
+                  minHeight: 180,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
                   background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.1)}, ${alpha(theme.palette.primary.light, 0.05)})`,
                   border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
                   borderRadius: 2,
@@ -519,87 +524,101 @@ const TrendingTweetsSection: React.FC = () => {
                   {Math.round(avgEngagement)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {totalLikes + totalRetweets + totalReplies} interacciones totales
+                  {(totalLikes + totalRetweets + totalReplies).toLocaleString()} interacciones totales
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                  {tweets.length} tweets analizados
                 </Typography>
               </Paper>
             </Grid>
 
-                         {/* Sentiment Card - Solo mostrar si hay datos de sentimiento */}
-             {hasSentimentData && dominantSentiment && (
-               <Grid item xs={12} sm={6} md={4}>
-                 <Paper
-                   sx={{
-                     p: 2,
-                     background: dominantSentiment === 'positivo' 
-                       ? `linear-gradient(135deg, ${alpha('#4caf50', 0.1)}, ${alpha('#4caf50', 0.05)})`
-                       : dominantSentiment === 'negativo'
-                       ? `linear-gradient(135deg, ${alpha('#f44336', 0.1)}, ${alpha('#f44336', 0.05)})`
-                       : `linear-gradient(135deg, ${alpha('#9e9e9e', 0.1)}, ${alpha('#9e9e9e', 0.05)})`,
-                     border: `1px solid ${dominantSentiment === 'positivo' 
-                       ? alpha('#4caf50', 0.2)
-                       : dominantSentiment === 'negativo'
-                       ? alpha('#f44336', 0.2)
-                       : alpha('#9e9e9e', 0.2)}`,
-                     borderRadius: 2,
-                     textAlign: 'center'
-                   }}
-                 >
-                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                     <Box sx={{ fontSize: '1.2rem' }}>
-                       {dominantSentiment === 'positivo' ? '😊' : dominantSentiment === 'negativo' ? '😔' : '😐'}
-                     </Box>
-                     <Typography variant="subtitle2" fontWeight="bold" 
-                       color={dominantSentiment === 'positivo' ? '#4caf50' : dominantSentiment === 'negativo' ? '#f44336' : '#9e9e9e'}
-                     >
-                       Sentimiento Dominante
-                     </Typography>
-                   </Box>
-                   <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ textTransform: 'capitalize' }}>
-                     {dominantSentiment}
-                   </Typography>
-                   <Typography variant="caption" color="text.secondary">
-                     +{positiveCount} | ={neutralCount} | -{negativeCount} ({tweetsWithSentiment.length} tweets)
-                   </Typography>
-                 </Paper>
-               </Grid>
-             )}
+            {/* Sentiment Card - Solo mostrar si hay datos de sentimiento */}
+            {hasSentimentData && dominantSentiment && (
+              <Grid item xs={12} sm={6} md={4}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    minHeight: 180,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    background: dominantSentiment === 'positivo' 
+                      ? `linear-gradient(135deg, ${alpha('#4caf50', 0.1)}, ${alpha('#4caf50', 0.05)})`
+                      : dominantSentiment === 'negativo'
+                      ? `linear-gradient(135deg, ${alpha('#f44336', 0.1)}, ${alpha('#f44336', 0.05)})`
+                      : `linear-gradient(135deg, ${alpha('#9e9e9e', 0.1)}, ${alpha('#9e9e9e', 0.05)})`,
+                    border: `1px solid ${dominantSentiment === 'positivo' 
+                      ? alpha('#4caf50', 0.2)
+                      : dominantSentiment === 'negativo'
+                      ? alpha('#f44336', 0.2)
+                      : alpha('#9e9e9e', 0.2)}`,
+                    borderRadius: 2,
+                    textAlign: 'center'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                    <Box sx={{ fontSize: '1.2rem' }}>
+                      {dominantSentiment === 'positivo' ? '😊' : dominantSentiment === 'negativo' ? '😔' : '😐'}
+                    </Box>
+                    <Typography variant="subtitle2" fontWeight="bold" 
+                      color={dominantSentiment === 'positivo' ? '#4caf50' : dominantSentiment === 'negativo' ? '#f44336' : '#9e9e9e'}
+                    >
+                      Sentimiento Dominante
+                    </Typography>
+                  </Box>
+                  <Typography variant="h5" fontWeight="bold" color="text.primary" sx={{ textTransform: 'capitalize' }}>
+                    {dominantSentiment}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    +{positiveCount} | ={neutralCount} | -{negativeCount} ({tweetsWithSentiment.length} tweets)
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
 
-             {/* Intention Card - Solo mostrar si hay datos de intención */}
-             {hasIntentionData && topIntention && (
-               <Grid item xs={12} sm={hasIntentionData && hasSentimentData ? 12 : 6} md={4}>
-                 <Paper
-                   sx={{
-                     p: 2,
-                     background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.1)}, ${alpha(theme.palette.secondary.light, 0.05)})`,
-                     border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
-                     borderRadius: 2,
-                     textAlign: 'center'
-                   }}
-                 >
-                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
-                     <Box sx={{ fontSize: '1.2rem' }}>
-                       {topIntention[0] === 'informativo' ? '📰' : 
-                        topIntention[0] === 'opinativo' ? '💭' : 
-                        topIntention[0] === 'humoristico' ? '😄' : 
-                        topIntention[0] === 'critico' ? '❗' : 
-                        topIntention[0] === 'alarmista' ? '⚠️' : 
-                        topIntention[0] === 'promocional' ? '📢' : 
-                        topIntention[0] === 'conversacional' ? '💬' : 
-                        topIntention[0] === 'protesta' ? '✊' : '💭'}
-                     </Box>
-                     <Typography variant="subtitle2" fontWeight="bold" color="secondary.main">
-                       Intención Principal
-                     </Typography>
-                   </Box>
-                   <Typography variant="h6" fontWeight="bold" color="text.primary" sx={{ textTransform: 'capitalize' }}>
-                     {topIntention[0]}
-                   </Typography>
-                   <Typography variant="caption" color="text.secondary">
-                     {topIntention[1]} tweets ({Math.round((topIntention[1] / tweetsWithIntention.length) * 100)}%)
-                   </Typography>
-                 </Paper>
-               </Grid>
-             )}
+            {/* Intention Card - Solo mostrar si hay datos de intención */}
+            {hasIntentionData && topIntention && (
+              <Grid item xs={12} sm={hasIntentionData && hasSentimentData ? 12 : 6} md={4}>
+                <Paper
+                  sx={{
+                    p: 2,
+                    minHeight: 180,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    background: `linear-gradient(135deg, ${alpha(theme.palette.secondary.main, 0.1)}, ${alpha(theme.palette.secondary.light, 0.05)})`,
+                    border: `1px solid ${alpha(theme.palette.secondary.main, 0.2)}`,
+                    borderRadius: 2,
+                    textAlign: 'center'
+                  }}
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1, mb: 1 }}>
+                    <Box sx={{ fontSize: '1.2rem' }}>
+                      {topIntention[0] === 'informativo' ? '📰' : 
+                       topIntention[0] === 'opinativo' ? '💭' : 
+                       topIntention[0] === 'humoristico' ? '😄' : 
+                       topIntention[0] === 'critico' ? '❗' : 
+                       topIntention[0] === 'alarmista' ? '⚠️' : 
+                       topIntention[0] === 'promocional' ? '📢' : 
+                       topIntention[0] === 'conversacional' ? '💬' : 
+                       topIntention[0] === 'protesta' ? '✊' : '💭'}
+                    </Box>
+                    <Typography variant="subtitle2" fontWeight="bold" color="secondary.main">
+                      Intención Principal
+                    </Typography>
+                  </Box>
+                  <Typography variant="h6" fontWeight="bold" color="text.primary" sx={{ textTransform: 'capitalize' }}>
+                    {topIntention[0]}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {topIntention[1]} tweets ({Math.round((topIntention[1] / tweetsWithIntention.length) * 100)}%)
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
+                    {tweetsWithIntention.length} tweets con intención
+                  </Typography>
+                </Paper>
+              </Grid>
+            )}
           </Grid>
         );
       })()}
