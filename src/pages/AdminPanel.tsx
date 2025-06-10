@@ -580,8 +580,12 @@ export default function AdminPanel() {
     } else if (activeTab === 4) { // Sistema de Logs
       loadSystemLogsDashboard();
     } else if (activeTab === 5) { // Logs Avanzados
-      loadAdvancedLogsStats(); // Cargar estadísticas avanzadas
-      loadAdvancedLogs(); // Cargar logs detallados
+      // Cargar con un pequeño retraso para asegurar que todo esté inicializado
+      setTimeout(() => {
+        loadAvailableUsers(); // Cargar lista de usuarios disponibles
+        loadAdvancedLogsStats(); // Cargar estadísticas avanzadas
+        loadUserLogs(); // Cargar logs detallados
+      }, 100);
     }
   }, [activeTab]);
 
@@ -1747,7 +1751,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
       params.append('days', logsFilters.days.toString());
       params.append('limit', '50');
 
-      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params}`, {
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -2052,7 +2056,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
       params.append('days', logsFiltersAdvanced.days.toString());
       params.append('log_type', 'user'); // Solo logs de usuario
 
-      const response = await fetch(`https://server.standatpd.com/api/admin/logs/stats?${params}`, {
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs/stats?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -2078,6 +2082,11 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
     const token = getAuthToken();
     if (!token) return;
 
+    // Cargar usuarios disponibles si no se han cargado
+    if (availableUsers.length === 0) {
+      loadAvailableUsers();
+    }
+
     setLoadingAdvancedLogs(true);
     try {
       const params = new URLSearchParams();
@@ -2089,7 +2098,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
       params.append('limit', logsFiltersAdvanced.limit.toString());
       params.append('offset', logsFiltersAdvanced.offset.toString());
 
-      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params}`, {
+      const response = await fetch(`https://server.standatpd.com/api/admin/logs?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -2098,8 +2107,15 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Respuesta del backend:', {
+          totalLogs: data.logs?.length || 0,
+          sources: data.sources,
+          filters: data.filters_applied,
+          statistics: data.statistics
+        });
         // Filtrar solo logs de usuario por seguridad adicional
         const userOnlyLogs = (data.logs || []).filter((log: EnhancedLog) => log.log_type === 'user');
+        console.log(`📋 Logs filtrados: ${userOnlyLogs.length} de ${data.logs?.length || 0}`);
         setEnhancedLogs(userOnlyLogs);
       } else {
         const errorData = await response.json();
@@ -3755,6 +3771,39 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
               Los logs del sistema están disponibles en la pestaña "Sistema de Logs".
             </Alert>
 
+            {/* Botón de prueba de conexión */}
+            <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={async () => {
+                  const token = getAuthToken();
+                  if (!token) return;
+                  
+                  try {
+                    const response = await fetch('https://server.standatpd.com/api/admin/test-logs', {
+                      headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+                    const data = await response.json();
+                    console.log('🧪 Test de logs:', data);
+                    if (data.success) {
+                      setSuccess(`✅ Conexión exitosa. Total de logs: ${data.total_count}`);
+                    } else {
+                      setError(`❌ Error: ${data.error}`);
+                    }
+                  } catch (error) {
+                    console.error('Error en test:', error);
+                    setError('Error al probar conexión');
+                  }
+                }}
+              >
+                🧪 Probar Conexión
+              </Button>
+            </Box>
+
             {/* Filtros Avanzados */}
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -3852,15 +3901,25 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                   <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button
                       variant="contained"
-                      onClick={loadAdvancedLogsStats}
+                      onClick={() => {
+                        loadAdvancedLogsStats();
+                        loadUserLogs();
+                      }}
                       startIcon={<SearchIcon />}
-                      disabled={loadingLogsStats}
+                      disabled={loadingLogsStats || loadingAdvancedLogs}
                     >
                       Buscar
                     </Button>
                     <Button
                       variant="outlined"
-                      onClick={resetLogsFilters}
+                      onClick={() => {
+                        resetLogsFilters();
+                        // Recargar logs después de limpiar filtros
+                        setTimeout(() => {
+                          loadAdvancedLogsStats();
+                          loadUserLogs();
+                        }, 100);
+                      }}
                       startIcon={<ClearIcon />}
                     >
                       Limpiar

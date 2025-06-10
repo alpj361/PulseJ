@@ -8,7 +8,7 @@ import Sources from './pages/Sources';
 import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Settings from './pages/Settings';
+
 import AdminPanel from './pages/AdminPanel';
 import AuthCallback from './pages/AuthCallback';
 import AuthVerification from './pages/AuthVerification';
@@ -21,6 +21,8 @@ import News from './pages/News';
 import Sondeos from './pages/Sondeos';
 import Projects from './pages/Projects';
 import { DecisionTimelineDemo } from './pages/DecisionTimelineDemo';
+import SidebarDemoPage from './pages/SidebarDemo';
+import DesignSettingsDemo from './pages/DesignSettingsDemo';
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -146,9 +148,7 @@ function App() {
           } />
           <Route path="/settings" element={
             <VerifiedRoute>
-              <Layout>
-                <Settings />
-              </Layout>
+              <DesignSettingsDemo />
             </VerifiedRoute>
           } />
           <Route path="/admin" element={
@@ -191,6 +191,16 @@ function App() {
               <Layout>
                 <DecisionTimelineDemo />
               </Layout>
+            </VerifiedRoute>
+          } />
+          <Route path="/sidebar-demo" element={
+            <VerifiedRoute>
+              <SidebarDemoPage />
+            </VerifiedRoute>
+          } />
+          <Route path="/design-settings-demo" element={
+            <VerifiedRoute>
+              <DesignSettingsDemo />
             </VerifiedRoute>
           } />
           

@@ -1,20 +1,13 @@
 import React from 'react';
 import { Moon, Sun } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
   Typography,
   IconButton,
   Box,
-  Button,
-  Tooltip,
-  Link
+  Tooltip
 } from '@mui/material';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { supabase } from '../../services/supabase';
 
 interface HeaderProps {
   toggleDarkMode: () => void;
@@ -22,37 +15,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
-  const { signOut, user } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = async () => {
-    try {
-      console.log('Iniciando logout...');
-      
-      // Limpiar inmediatamente el estado local
-      localStorage.clear();
-      sessionStorage.clear();
-      
-      // Limpiar cookies
-      document.cookie.split(';').forEach(c => {
-        document.cookie = c
-          .replace(/^ +/, '')
-          .replace(/=.*/, `=;expires=${new Date().toUTCString()};path=/`);
-      });
-      
-      // Llamar a signOut de Supabase sin esperar
-      supabase.auth.signOut().catch((error: any) => {
-        console.log('Error en signOut (ignorado):', error);
-      });
-      
-    } catch (error) {
-      console.error("Error during logout:", error);
-    } finally {
-      // Siempre redirigir con recarga completa
-      console.log('Redirigiendo a login...');
-      window.location.href = '/login';
-    }
-  };
 
   return (
     <AppBar 
@@ -110,59 +72,10 @@ const Header: React.FC<HeaderProps> = ({ toggleDarkMode, darkMode }) => {
         </Box>
         
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          {user && (
-            <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-              <Typography 
-                variant="body2" 
-                color="text.secondary" 
-                sx={{ 
-                  mr: 2, 
-                  display: { xs: 'none', sm: 'block' },
-                  fontFamily: 'Helvetica Neue, Helvetica, Arial, sans-serif',
-                }}
-              >
-                {user.email}
-              </Typography>
-              
-              <Tooltip title="Configuración">
-                <IconButton 
-                  component={RouterLink} 
-                  to="/settings"
-                  sx={{ 
-                    mr: 1,
-                    color: 'primary.main',
-                    '&:hover': {
-                      bgcolor: 'primary.light',
-                      opacity: 0.1
-                    }
-                  }}
-                >
-                  <SettingsIcon />
-                </IconButton>
-              </Tooltip>
-              
-              <Tooltip title="Cerrar sesión">
-                <IconButton 
-                  onClick={handleLogout} 
-                  sx={{
-                    color: 'error.main',
-                    '&:hover': {
-                      bgcolor: 'error.light',
-                      opacity: 0.1
-                    }
-                  }}
-                >
-                  <LogoutIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          )}
-          
           <Tooltip title={darkMode ? "Modo claro" : "Modo oscuro"}>
             <IconButton 
               onClick={toggleDarkMode} 
               color="inherit"
-              sx={{ ml: 1 }}
             >
               {darkMode ? (
                 <Sun size={20} color="#fbbf24" />

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
 import { supabase } from '../services/supabase';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
   Paper,
@@ -13,10 +14,12 @@ import {
   InputAdornment,
   CircularProgress,
   Chip,
-  Divider
+  Divider,
+  IconButton
 } from '@mui/material';
 import PhoneIcon from '@mui/icons-material/Phone';
 import SaveIcon from '@mui/icons-material/Save';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 
 const translations = {
   es: {
@@ -42,7 +45,8 @@ const translations = {
     confirmPassword: 'Confirmar nueva contraseña',
     passwordHelper: 'La nueva contraseña debe tener al menos 6 caracteres',
     deleteAccount: 'Eliminar cuenta permanentemente',
-    deleteWarning: 'Esta acción eliminará permanentemente tu cuenta y todos tus datos. No se puede deshacer.'
+    deleteWarning: 'Esta acción eliminará permanentemente tu cuenta y todos tus datos. No se puede deshacer.',
+    backToDashboard: 'Regresar al Dashboard'
   },
   en: {
     title: 'User Settings',
@@ -67,13 +71,15 @@ const translations = {
     confirmPassword: 'Confirm new password',
     passwordHelper: 'New password must be at least 6 characters',
     deleteAccount: 'Delete account permanently',
-    deleteWarning: 'This action will permanently delete your account and all your data. This cannot be undone.'
+    deleteWarning: 'This action will permanently delete your account and all your data. This cannot be undone.',
+    backToDashboard: 'Back to Dashboard'
   }
 };
 
 const Settings: React.FC = () => {
   const { user } = useAuth();
   const { language } = useContext(LanguageContext);
+  const navigate = useNavigate();
   const t = translations[language];
   
   const [phone, setPhone] = useState('');
@@ -313,6 +319,25 @@ const Settings: React.FC = () => {
           background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
         }}
       >
+        {/* Botón de regresar al Dashboard */}
+        <Box sx={{ mb: 3 }}>
+          <Button
+            startIcon={<ArrowBackIcon />}
+            onClick={() => navigate('/')}
+            variant="outlined"
+            sx={{
+              color: 'primary.main',
+              borderColor: 'primary.main',
+              '&:hover': {
+                backgroundColor: 'primary.main',
+                color: 'white',
+              },
+            }}
+          >
+            {t.backToDashboard}
+          </Button>
+        </Box>
+
         <Box sx={{ textAlign: 'center', mb: 4 }}>
           <Typography 
             variant="h4" 
