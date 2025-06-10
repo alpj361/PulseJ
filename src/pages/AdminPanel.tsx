@@ -2065,7 +2065,87 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
 
       if (response.ok) {
         const data = await response.json();
-        setLogsStatsData(data);
+        
+        // Asegurar que estadísticas tengan valores por defecto
+        const defaultStats = {
+          success: true,
+          statistics: {
+            overview: {
+              total_logs: 0,
+              user_logs: 0,
+              system_logs: 0,
+              success_logs: 0,
+              error_logs: 0,
+              total_credits_consumed: 0,
+              period_days: parseInt(logsFiltersAdvanced.days.toString())
+            },
+            by_type: {
+              user: {
+                total: 0,
+                success: 0,
+                errors: 0,
+                credits_consumed: 0,
+                operations: {}
+              },
+              system: {
+                total: 0,
+                success: 0,
+                errors: 0,
+                credits_consumed: 0,
+                operations: {}
+              }
+            },
+            top_operations: [],
+            daily_breakdown: [],
+            error_summary: [],
+            sources: {
+              usage_logs: 0,
+              system_execution_logs: 0
+            }
+          },
+          metadata: {
+            period: `${logsFiltersAdvanced.days} días`,
+            generated_at: new Date().toISOString(),
+            generated_by: 'sistema',
+            timezone: 'America/Guatemala',
+            tables_consulted: ['usage_logs']
+          }
+        };
+        
+        // Combinar datos recibidos con valores por defecto
+        const safeData = {
+          ...defaultStats,
+          ...data,
+          statistics: {
+            ...defaultStats.statistics,
+            ...(data.statistics || {}),
+            overview: {
+              ...defaultStats.statistics.overview,
+              ...(data.statistics?.overview || {})
+            },
+            by_type: {
+              ...defaultStats.statistics.by_type,
+              ...(data.statistics?.by_type || {}),
+              user: {
+                ...defaultStats.statistics.by_type.user,
+                ...(data.statistics?.by_type?.user || {})
+              },
+              system: {
+                ...defaultStats.statistics.by_type.system,
+                ...(data.statistics?.by_type?.system || {})
+              }
+            },
+            top_operations: data.statistics?.top_operations || [],
+            daily_breakdown: data.statistics?.daily_breakdown || [],
+            error_summary: data.statistics?.error_summary || [],
+            sources: {
+              ...defaultStats.statistics.sources,
+              ...(data.statistics?.sources || {})
+            }
+          }
+        };
+        
+        setLogsStatsData(safeData);
       } else {
         const errorData = await response.json();
         setError(`Error cargando estadísticas de logs de usuario: ${errorData.message || response.statusText}`);
@@ -2109,14 +2189,36 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
         const data = await response.json();
         console.log('📊 Respuesta del backend:', {
           totalLogs: data.logs?.length || 0,
-          sources: data.sources,
-          filters: data.filters_applied,
-          statistics: data.statistics
+          sources: data.sources || {},
+          filters: data.filters_applied || {},
+          statistics: data.statistics || {}
         });
+        
+        // Asegurar que logs sea siempre un array, incluso si viene undefined
+        const safeLogsArray = Array.isArray(data.logs) ? data.logs : [];
+        
         // Filtrar solo logs de usuario por seguridad adicional
-        const userOnlyLogs = (data.logs || []).filter((log: EnhancedLog) => log.log_type === 'user');
-        console.log(`📋 Logs filtrados: ${userOnlyLogs.length} de ${data.logs?.length || 0}`);
-        setEnhancedLogs(userOnlyLogs);
+        const userOnlyLogs = safeLogsArray.filter((log: EnhancedLog) => log && log.log_type === 'user');
+        console.log(`📋 Logs filtrados: ${userOnlyLogs.length} de ${safeLogsArray.length}`);
+        
+        // Asegurar que cada log tenga los campos esperados
+        const sanitizedLogs = userOnlyLogs.map((log: EnhancedLog) => ({
+          ...log,
+          user_email: log.user_email || 'desconocido',
+          user_role: log.user_role || 'user',
+          operation: log.operation || 'desconocida',
+          log_type: log.log_type || 'user',
+          credits_consumed: log.credits_consumed || 0,
+          ip_address: log.ip_address || '-',
+          user_agent: log.user_agent || '-',
+          timestamp: log.timestamp || new Date().toISOString(),
+          is_system: log.is_system || false,
+          is_success: log.is_success !== false, // Default a true si no está definido
+          formatted_time: log.formatted_time || formatDate(log.timestamp || new Date().toISOString()),
+          source_table: log.source_table || 'usage_logs'
+        }));
+        
+        setEnhancedLogs(sanitizedLogs);
       } else {
         const errorData = await response.json();
         setError(`Error cargando logs de usuario: ${errorData.message || response.statusText}`);
@@ -3950,7 +4052,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Total Logs
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.total_logs}
+                            {logsStatsData.statistics?.overview?.total_logs || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -3968,7 +4070,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Usuario
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.user_logs}
+                            {logsStatsData.statistics?.overview?.user_logs || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -3986,7 +4088,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Sistema
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.system_logs}
+                            {logsStatsData.statistics?.overview?.system_logs || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -4004,7 +4106,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Exitosos
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.success_logs}
+                            {logsStatsData.statistics?.overview?.success_logs || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -4022,7 +4124,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Errores
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.error_logs}
+                            {logsStatsData.statistics?.overview?.error_logs || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -4040,7 +4142,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                             Créditos
                           </Typography>
                           <Typography variant="h5" component="div">
-                            {logsStatsData.statistics.overview.total_credits_consumed}
+                            {logsStatsData.statistics?.overview?.total_credits_consumed || 0}
                           </Typography>
                         </Box>
                       </Box>
@@ -4051,10 +4153,10 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
             )}
 
             {/* Top Operaciones */}
-            {logsStatsData && logsStatsData.statistics.top_operations.length > 0 && (
+            {logsStatsData && logsStatsData.statistics?.top_operations?.length > 0 && (
               <Paper sx={{ p: 3, mb: 3 }}>
                 <Typography variant="h6" gutterBottom>
-                  Top Operaciones ({logsStatsData.statistics.overview.period_days} días)
+                  Top Operaciones ({logsStatsData.statistics?.overview?.period_days || 7} días)
                 </Typography>
                 <TableContainer>
                   <Table size="small">
@@ -4069,7 +4171,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {logsStatsData.statistics.top_operations.slice(0, 10).map((op, index) => (
+                      {(logsStatsData.statistics?.top_operations || []).slice(0, 10).map((op, index) => (
                         <TableRow key={index}>
                           <TableCell>
                             <Typography variant="body2" fontFamily="monospace">
@@ -4096,7 +4198,7 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                           </TableCell>
                           <TableCell align="center">
                             <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
-                              {op.types.map((type) => (
+                              {(op.types || []).map((type) => (
                                 <Chip 
                                   key={type} 
                                   label={type} 
