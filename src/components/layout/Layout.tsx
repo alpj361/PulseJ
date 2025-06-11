@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Header from './Header';
 import { SessionNavBar } from '../ui/sidebar';
 import { LanguageProvider } from '../../context/LanguageContext';
+import { ViztaChatUI } from '../ui/vizta-chat';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -33,6 +34,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </div>
           </main>
         </div>
+        
+        {/* Vizta Chat */}
+        <ViztaChatUI />
       </div>
     </LanguageProvider>
   );

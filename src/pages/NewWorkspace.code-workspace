@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"path": "../../../ExtractorT"
+		},
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../NewsCron"
+		},
+		{
+			"path": "../../../ExtractorW"
+		}
+	],
+	"settings": {}
+}

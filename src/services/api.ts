@@ -455,23 +455,46 @@ export async function getLatestTrends(): Promise<TrendResponse | null> {
  * Envía un sondeo personalizado (contexto y pregunta) a ExtractorW y espera la respuesta del LLM
  * @param contextoArmado Objeto con contexto (noticias, codex, tendencias, input, etc)
  * @param pregunta Pregunta del usuario (puede ser igual a input)
+ * @param authToken Token de autenticación (opcional)
  * @returns Respuesta completa del LLM y contexto usado
  */
-export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: string): Promise<any> {
+export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: string, authToken?: string): Promise<any> {
   try {
+    console.log('📡 Enviando sondeo a ExtractorW con contexto tipo:', contextoArmado.tipo_contexto);
+    
+    // Configurar headers con autenticación si hay token
+    const headers: Record<string, string> = { 
+      'Content-Type': 'application/json'
+    };
+    
+    if (authToken) {
+      headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    
     // 1. Enviar el contexto y pregunta a ExtractorW (nuevo endpoint /api/sondeo)
     const response = await fetch('https://server.standatpd.com/api/sondeo', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         contexto: contextoArmado,
-        pregunta: pregunta
+        pregunta: pregunta,
+        incluir_visualizaciones: true, // Solicitar explícitamente datos para visualizaciones
+        tipo_analisis: contextoArmado.tipo_contexto || 'general' // Indicar el tipo de análisis que necesitamos
       })
     });
+    
     if (!response.ok) {
       throw new Error(`Error enviando sondeo: ${response.statusText}`);
     }
+    
     const data = await response.json();
+    console.log('✅ Respuesta de sondeo recibida:', {
+      status: data.status || 'desconocido',
+      tiene_respuesta: !!data.llm_response,
+      tiene_about: Array.isArray(data.about) && data.about.length > 0,
+      tiene_datos_analisis: !!data.datos_analisis
+    });
+    
     return data;
   } catch (error) {
     console.error('❌ Error en sendSondeoToExtractorW:', error);
