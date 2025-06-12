@@ -153,7 +153,7 @@ const KeywordListCard: React.FC<KeywordListCardProps> = ({
                 
                 <Chip
                   icon={<TagIcon sx={{ fontSize: '0.8rem !important' }} />}
-                  label={formatMentions(keyword.count)}
+                  label={formatMentions(typeof keyword.count === 'number' ? keyword.count : 0)}
                   size="small"
                   sx={{ 
                     height: 20,

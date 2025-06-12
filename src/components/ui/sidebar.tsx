@@ -28,6 +28,7 @@ import { Separator } from "./separator";
 import { LanguageContext } from "../../context/LanguageContext";
 import { useAdmin } from "../../hooks/useAdmin";
 import { useAuth } from "../../context/AuthContext";
+import { Tooltip } from "@mui/material";
 
 const sidebarVariants = {
   open: {
@@ -89,6 +90,8 @@ const translations = {
     analytics: 'Analytics',
     settings: 'Configuración',
     version: 'Jornal V.0.0462',
+    maintenance: 'Maintenance',
+    securityMaintenance: 'En mantenimiento por razones de seguridad'
   },
   en: {
     socialPulse: 'Social Pulse',
@@ -105,6 +108,8 @@ const translations = {
     analytics: 'Analytics',
     settings: 'Settings',
     version: 'Jornal V.0.0462',
+    maintenance: 'Maintenance',
+    securityMaintenance: 'Under maintenance for security reasons'
   },
 };
 
@@ -113,6 +118,7 @@ interface NavItem {
   label: string;
   path: string;
   disabled?: boolean;
+  maintenanceMode?: boolean;
 }
 
 interface NavSection {
@@ -154,9 +160,11 @@ export function SessionNavBar() {
           path: "/recent"
         },
         {
-          icon: <BarChart3 className="h-4 w-4" />,
+          icon: <BarChart3 className="h-4 w-4" style={{ color: 'grey' }}/>,
           label: t.sondeos,
-          path: "/sondeos"
+          path: "#",
+          disabled: true,
+          maintenanceMode: true
         }
       ]
     },
@@ -169,9 +177,11 @@ export function SessionNavBar() {
           path: "/codex"
         },
         {
-          icon: <Layers className="h-4 w-4" />,
+          icon: <Layers className="h-4 w-4" style={{ color: 'grey' }}/>,
           label: t.proyectos,
-          path: "/projects"
+          path: "#",
+          disabled: true,
+          maintenanceMode: true
         }
       ]
     },
@@ -278,7 +288,10 @@ export function SessionNavBar() {
                             {item.disabled ? (
                               <div
                                 className={cn(
-                                  "flex h-8 w-full flex-row items-center rounded-md px-2 py-1.5 text-muted-foreground/50 cursor-not-allowed",
+                                  "flex h-8 w-full flex-row items-center rounded-md px-2 py-1.5",
+                                  item.maintenanceMode 
+                                    ? "text-gray-500 cursor-not-allowed bg-gray-50" 
+                                    : "text-muted-foreground/50 cursor-not-allowed"
                                 )}
                               >
                                 {item.icon}
@@ -286,14 +299,27 @@ export function SessionNavBar() {
                                   {!isCollapsed && (
                                     <div className="flex items-center gap-2">
                                       <p className="ml-2 text-sm font-medium">{item.label}</p>
-                                      <Badge
-                                        className={cn(
-                                          "flex h-fit w-fit items-center gap-1.5 rounded border-none bg-gray-100 px-1.5 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-                                        )}
-                                        variant="outline"
-                                      >
-                                        SOON
-                                      </Badge>
+                                      {item.maintenanceMode ? (
+                                        <Tooltip title={t.securityMaintenance} arrow placement="right">
+                                          <Badge
+                                            className={cn(
+                                              "flex h-fit w-fit items-center gap-1.5 rounded border-none px-1.5 bg-gray-200 text-gray-700"
+                                            )}
+                                            variant="outline"
+                                          >
+                                            {t.maintenance}
+                                          </Badge>
+                                        </Tooltip>
+                                      ) : (
+                                        <Badge
+                                          className={cn(
+                                            "flex h-fit w-fit items-center gap-1.5 rounded border-none px-1.5 bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+                                          )}
+                                          variant="outline"
+                                        >
+                                          {t.comingSoon}
+                                        </Badge>
+                                      )}
                                     </div>
                                   )}
                                 </motion.li>

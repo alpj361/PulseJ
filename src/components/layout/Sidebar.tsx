@@ -26,7 +26,8 @@ import {
   Select,
   MenuItem,
   SelectChangeEvent,
-  Paper
+  Paper,
+  Tooltip
 } from '@mui/material';
 import { AdminPanelSettings } from '@mui/icons-material';
 
@@ -42,6 +43,8 @@ const translations = {
     adminPanel: 'Panel Admin',
     comingSoon: 'Próximamente',
     version: 'Jornal V.0.0462',
+    securityDisabled: 'Maintenance',
+    securityTooltip: 'En mantenimiento por razones de seguridad'
   },
   en: {
     dashboard: 'Dashboard',
@@ -54,6 +57,8 @@ const translations = {
     adminPanel: 'Admin Panel',
     comingSoon: 'Coming Soon',
     version: 'Jornal V.0.0462',
+    securityDisabled: 'Maintenance',
+    securityTooltip: 'Under maintenance for security reasons'
   },
 };
 
@@ -101,14 +106,16 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       path: '/news'
     },
     {
-      icon: <BarChart3 size={20} />,
+      icon: <BarChart3 size={20} style={{ color: 'grey' }} />,
       label: 'Sondeos',
-      path: '/sondeos'
+      path: '#', // Cambiamos la ruta para que no vaya a ningún lado
+      disabled: true
     },
     {
-      icon: <Layers size={20} />,
+      icon: <Layers size={20} style={{ color: 'grey' }} />,
       label: language === 'es' ? 'Proyectos' : 'Projects',
-      path: '/projects'
+      path: '#', // Cambiamos la ruta para que no vaya a ningún lado
+      disabled: true
     },
     {
       icon: <Search size={20} />,
@@ -156,10 +163,12 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
           <ListItem 
             key={item.path} 
             disablePadding 
-            onClick={item.disabled ? undefined : closeSidebar}
+            onClick={item.disabled ? (e) => e.preventDefault() : closeSidebar} // Prevenir acción por defecto
             sx={{ 
-              color: item.disabled ? 'text.disabled' : 'inherit',
-              pointerEvents: item.disabled ? 'none' : 'auto'
+              color: item.path === '#' ? 'grey.500' : (item.disabled ? 'text.disabled' : 'inherit'),
+              pointerEvents: item.disabled ? 'none' : 'auto',
+              cursor: item.disabled ? 'not-allowed' : 'pointer',
+              opacity: item.path === '#' ? 0.7 : 1
             }}
           >
             {item.disabled ? (
@@ -174,29 +183,56 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
                   py: 1.25,
                   px: 2,
                   position: 'relative',
+                  ...(item.path === '#' && {
+                    bgcolor: 'grey.100',
+                    '&:hover': {
+                      bgcolor: 'grey.100',
+                    }
+                  })
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 36, color: 'text.disabled' }}>
+                <ListItemIcon sx={{ minWidth: 36, color: item.path === '#' ? 'grey.500' : 'text.disabled' }}>
                   {item.icon}
                 </ListItemIcon>
                 <ListItemText 
                   primary={item.label}
                   primaryTypographyProps={{
                     fontSize: '0.875rem',
-                    color: 'text.disabled'
+                    color: item.path === '#' ? 'grey.500' : 'text.disabled',
+                    fontStyle: item.path === '#' ? 'italic' : 'normal'
                   }}
                 />
-                <Chip
-                  label={t.comingSoon}
-                  size="small"
-                  sx={{
-                    ml: 1,
-                    fontSize: '0.6rem',
-                    height: 20,
-                    bgcolor: 'action.disabledBackground',
-                    color: 'text.disabled'
-                  }}
-                />
+                {item.path === '#' ? (
+                  <Tooltip 
+                    title={t.securityTooltip}
+                    arrow
+                    placement="right"
+                  >
+                    <Chip
+                      label={t.securityDisabled}
+                      size="small"
+                      sx={{
+                        ml: 1,
+                        fontSize: '0.6rem',
+                        height: 20,
+                        bgcolor: 'grey.200',
+                        color: 'grey.700'
+                      }}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Chip
+                    label={t.comingSoon}
+                    size="small"
+                    sx={{
+                      ml: 1,
+                      fontSize: '0.6rem',
+                      height: 20,
+                      bgcolor: 'action.disabledBackground',
+                      color: 'text.disabled'
+                    }}
+                  />
+                )}
               </Box>
             ) : (
               <ListItemButton

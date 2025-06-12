@@ -250,7 +250,7 @@ const Sondeos: React.FC = () => {
               data={data} 
               xAxisKey="tema" 
               barKey="valor" 
-              height={180} 
+              height={230} 
             />
           );
           
@@ -260,7 +260,7 @@ const Sondeos: React.FC = () => {
               data={data}
               nameKey="categoria"
               valueKey="valor"
-              height={180}
+              height={230}
             />
           );
           
@@ -270,7 +270,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="region"
               barKey="valor"
-              height={180}
+              height={230}
             />
           );
           
@@ -280,7 +280,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="subtema"
               barKey="relacion"
-              height={180}
+              height={230}
             />
           );
       }
@@ -292,7 +292,7 @@ const Sondeos: React.FC = () => {
               data={data} 
               xAxisKey="titulo" 
               barKey="relevancia" 
-              height={180} 
+              height={230} 
             />
           );
           
@@ -302,7 +302,7 @@ const Sondeos: React.FC = () => {
               data={data}
               nameKey="fuente"
               valueKey="cobertura"
-              height={180}
+              height={230}
             />
           );
           
@@ -312,7 +312,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="fecha"
               lineKey="valor"
-              height={180}
+              height={230}
             />
           );
           
@@ -322,7 +322,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="aspecto"
               barKey="cobertura"
-              height={180}
+              height={230}
             />
           );
       }
@@ -334,7 +334,7 @@ const Sondeos: React.FC = () => {
               data={data} 
               xAxisKey="titulo" 
               barKey="relevancia" 
-              height={180} 
+              height={230} 
             />
           );
           
@@ -344,7 +344,7 @@ const Sondeos: React.FC = () => {
               data={data}
               nameKey="concepto"
               valueKey="relacion"
-              height={180}
+              height={230}
             />
           );
           
@@ -354,7 +354,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="fecha"
               areaKey="valor"
-              height={180}
+              height={230}
             />
           );
           
@@ -364,7 +364,7 @@ const Sondeos: React.FC = () => {
               data={data}
               xAxisKey="aspecto"
               barKey="profundidad"
-              height={180}
+              height={230}
             />
           );
       }
@@ -513,115 +513,248 @@ const Sondeos: React.FC = () => {
     }
   };
   
-  // Función para generar datos de prueba para visualizaciones
-  // Esto es temporal hasta que el backend implemente la respuesta estructurada
+  // Mejorar la función de generación de datos de prueba para visualizaciones
+  // Ahora generando más datos para probar la capacidad de manejo de muchos elementos
   const generarDatosPrueba = (tipo: string, consulta: string) => {
+    // Datos mejorados para tendencias con más elementos
     if (tipo === 'tendencias') {
       return {
         temas_relevantes: [
-          { tema: `${consulta} en política`, valor: 75 },
-          { tema: `${consulta} en economía`, valor: 62 },
-          { tema: `${consulta} internacional`, valor: 48 },
-          { tema: `${consulta} y tecnología`, valor: 35 },
-          { tema: `${consulta} en deportes`, valor: 28 }
+          { tema: `${consulta} en política nacional`, valor: 85 },
+          { tema: `${consulta} en economía regional`, valor: 67 },
+          { tema: `${consulta} y relaciones internacionales`, valor: 54 },
+          { tema: `${consulta} e innovación tecnológica`, valor: 42 },
+          { tema: `${consulta} y expresiones culturales`, valor: 38 },
+          { tema: `${consulta} en el sector salud`, valor: 32 },
+          { tema: `${consulta} en eventos deportivos`, valor: 25 },
+          { tema: `${consulta} y desarrollo sostenible`, valor: 22 },
+          { tema: `${consulta} en educación superior`, valor: 19 },
+          { tema: `${consulta} y seguridad ciudadana`, valor: 17 },
+          { tema: `${consulta} en medios de comunicación`, valor: 15 },
+          { tema: `${consulta} y transparencia gubernamental`, valor: 12 }
         ],
         distribucion_categorias: [
-          { categoria: 'Política', valor: 32 },
+          { categoria: 'Política', valor: 35 },
           { categoria: 'Economía', valor: 28 },
-          { categoria: 'Internacional', valor: 20 },
-          { categoria: 'Tecnología', valor: 15 },
-          { categoria: 'Deportes', valor: 5 }
+          { categoria: 'Internacional', valor: 17 },
+          { categoria: 'Tecnología', valor: 12 },
+          { categoria: 'Cultura', valor: 10 },
+          { categoria: 'Salud', valor: 8 },
+          { categoria: 'Deportes', valor: 5 },
+          { categoria: 'Educación', valor: 8 },
+          { categoria: 'Seguridad', valor: 6 },
+          { categoria: 'Medioambiente', valor: 9 },
+          { categoria: 'Transporte', valor: 4 },
+          { categoria: 'Vivienda', valor: 3 }
         ],
         mapa_menciones: [
-          { region: 'Ciudad Capital', valor: 45 },
+          { region: 'Ciudad Capital', valor: 48 },
+          { region: 'Zona Metropolitana', valor: 35 },
           { region: 'Occidente', valor: 25 },
-          { region: 'Oriente', valor: 15 },
-          { region: 'Sur', valor: 10 },
-          { region: 'Norte', valor: 5 }
+          { region: 'Oriente', valor: 18 },
+          { region: 'Sur', valor: 12 },
+          { region: 'Norte', valor: 8 },
+          { region: 'Petén', valor: 4 },
+          { region: 'Altiplano', valor: 15 },
+          { region: 'Costa Sur', valor: 10 },
+          { region: 'Verapaces', valor: 7 },
+          { region: 'Izabal', valor: 5 },
+          { region: 'Región Fronteriza', valor: 3 }
         ],
         subtemas_relacionados: [
-          { subtema: 'Subtema 1', relacion: 85 },
-          { subtema: 'Subtema 2', relacion: 65 },
-          { subtema: 'Subtema 3', relacion: 55 },
-          { subtema: 'Subtema 4', relacion: 35 },
-          { subtema: 'Subtema 5', relacion: 25 }
+          { subtema: 'Financiamiento', relacion: 85 },
+          { subtema: 'Regulación', relacion: 72 },
+          { subtema: 'Desarrollo sostenible', relacion: 64 },
+          { subtema: 'Impacto social', relacion: 53 },
+          { subtema: 'Inversión pública', relacion: 47 },
+          { subtema: 'Infraestructura', relacion: 39 },
+          { subtema: 'Educación', relacion: 28 },
+          { subtema: 'Gobernanza', relacion: 25 },
+          { subtema: 'Investigación', relacion: 22 },
+          { subtema: 'Cooperación', relacion: 19 },
+          { subtema: 'Participación ciudadana', relacion: 17 },
+          { subtema: 'Fiscalización', relacion: 15 }
         ]
       };
-    } else if (tipo === 'noticias') {
+    } 
+    // Datos mejorados para noticias con más elementos
+    else if (tipo === 'noticias') {
       return {
         noticias_relevantes: [
-          { titulo: `Noticia 1 sobre ${consulta}`, relevancia: 95 },
-          { titulo: `Noticia 2 sobre ${consulta}`, relevancia: 85 },
-          { titulo: `Noticia 3 sobre ${consulta}`, relevancia: 75 },
-          { titulo: `Noticia 4 sobre ${consulta}`, relevancia: 65 },
-          { titulo: `Noticia 5 sobre ${consulta}`, relevancia: 55 }
+          { titulo: `El impacto de ${consulta} en el desarrollo económico nacional`, relevancia: 92 },
+          { titulo: `Gobierno central anuncia nuevas políticas sobre ${consulta}`, relevancia: 87 },
+          { titulo: `Comunidades rurales se organizan en torno a ${consulta}`, relevancia: 76 },
+          { titulo: `Especialistas internacionales debaten sobre el futuro de ${consulta}`, relevancia: 68 },
+          { titulo: `${consulta}: perspectivas a mediano y largo plazo en Guatemala`, relevancia: 61 },
+          { titulo: `Análisis internacional sobre impacto de ${consulta} en la región`, relevancia: 53 },
+          { titulo: `El sector privado y su relación estratégica con ${consulta}`, relevancia: 45 },
+          { titulo: `Universidad San Carlos presenta estudio sobre ${consulta}`, relevancia: 39 },
+          { titulo: `Sociedad civil propone alternativas en torno a ${consulta}`, relevancia: 35 },
+          { titulo: `Municipalidades se unen para abordar ${consulta} de forma integral`, relevancia: 31 },
+          { titulo: `Expertos analizan el marco legal actual para ${consulta}`, relevancia: 28 },
+          { titulo: `La juventud guatemalteca frente a los desafíos de ${consulta}`, relevancia: 24 }
         ],
         fuentes_cobertura: [
-          { fuente: 'Fuente 1', cobertura: 45 },
-          { fuente: 'Fuente 2', cobertura: 35 },
-          { fuente: 'Fuente 3', cobertura: 30 },
-          { fuente: 'Fuente 4', cobertura: 25 },
-          { fuente: 'Fuente 5', cobertura: 15 }
+          { fuente: 'Prensa Libre', cobertura: 32 },
+          { fuente: 'Nuestro Diario', cobertura: 27 },
+          { fuente: 'El Periódico', cobertura: 21 },
+          { fuente: 'La Hora', cobertura: 15 },
+          { fuente: 'Soy502', cobertura: 12 },
+          { fuente: 'Plaza Pública', cobertura: 8 },
+          { fuente: 'Nómada', cobertura: 6 },
+          { fuente: 'Emisoras Unidas', cobertura: 9 },
+          { fuente: 'República GT', cobertura: 7 },
+          { fuente: 'Publinews', cobertura: 6 },
+          { fuente: 'Canal Antigua', cobertura: 5 },
+          { fuente: 'Otras fuentes', cobertura: 7 }
         ],
         evolucion_cobertura: [
-          { fecha: '2023-01', valor: 10 },
-          { fecha: '2023-02', valor: 15 },
+          { fecha: '2023-01', valor: 15 },
+          { fecha: '2023-02', valor: 18 },
           { fecha: '2023-03', valor: 25 },
-          { fecha: '2023-04', valor: 35 },
-          { fecha: '2023-05', valor: 45 }
+          { fecha: '2023-04', valor: 42 },
+          { fecha: '2023-05', valor: 38 },
+          { fecha: '2023-06', valor: 45 },
+          { fecha: '2023-07', valor: 52 },
+          { fecha: '2023-08', valor: 64 },
+          { fecha: '2023-09', valor: 58 },
+          { fecha: '2023-10', valor: 49 },
+          { fecha: '2023-11', valor: 55 },
+          { fecha: '2023-12', valor: 62 }
         ],
         aspectos_cubiertos: [
-          { aspecto: 'Aspecto 1', cobertura: 55 },
-          { aspecto: 'Aspecto 2', cobertura: 45 },
-          { aspecto: 'Aspecto 3', cobertura: 35 },
-          { aspecto: 'Aspecto 4', cobertura: 25 },
-          { aspecto: 'Aspecto 5', cobertura: 15 }
+          { aspecto: 'Impacto económico', cobertura: 65 },
+          { aspecto: 'Aspectos políticos', cobertura: 58 },
+          { aspecto: 'Dimensión social', cobertura: 47 },
+          { aspecto: 'Implicaciones legales', cobertura: 41 },
+          { aspecto: 'Innovación tecnológica', cobertura: 35 },
+          { aspecto: 'Sostenibilidad', cobertura: 29 },
+          { aspecto: 'Cooperación internacional', cobertura: 22 },
+          { aspecto: 'Presupuesto y recursos', cobertura: 19 },
+          { aspecto: 'Participación comunitaria', cobertura: 17 },
+          { aspecto: 'Transparencia', cobertura: 15 },
+          { aspecto: 'Investigación académica', cobertura: 12 },
+          { aspecto: 'Impacto cultural', cobertura: 9 }
         ]
       };
-    } else if (tipo === 'codex') {
+    } 
+    // Datos mejorados para codex con más elementos
+    else if (tipo === 'codex') {
       return {
         documentos_relevantes: [
-          { titulo: `Documento 1 sobre ${consulta}`, relevancia: 95 },
-          { titulo: `Documento 2 sobre ${consulta}`, relevancia: 85 },
-          { titulo: `Documento 3 sobre ${consulta}`, relevancia: 75 },
-          { titulo: `Documento 4 sobre ${consulta}`, relevancia: 65 },
-          { titulo: `Documento 5 sobre ${consulta}`, relevancia: 55 }
+          { titulo: `Análisis estratégico integral de ${consulta} en Guatemala`, relevancia: 95 },
+          { titulo: `Estudio sectorial comparativo sobre ${consulta}`, relevancia: 88 },
+          { titulo: `Políticas públicas y normativa relacionada con ${consulta}`, relevancia: 82 },
+          { titulo: `Aspectos legales e institucionales de ${consulta} en Guatemala`, relevancia: 75 },
+          { titulo: `Impacto social y comunitario de ${consulta}: casos de estudio nacionales`, relevancia: 68 },
+          { titulo: `${consulta} y su influencia en la economía regional centroamericana`, relevancia: 61 },
+          { titulo: `Perspectivas a futuro y recomendaciones sobre ${consulta}`, relevancia: 54 },
+          { titulo: `Marco conceptual y teórico actualizado para ${consulta}`, relevancia: 48 },
+          { titulo: `Metodologías de evaluación aplicadas a ${consulta}`, relevancia: 43 },
+          { titulo: `Experiencias internacionales comparadas en materia de ${consulta}`, relevancia: 38 },
+          { titulo: `Análisis de actores e intereses en torno a ${consulta}`, relevancia: 34 },
+          { titulo: `Lineamientos estratégicos para el abordaje integral de ${consulta}`, relevancia: 30 }
         ],
         conceptos_relacionados: [
-          { concepto: 'Concepto 1', relacion: 85 },
-          { concepto: 'Concepto 2', relacion: 75 },
-          { concepto: 'Concepto 3', relacion: 65 },
-          { concepto: 'Concepto 4', relacion: 55 },
-          { concepto: 'Concepto 5', relacion: 45 }
+          { concepto: 'Desarrollo sostenible', relacion: 78 },
+          { concepto: 'Política pública', relacion: 65 },
+          { concepto: 'Participación ciudadana', relacion: 59 },
+          { concepto: 'Marco regulatorio', relacion: 52 },
+          { concepto: 'Innovación', relacion: 45 },
+          { concepto: 'Inclusión social', relacion: 38 },
+          { concepto: 'Cooperación institucional', relacion: 31 },
+          { concepto: 'Planificación estratégica', relacion: 28 },
+          { concepto: 'Gobernanza', relacion: 25 },
+          { concepto: 'Análisis sistémico', relacion: 22 },
+          { concepto: 'Indicadores de desempeño', relacion: 19 },
+          { concepto: 'Modelos de gestión', relacion: 17 }
         ],
         evolucion_analisis: [
-          { fecha: '2023-01', valor: 15 },
-          { fecha: '2023-02', valor: 25 },
-          { fecha: '2023-03', valor: 35 },
-          { fecha: '2023-04', valor: 45 },
-          { fecha: '2023-05', valor: 55 }
+          { fecha: '2023-Q1', valor: 22 },
+          { fecha: '2023-Q2', valor: 35 },
+          { fecha: '2023-Q3', valor: 48 },
+          { fecha: '2023-Q4', valor: 42 },
+          { fecha: '2024-Q1', valor: 55 },
+          { fecha: '2024-Q2', valor: 68 }
         ],
         aspectos_documentados: [
-          { aspecto: 'Aspecto 1', profundidad: 85 },
-          { aspecto: 'Aspecto 2', profundidad: 75 },
-          { aspecto: 'Aspecto 3', profundidad: 65 },
-          { aspecto: 'Aspecto 4', profundidad: 55 },
-          { aspecto: 'Aspecto 5', profundidad: 45 }
+          { aspecto: 'Marco conceptual', profundidad: 82 },
+          { aspecto: 'Estudios de caso', profundidad: 75 },
+          { aspecto: 'Análisis comparativo', profundidad: 68 },
+          { aspecto: 'Proyecciones', profundidad: 62 },
+          { aspecto: 'Aspectos legales', profundidad: 55 },
+          { aspecto: 'Metodologías', profundidad: 48 },
+          { aspecto: 'Bibliografía especializada', profundidad: 41 },
+          { aspecto: 'Marcos institucionales', profundidad: 38 },
+          { aspecto: 'Análisis de tendencias', profundidad: 35 },
+          { aspecto: 'Evaluación de impacto', profundidad: 32 },
+          { aspecto: 'Recomendaciones', profundidad: 29 },
+          { aspecto: 'Apéndices técnicos', profundidad: 26 }
         ]
       };
     }
     
-    // Datos genéricos por defecto
+    // Datos genéricos por defecto con muchos elementos
     return {
       datos_genericos: [
         { etiqueta: 'Categoría 1', valor: 85 },
         { etiqueta: 'Categoría 2', valor: 65 },
         { etiqueta: 'Categoría 3', valor: 45 },
         { etiqueta: 'Categoría 4', valor: 25 },
-        { etiqueta: 'Categoría 5', valor: 15 }
+        { etiqueta: 'Categoría 5', valor: 15 },
+        { etiqueta: 'Categoría 6', valor: 35 },
+        { etiqueta: 'Categoría 7', valor: 55 },
+        { etiqueta: 'Categoría 8', valor: 40 },
+        { etiqueta: 'Categoría 9', valor: 30 },
+        { etiqueta: 'Categoría 10', valor: 20 },
+        { etiqueta: 'Categoría 11', valor: 10 },
+        { etiqueta: 'Categoría 12', valor: 5 }
       ]
     };
   };
+
+  // Agrega esta función después de generarDatosPrueba para mostrar datos inmediatamente sin tener que consultar:
+  // Esta función es sólo para propósitos de demostración
+  const cargarDatosDemostracion = () => {
+    // Si ya hay datos cargados, no hacer nada
+    if (datosAnalisis) return;
+    
+    // Simular carga
+    setLoadingSondeo(true);
+    
+    // Esperar brevemente para simular una carga
+    setTimeout(() => {
+      // Usar una consulta por defecto si no hay nada ingresado
+      const consultaDemo = input || "desarrollo económico";
+      
+      // Generar datos de muestra para el tipo de contexto seleccionado
+      const datosMuestra = generarDatosPrueba(tipoContexto, consultaDemo);
+      
+      // Establecer la consulta de demostración si no hay ninguna
+      if (!input) {
+        setInput(consultaDemo);
+      }
+      
+      // Actualizar los estados
+      setDatosAnalisis(datosMuestra);
+      setLlmResponse(`Análisis de "${consultaDemo}" en el contexto de ${tipoContexto === 'tendencias' ? 'tendencias actuales' : 
+        tipoContexto === 'noticias' ? 'noticias recientes' : 'documentos del codex'}. 
+        Este es un texto de muestra generado para visualizar los gráficos. En un análisis real, 
+        aquí se mostraría un resumen detallado elaborado por la IA sobre el tema consultado, 
+        basado en el contexto seleccionado y la información relevante disponible.`);
+      
+      // Finalizar carga simulada
+      setLoadingSondeo(false);
+      setShowContext(true);
+    }, 1500);
+  };
+
+  // Dentro del componente Sondeos, agrega este useEffect para cargar datos de demostración automáticamente
+  useEffect(() => {
+    // Cargar datos de demostración después de montar el componente
+    cargarDatosDemostracion();
+    // Solo ejecutar una vez al montar el componente
+  }, []);
 
   // Cargar sondeos para el mapa
   useEffect(() => {
@@ -739,7 +872,7 @@ const Sondeos: React.FC = () => {
         Preguntas Clave
       </Typography>
       
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+      <Grid container spacing={4} sx={{ mb: 6 }}>
         {currentQuestions.map((question) => (
           <Grid item xs={12} md={6} key={question.id}>
             <Card
@@ -795,18 +928,24 @@ const Sondeos: React.FC = () => {
                 <Box
                   sx={{
                     mt: 3,
-                    p: 3,
+                    p: 1,
                     backgroundColor: selectedQuestion === question.id ? 'grey.100' : 'grey.50',
                     borderRadius: 1,
                     border: '2px dashed',
                     borderColor: selectedQuestion === question.id ? `${question.color}.main` : 'grey.300',
-                    minHeight: 150
+                    minHeight: 250,
+                    height: 250
                   }}
                 >
                   {datosAnalisis ? (
                     renderVisualization(question)
                   ) : (
-                    <Typography variant="body2" color="text.secondary">
+                    <Typography variant="body2" color="text.secondary" sx={{ 
+                      height: '100%', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center' 
+                    }}>
                       📊 Sondee un tema para ver análisis
                     </Typography>
                   )}
@@ -826,7 +965,7 @@ const Sondeos: React.FC = () => {
           borderRadius: 2,
           border: datosAnalisis ? 'none' : '2px dashed',
           borderColor: 'grey.300',
-          mb: 4
+          mb: 6
         }}
       >
         {datosAnalisis ? (
@@ -835,7 +974,7 @@ const Sondeos: React.FC = () => {
               📈 Panel de Análisis de {tipoContexto === 'tendencias' ? 'Tendencias' : tipoContexto === 'noticias' ? 'Noticias' : 'Documentos'}
             </Typography>
             
-            <Grid container spacing={3}>
+            <Grid container spacing={4}>
               {/* Primera fila de gráficas */}
               <Grid item xs={12} md={6}>
                 <Typography variant="subtitle1" fontWeight="semibold">
@@ -848,24 +987,27 @@ const Sondeos: React.FC = () => {
                     data={datosAnalisis.temas_relevantes}
                     xAxisKey="tema"
                     barKey="valor"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'noticias' && datosAnalisis.noticias_relevantes ? (
                   <BarChartVisual 
                     data={datosAnalisis.noticias_relevantes}
                     xAxisKey="titulo"
                     barKey="relevancia"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'codex' && datosAnalisis.documentos_relevantes ? (
                   <BarChartVisual 
                     data={datosAnalisis.documentos_relevantes}
                     xAxisKey="titulo"
                     barKey="relevancia"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : (
-                  <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
+                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
                     <Typography color="text.secondary">No hay datos disponibles</Typography>
                   </Box>
                 )}
@@ -882,24 +1024,24 @@ const Sondeos: React.FC = () => {
                     data={datosAnalisis.distribucion_categorias}
                     nameKey="categoria"
                     valueKey="valor"
-                    height={250}
+                    height={350}
                   />
                 ) : tipoContexto === 'noticias' && datosAnalisis.fuentes_cobertura ? (
                   <PieChartVisual
                     data={datosAnalisis.fuentes_cobertura}
                     nameKey="fuente"
                     valueKey="cobertura"
-                    height={250}
+                    height={350}
                   />
                 ) : tipoContexto === 'codex' && datosAnalisis.conceptos_relacionados ? (
                   <PieChartVisual
                     data={datosAnalisis.conceptos_relacionados}
                     nameKey="concepto"
                     valueKey="relacion"
-                    height={250}
+                    height={350}
                   />
                 ) : (
-                  <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
+                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
                     <Typography color="text.secondary">No hay datos disponibles</Typography>
                   </Box>
                 )}
@@ -917,24 +1059,27 @@ const Sondeos: React.FC = () => {
                     data={datosAnalisis.mapa_menciones}
                     xAxisKey="region"
                     barKey="valor"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'noticias' && datosAnalisis.evolucion_cobertura ? (
                   <LineChartVisual 
                     data={datosAnalisis.evolucion_cobertura}
                     xAxisKey="fecha"
                     lineKey="valor"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'codex' && datosAnalisis.evolucion_analisis ? (
                   <AreaChartVisual 
                     data={datosAnalisis.evolucion_analisis}
                     xAxisKey="fecha"
                     areaKey="valor"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : (
-                  <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
+                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
                     <Typography color="text.secondary">No hay datos disponibles</Typography>
                   </Box>
                 )}
@@ -951,24 +1096,27 @@ const Sondeos: React.FC = () => {
                     data={datosAnalisis.subtemas_relacionados}
                     xAxisKey="subtema"
                     barKey="relacion"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'noticias' && datosAnalisis.aspectos_cubiertos ? (
                   <BarChartVisual 
                     data={datosAnalisis.aspectos_cubiertos}
                     xAxisKey="aspecto"
                     barKey="cobertura"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : tipoContexto === 'codex' && datosAnalisis.aspectos_documentados ? (
                   <BarChartVisual 
                     data={datosAnalisis.aspectos_documentados}
                     xAxisKey="aspecto"
                     barKey="profundidad"
-                    height={250}
+                    height={350}
+                    showAverage={true}
                   />
                 ) : (
-                  <Box sx={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
+                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
                     <Typography color="text.secondary">No hay datos disponibles</Typography>
                   </Box>
                 )}
