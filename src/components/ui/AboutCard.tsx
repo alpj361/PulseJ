@@ -6,7 +6,9 @@ import {
   Chip,
   Box,
   useTheme,
-  alpha
+  alpha,
+  CardHeader,
+  Stack
 } from '@mui/material';
 import {
   TrendingUp,
@@ -17,6 +19,8 @@ import {
   InfoOutlined
 } from '@mui/icons-material';
 import { AboutInfo } from '../../services/api';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import PublicIcon from '@mui/icons-material/Public';
 
 interface AboutCardProps {
   keyword: string;
@@ -29,7 +33,8 @@ const AboutCard: React.FC<AboutCardProps> = ({ keyword, aboutInfo, index }) => {
 
   // Determinar el icono y color según la relevancia
   const getRelevanceIndicator = (relevancia: string) => {
-    switch (relevancia) {
+    const rel = relevancia.toLowerCase();
+    switch (rel) {
       case 'alta':
         return {
           icon: <TrendingUp />,
@@ -62,22 +67,74 @@ const AboutCard: React.FC<AboutCardProps> = ({ keyword, aboutInfo, index }) => {
   };
 
   // Determinar color de categoría
-  const getCategoryColor = (categoria: string) => {
+  const getCategoryColor = (categoria: string | undefined) => {
     const categoryColors: Record<string, string> = {
-      'Deportes': theme.palette.primary.main,
-      'fútbol': theme.palette.primary.main,
-      'Política': theme.palette.secondary.main,
+      'deportes': theme.palette.primary.main,
       'política': theme.palette.secondary.main,
-      'Entretenimiento': theme.palette.info.main,
-      'Música': theme.palette.warning.main,
-      'Tecnología': theme.palette.success.main,
-      'Sociedad': theme.palette.text.secondary,
-      'Justicia': theme.palette.error.main,
-      'Internacional': theme.palette.info.dark,
-      'Religión': theme.palette.warning.dark
+      'música': theme.palette.warning.main,
+      'entretenimiento': theme.palette.info.main,
+      'justicia': theme.palette.error.main,
+      'sociedad': theme.palette.text.secondary,
+      'internacional': theme.palette.info.dark,
+      'religión': theme.palette.warning.dark,
+      'economía': theme.palette.success.dark,
+      'tecnología': theme.palette.success.main,
+      'salud': theme.palette.success.light,
+      'educación': theme.palette.info.light,
+      'cultura': theme.palette.warning.light,
+      'ciencia': theme.palette.info.main,
+      'seguridad': theme.palette.error.dark,
+      'medio ambiente': theme.palette.success.light,
+      'moda': theme.palette.secondary.light,
+      'farándula': theme.palette.warning.main,
+      'otros': theme.palette.text.secondary
     };
+
+    if (!categoria) return theme.palette.text.secondary;
     
-    return categoryColors[categoria] || theme.palette.grey[600];
+    // Normalizar la categoría y buscar coincidencia exacta primero
+    const normalizedCategoria = categoria.toLowerCase().trim();
+    if (categoryColors[normalizedCategoria]) {
+      return categoryColors[normalizedCategoria];
+    }
+
+    // Si no hay coincidencia exacta, buscar coincidencia parcial
+    for (const [cat, color] of Object.entries(categoryColors)) {
+      if (normalizedCategoria.includes(cat) || cat.includes(normalizedCategoria)) {
+        return color;
+      }
+    }
+
+    return theme.palette.text.secondary;
+  };
+
+  // Determinar si es local o global
+  const getContextoChip = () => {
+    if (aboutInfo.contexto_local === undefined) return null;
+    
+    return aboutInfo.contexto_local ? (
+      <Chip
+        icon={<LocationOnIcon />}
+        label="Local"
+        size="small"
+        sx={{
+          backgroundColor: theme.palette.primary.main,
+          color: 'white',
+          '& .MuiChip-icon': { color: 'white' }
+        }}
+      />
+    ) : (
+      <Chip
+        icon={<PublicIcon />}
+        label="Global"
+        size="small"
+        sx={{
+          backgroundColor: theme.palette.grey[500],
+          color: 'white',
+          '& .MuiChip-icon': { color: 'white' }
+        }}
+      />
+    );
   };
 
   const relevanceIndicator = getRelevanceIndicator(aboutInfo.relevancia);
@@ -101,101 +158,44 @@ const AboutCard: React.FC<AboutCardProps> = ({ keyword, aboutInfo, index }) => {
         position: 'relative'
       }}
     >
-      {/* Header con número y relevancia */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          p: 2,
-          pb: 1,
-          background: `linear-gradient(135deg, ${alpha(categoryColor, 0.1)} 0%, ${alpha(categoryColor, 0.05)} 100%)`
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 'bold',
-              color: 'text.primary',
-              fontSize: '1rem'
-            }}
-          >
-            #{index + 1}
-          </Typography>
-          <Typography
-            variant="h6"
-            sx={{
-              fontWeight: 'bold',
-              color: categoryColor,
-              fontSize: '1.1rem'
-            }}
-          >
-            {aboutInfo.nombre || keyword}
-          </Typography>
-        </Box>
-        
-        {/* Indicador de relevancia */}
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 0.5,
-            px: 1,
-            py: 0.5,
-            borderRadius: 2,
-            bgcolor: relevanceIndicator.bgColor,
-            color: relevanceIndicator.color
-          }}
-        >
-          {relevanceIndicator.icon}
-          <Typography variant="caption" fontWeight="bold">
-            {relevanceIndicator.label}
-          </Typography>
-        </Box>
-      </Box>
+      <CardHeader
+        title={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              #{index + 1}
+            </Typography>
+            <Typography variant="h6" sx={{ fontSize: '1.1rem' }}>
+              {aboutInfo.nombre || keyword}
+            </Typography>
+          </Box>
+        }
+        subheader={
+          <Stack direction="row" spacing={1} alignItems="center" mt={1}>
+            {aboutInfo.categoria && (
+              <Chip
+                label={aboutInfo.categoria}
+                size="small"
+                sx={{
+                  backgroundColor: categoryColor,
+                  color: 'white'
+                }}
+              />
+            )}
+            {getContextoChip()}
+          </Stack>
+        }
+      />
 
       <CardContent sx={{ flexGrow: 1, pt: 0 }}>
         {/* Chips de información */}
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-          <Chip
-            label={aboutInfo.categoria}
-            size="small"
-            sx={{
-              bgcolor: alpha(categoryColor, 0.1),
-              color: categoryColor,
-              fontWeight: 'bold'
-            }}
-          />
           <Chip
             label={aboutInfo.tipo}
             size="small"
             variant="outlined"
             sx={{ borderColor: 'divider' }}
           />
-          {aboutInfo.contexto_local && (
-            <Chip
-              icon={<LocationOn sx={{ fontSize: 16 }} />}
-              label="Local"
-              size="small"
-              color="primary"
-              variant="outlined"
-            />
-          )}
         </Box>
-
-        {/* Resumen */}
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            mb: 2,
-            lineHeight: 1.6,
-            fontSize: '0.9rem'
-          }}
-        >
-          {aboutInfo.resumen}
-        </Typography>
 
         {/* Razón de tendencia */}
         {aboutInfo.razon_tendencia && (
@@ -262,7 +262,7 @@ const AboutCard: React.FC<AboutCardProps> = ({ keyword, aboutInfo, index }) => {
             color="text.disabled"
             sx={{ fontSize: '0.7rem' }}
           >
-            Fuente: {aboutInfo.source} ({aboutInfo.model})
+            Fuente: X (Tendencias)
           </Typography>
         </Box>
       </CardContent>

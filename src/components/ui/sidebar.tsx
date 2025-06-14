@@ -160,11 +160,9 @@ export function SessionNavBar() {
           path: "/recent"
         },
         {
-          icon: <BarChart3 className="h-4 w-4" style={{ color: 'grey' }}/>,
+          icon: <BarChart3 className="h-4 w-4" />,
           label: t.sondeos,
-          path: "#",
-          disabled: true,
-          maintenanceMode: true
+          path: "/sondeos"
         }
       ]
     },

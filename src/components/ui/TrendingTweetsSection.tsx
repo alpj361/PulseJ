@@ -231,13 +231,9 @@ const TrendingTweetsSection: React.FC = () => {
   };
 
   return (
-    <Paper
-      elevation={0}
+    <Box
       sx={{
         p: 4,
-        borderRadius: 4,
-        background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 0.8)}, ${alpha(theme.palette.background.paper, 0.95)})`,
-        border: `1px solid ${alpha(theme.palette.divider, 0.1)}`,
         position: 'relative',
         overflow: 'hidden'
       }}
@@ -269,41 +265,15 @@ const TrendingTweetsSection: React.FC = () => {
         }}
       />
 
-      {/* Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1, position: 'relative', flexWrap: 'wrap', gap: 2 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 48,
-              height: 48,
-              borderRadius: 3,
-              background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${alpha(theme.palette.primary.main, 0.8)})`,
-              boxShadow: `0 4px 12px ${alpha(theme.palette.primary.main, 0.3)}`
-            }}
-          >
-            <Twitter sx={{ color: '#fff', fontSize: 24 }} />
-          </Box>
-          <Box>
-            <Typography
-              variant="h5"
-              sx={{
-                fontWeight: 'bold',
-                background: `linear-gradient(45deg, ${theme.palette.text.primary}, ${alpha(theme.palette.text.primary, 0.7)})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1
-              }}
-            >
-              {t.title}
-              <TrendingUp sx={{ color: theme.palette.primary.main, fontSize: 28 }} />
-            </Typography>
-          </Box>
-        </Box>
+      {/* Header simplificado - solo botón de refresh */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, position: 'relative' }}>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ position: 'relative' }}
+        >
+          {t.subtitle}
+        </Typography>
         
         {/* Refresh Button */}
         <Tooltip title={t.refreshData}>
@@ -327,14 +297,6 @@ const TrendingTweetsSection: React.FC = () => {
           </Button>
         </Tooltip>
       </Box>
-
-      <Typography
-        variant="body2"
-        color="text.secondary"
-        sx={{ mb: 3, position: 'relative' }}
-      >
-        {t.subtitle}
-      </Typography>
 
       {/* Controls */}
       <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 3 }}>
@@ -688,7 +650,7 @@ const TrendingTweetsSection: React.FC = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
-    </Paper>
+    </Box>
   );
 };
 

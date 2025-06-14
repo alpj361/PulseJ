@@ -10,6 +10,7 @@ import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, cat
 import { fetchAndStoreTrends, getLatestTrends, AboutInfo, Statistics } from '../services/api';
 import { LanguageContext } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
+import { CategoryCount } from '../types';
 import {
   Box,
   Typography,
@@ -24,13 +25,20 @@ import {
   DialogActions,
   IconButton,
   Backdrop,
-  useTheme
+  useTheme,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Collapse
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
 import UpdateIcon from '@mui/icons-material/Update';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import TwitterIcon from '@mui/icons-material/Twitter';
 
 const translations = {
   es: {
@@ -101,6 +109,8 @@ export const Trends = () => {
   const [statistics, setStatistics] = useState<Statistics | null>(null);
   const [isPollingForDetails, setIsPollingForDetails] = useState(false);
   const [lastProcessingTimestamp, setLastProcessingTimestamp] = useState<string | null>(null);
+  const [aboutExpanded, setAboutExpanded] = useState(false);
+  const [tweetsExpanded, setTweetsExpanded] = useState(false);
 
   useEffect(() => {
     const loadLatestTrends = async () => {
@@ -120,7 +130,12 @@ export const Trends = () => {
           setTopKeywords(latestData.topKeywords);
           }
           if (latestData.categoryData && latestData.categoryData.length > 0) {
-          setCategoryData(latestData.categoryData);
+            // Transformar formato del backend (name, value) al formato esperado por el frontend (category, count)
+            const transformedCategoryData = latestData.categoryData.map((item: any) => ({
+              category: item.name || item.category,
+              count: item.value || item.count
+            }));
+            setCategoryData(transformedCategoryData);
           }
           if (latestData.about && Array.isArray(latestData.about)) {
             setAboutInfo(latestData.about);
@@ -176,7 +191,12 @@ export const Trends = () => {
           setTopKeywords(data.topKeywords);
         }
         if (data.categoryData && data.categoryData.length > 0) {
-          setCategoryData(data.categoryData);
+          // Transformar formato del backend (name, value) al formato esperado por el frontend (category, count)
+          const transformedCategoryData = data.categoryData.map((item: any) => ({
+            category: item.name || item.category,
+            count: item.value || item.count
+          }));
+          setCategoryData(transformedCategoryData);
         }
         
         // Actualizar about y statistics si están disponibles
@@ -253,7 +273,12 @@ export const Trends = () => {
               setStatistics(statusData.data.statistics);
             }
             if (statusData.data.categoryData && Array.isArray(statusData.data.categoryData)) {
-              setCategoryData(statusData.data.categoryData);
+              // Transformar formato del backend (name, value) al formato esperado por el frontend (category, count)
+              const transformedCategoryData = statusData.data.categoryData.map((item: any) => ({
+                category: item.name || item.category,
+                count: item.value || item.count
+              }));
+              setCategoryData(transformedCategoryData);
               setShowCategoryUpdate(true);
               setTimeout(() => setShowCategoryUpdate(false), 3500);
             }
@@ -883,30 +908,36 @@ export const Trends = () => {
         </Grid>
       </Grid>
 
-      {/* About Section */}
-      <Paper
+      {/* About Section - Desplegable */}
+      <Accordion 
+        expanded={aboutExpanded} 
+        onChange={() => setAboutExpanded(!aboutExpanded)}
         elevation={0}
         sx={{
-          p: 3,
+          mt: 3,
           borderRadius: 4,
-          bgcolor: 'background.paper',
           border: '1px solid',
           borderColor: 'divider',
           boxShadow: theme.shadows[1],
-          mt: 3,
           transition: 'all 0.3s ease',
           '&:hover': {
             boxShadow: theme.shadows[3],
           },
           background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+          '&:before': {
+            display: 'none',
+          },
         }}
       >
-        <Typography 
-          variant="h6" 
-          color="text.primary" 
-          fontWeight="medium"
-          fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
-          sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          sx={{
+            p: 3,
+            '& .MuiAccordionSummary-content': {
+              alignItems: 'center',
+              gap: 1
+            }
+          }}
         >
           <Box 
             component="span" 
@@ -917,48 +948,68 @@ export const Trends = () => {
               bgcolor: alpha(theme.palette.primary.main, 0.1)
             }}
           >
-            <TrendingUp size={16} color={theme.palette.primary.main} />
+            <InfoOutlinedIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
           </Box>
-          Información Detallada de Tendencias
-        </Typography>
-        {aboutInfo && aboutInfo.length > 0 ? (
-          <Grid container spacing={3}>
-            {aboutInfo.map((about, index) => {
-              const keyword = topKeywords && topKeywords[index] 
-                ? topKeywords[index].keyword 
-                : `Tendencia ${index + 1}`;
-              return (
-                <Grid item xs={12} md={6} lg={4} key={index}>
-                  <AboutCard 
-                    keyword={keyword}
-                    aboutInfo={about}
-                    index={index}
-                  />
-                </Grid>
-              );
-            })}
-          </Grid>
-        ) : (
-          <Box 
-            sx={{ 
-              textAlign: 'center', 
-              py: 6,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2
-            }}
+          <Typography 
+            variant="h6" 
+            color="text.primary" 
+            fontWeight="medium"
+            fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
           >
-            <CircularProgress size={32} />
-            <Typography color="text.secondary">
-              El análisis con IA está en proceso. Vuelve a intentar en 1-2 minutos.
-            </Typography>
-            <Button variant="outlined" onClick={retryFetchDetails} disabled={isLoading} sx={{ mt: 2 }}>
-              Reintentar
-            </Button>
-          </Box>
-        )}
-      </Paper>
+            Información Detallada de Tendencias
+          </Typography>
+          {aboutInfo && aboutInfo.length > 0 && (
+            <Chip 
+              label={`${aboutInfo.length} tendencias`} 
+              size="small" 
+              sx={{ 
+                ml: 1,
+                bgcolor: alpha(theme.palette.primary.main, 0.1),
+                color: theme.palette.primary.main
+              }} 
+            />
+          )}
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 3, pt: 0 }}>
+          {aboutInfo && aboutInfo.length > 0 ? (
+            <Grid container spacing={3}>
+              {aboutInfo.map((about, index) => {
+                const keyword = topKeywords && topKeywords[index] 
+                  ? topKeywords[index].keyword 
+                  : `Tendencia ${index + 1}`;
+                return (
+                  <Grid item xs={12} md={6} lg={4} key={index}>
+                    <AboutCard 
+                      keyword={keyword}
+                      aboutInfo={about}
+                      index={index}
+                    />
+                  </Grid>
+                );
+              })}
+            </Grid>
+          ) : (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 6,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              <CircularProgress size={32} />
+              <Typography color="text.secondary">
+                El análisis con IA está en proceso. Vuelve a intentar en 1-2 minutos.
+              </Typography>
+              <Button variant="outlined" onClick={retryFetchDetails} disabled={isLoading} sx={{ mt: 2 }}>
+                Reintentar
+              </Button>
+            </Box>
+          )}
+        </AccordionDetails>
+      </Accordion>
 
       {/* Statistics Card */}
       <Paper
@@ -1040,8 +1091,70 @@ export const Trends = () => {
         )}
       </Paper>
 
-      {/* Trending Tweets Section */}
-      <TrendingTweetsSection />
+      {/* Trending Tweets Section - Desplegable */}
+      <Accordion 
+        expanded={tweetsExpanded} 
+        onChange={() => setTweetsExpanded(!tweetsExpanded)}
+        elevation={0}
+        sx={{
+          mt: 3,
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: 'divider',
+          boxShadow: theme.shadows[1],
+          transition: 'all 0.3s ease',
+          '&:hover': {
+            boxShadow: theme.shadows[3],
+          },
+          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.secondary.main, 0.05)} 100%)`,
+          '&:before': {
+            display: 'none',
+          },
+        }}
+      >
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          sx={{
+            p: 3,
+            '& .MuiAccordionSummary-content': {
+              alignItems: 'center',
+              gap: 1
+            }
+          }}
+        >
+          <Box 
+            component="span" 
+            sx={{ 
+              display: 'inline-flex', 
+              p: 1, 
+              borderRadius: '50%',
+              bgcolor: alpha(theme.palette.secondary.main, 0.1)
+            }}
+          >
+            <TwitterIcon sx={{ fontSize: 16, color: theme.palette.secondary.main }} />
+          </Box>
+          <Typography 
+            variant="h6" 
+            color="text.primary" 
+            fontWeight="medium"
+            fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
+          >
+            Lo que pasa en las redes
+          </Typography>
+          <Chip 
+            label="Tweets en tiempo real" 
+            size="small" 
+            sx={{ 
+              ml: 1,
+              bgcolor: alpha(theme.palette.secondary.main, 0.1),
+              color: theme.palette.secondary.main
+            }} 
+          />
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0 }}>
+          <TrendingTweetsSection />
+        </AccordionDetails>
+      </Accordion>
 
       {/* Error Dialog */}
       <Dialog 

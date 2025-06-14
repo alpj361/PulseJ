@@ -20,7 +20,8 @@ import {
   TrendingUp,
   LocationOn,
   Assessment,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Edit as EditIcon
 } from '@mui/icons-material';
 import { getLatestNews, getCodexItemsByUser, getSondeosByUser } from '../services/supabase';
 import { sendSondeoToExtractorW, getLatestTrends } from '../services/api';
@@ -32,6 +33,12 @@ import BarChartVisual from '../components/ui/BarChartVisual';
 import LineChartVisual from '../components/ui/LineChartVisual';
 import AreaChartVisual from '../components/ui/AreaChartVisual';
 import PieChartVisual from '../components/ui/PieChartVisual';
+import ModernBarChart from '../components/ui/ModernBarChart';
+import ModernLineChart from '../components/ui/ModernLineChart';
+import ModernPieChart from '../components/ui/ModernPieChart';
+import MultiContextSelector from '../components/ui/MultiContextSelector';
+import AIResponseDisplay from '../components/ui/AIResponseDisplay';
+import SondeoConfigModal from '../components/ui/SondeoConfigModal';
 
 // Utilidad mejorada para buscar relevancia por palabras clave del input
 function filtrarPorRelevancia(texto: string, input: string) {
@@ -70,10 +77,13 @@ const Sondeos: React.FC = () => {
   const [loadingSondeos, setLoadingSondeos] = useState(false);
   
   // Nuevo estado para el tipo de contexto seleccionado
-  const [tipoContexto, setTipoContexto] = useState<string>('tendencias');
+  const [selectedContexts, setSelectedContexts] = useState<string[]>(['tendencias']);
   
   // Nuevo estado para datos de visualización
   const [datosAnalisis, setDatosAnalisis] = useState<any>(null);
+  
+  // Estado para el modal de configuración
+  const [configModalOpen, setConfigModalOpen] = useState(false);
 
   // Opciones para el dropdown de contexto
   const opcionesContexto = [
@@ -115,7 +125,9 @@ const Sondeos: React.FC = () => {
 
   // Obtener preguntas específicas según el tipo de contexto
   const getQuestionsByContext = () => {
-    if (tipoContexto === 'tendencias') {
+    // Si hay múltiples contextos, usar el primero para las preguntas por ahora
+    const primaryContext = selectedContexts[0] || 'tendencias';
+    if (primaryContext === 'tendencias') {
       return [
         {
           id: 1,
@@ -150,7 +162,7 @@ const Sondeos: React.FC = () => {
           dataKey: 'subtemas_relacionados'
         }
       ];
-    } else if (tipoContexto === 'noticias') {
+    } else if (primaryContext === 'noticias') {
       return [
         {
           id: 1,
@@ -185,7 +197,7 @@ const Sondeos: React.FC = () => {
           dataKey: 'aspectos_cubiertos'
         }
       ];
-    } else if (tipoContexto === 'codex') {
+    } else if (primaryContext === 'codex') {
       return [
         {
           id: 1,
@@ -240,131 +252,129 @@ const Sondeos: React.FC = () => {
     }
 
     const data = datosAnalisis[question.dataKey];
+    const primaryContext = selectedContexts[0] || 'tendencias';
     
     // Visualizaciones específicas según el tipo de contexto y pregunta
-    if (tipoContexto === 'tendencias') {
+    if (primaryContext === 'tendencias') {
       switch (question.id) {
         case 1: // Temas relevantes
           return (
-            <BarChartVisual 
-              data={data} 
-              xAxisKey="tema" 
-              barKey="valor" 
-              height={230} 
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.tema, value: item.valor }))} 
+              height={280} 
+              gradient={true}
+              glassmorphism={true}
             />
           );
           
         case 2: // Distribución por categorías
           return (
-            <PieChartVisual
-              data={data}
-              nameKey="categoria"
-              valueKey="valor"
-              height={230}
+            <ModernPieChart
+              data={data.map((item: any) => ({ name: item.categoria, value: item.valor }))}
+              height={280}
+              showLegend={true}
             />
           );
           
         case 3: // Mapa de menciones
           return (
-            <BarChartVisual 
-              data={data}
-              xAxisKey="region"
-              barKey="valor"
-              height={230}
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.region, value: item.valor }))}
+              height={280}
+              gradient={true}
+              glassmorphism={true}
             />
           );
           
         case 4: // Subtemas relacionados
           return (
-            <BarChartVisual 
-              data={data}
-              xAxisKey="subtema"
-              barKey="relacion"
-              height={230}
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.subtema, value: item.relacion }))}
+              height={280}
+              gradient={true}
+              glassmorphism={true}
             />
           );
       }
-    } else if (tipoContexto === 'noticias') {
+    } else if (primaryContext === 'noticias') {
       switch (question.id) {
         case 1: // Noticias más relevantes
           return (
-            <BarChartVisual 
-              data={data} 
-              xAxisKey="titulo" 
-              barKey="relevancia" 
-              height={230} 
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.titulo.substring(0, 20) + '...', value: item.relevancia }))} 
+              height={280} 
+              gradient={true}
+              glassmorphism={true}
             />
           );
           
         case 2: // Fuentes que cubren más
           return (
-            <PieChartVisual
-              data={data}
-              nameKey="fuente"
-              valueKey="cobertura"
-              height={230}
+            <ModernPieChart
+              data={data.map((item: any) => ({ name: item.fuente, value: item.cobertura }))}
+              height={280}
+              showLegend={true}
             />
           );
           
         case 3: // Evolución de cobertura
           return (
-            <LineChartVisual 
-              data={data}
-              xAxisKey="fecha"
-              lineKey="valor"
-              height={230}
+            <ModernLineChart 
+              data={data.map((item: any) => ({ name: item.fecha, value: item.valor }))}
+              height={280}
+              showArea={true}
+              showTarget={false}
             />
           );
           
         case 4: // Aspectos cubiertos
           return (
-            <BarChartVisual 
-              data={data}
-              xAxisKey="aspecto"
-              barKey="cobertura"
-              height={230}
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.aspecto, value: item.cobertura }))}
+              height={280}
+              gradient={true}
+              glassmorphism={true}
             />
           );
       }
-    } else if (tipoContexto === 'codex') {
+    } else if (primaryContext === 'codex') {
       switch (question.id) {
         case 1: // Documentos más relevantes
           return (
-            <BarChartVisual 
-              data={data} 
-              xAxisKey="titulo" 
-              barKey="relevancia" 
-              height={230} 
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.titulo.substring(0, 20) + '...', value: item.relevancia }))} 
+              height={280} 
+              gradient={true}
+              glassmorphism={true}
             />
           );
           
         case 2: // Conceptos relacionados
           return (
-            <PieChartVisual
-              data={data}
-              nameKey="concepto"
-              valueKey="relacion"
-              height={230}
+            <ModernPieChart
+              data={data.map((item: any) => ({ name: item.concepto, value: item.relacion }))}
+              height={280}
+              showLegend={true}
             />
           );
           
         case 3: // Evolución de análisis
           return (
-            <AreaChartVisual 
-              data={data}
-              xAxisKey="fecha"
-              areaKey="valor"
-              height={230}
+            <ModernLineChart 
+              data={data.map((item: any) => ({ name: item.fecha, value: item.valor }))}
+              height={280}
+              showArea={true}
+              showTarget={false}
             />
           );
           
         case 4: // Aspectos documentados
           return (
-            <BarChartVisual 
-              data={data}
-              xAxisKey="aspecto"
-              barKey="profundidad"
-              height={230}
+            <ModernBarChart 
+              data={data.map((item: any) => ({ name: item.aspecto, value: item.profundidad }))}
+              height={280}
+              gradient={true}
+              glassmorphism={true}
             />
           );
       }
@@ -394,7 +404,7 @@ const Sondeos: React.FC = () => {
     }).finally(() => setLoading(false));
   }, [user]);
 
-  // Función para sondear tema según el tipo de contexto seleccionado
+  // Función para sondear tema según los contextos seleccionados
   const sondearTema = async () => {
     setLlmResponse(null);
     setLlmSources(null);
@@ -406,11 +416,12 @@ const Sondeos: React.FC = () => {
     try {
       let contextoArmado: any = { 
         input,
-        tipo_contexto: tipoContexto 
+        contextos_seleccionados: selectedContexts,
+        tipo_contexto: selectedContexts.join('+') // Para compatibilidad con backend
       };
       
-      // Obtener datos según el tipo de contexto seleccionado
-      if (tipoContexto === 'tendencias') {
+      // Obtener datos según los contextos seleccionados
+      if (selectedContexts.includes('tendencias')) {
         // Obtener tendencias actuales
         const tendenciasData = await getLatestTrends();
         if (tendenciasData) {
@@ -427,7 +438,9 @@ const Sondeos: React.FC = () => {
         } else {
           throw new Error('No se pudieron obtener las tendencias actuales');
         }
-      } else if (tipoContexto === 'noticias') {
+      }
+      
+      if (selectedContexts.includes('noticias')) {
         // Filtrar noticias relevantes
         const noticiasRelevantes = news.filter(n =>
           filtrarPorRelevancia(n.title, input) ||
@@ -449,7 +462,9 @@ const Sondeos: React.FC = () => {
             keywords: n.keywords
           }))
         };
-      } else if (tipoContexto === 'codex') {
+      }
+      
+      if (selectedContexts.includes('codex')) {
         // Filtrar documentos relevantes
         const codexRelevantes = codex.filter((d: any) =>
           filtrarPorRelevancia(d.titulo, input) ||
@@ -498,7 +513,8 @@ const Sondeos: React.FC = () => {
         } else {
           // Si no hay datos de análisis específicos, generar datos de muestra para testing
           console.log('Generando datos de prueba para visualizaciones');
-          const datosPrueba = generarDatosPrueba(tipoContexto, input);
+          const primaryContext = selectedContexts[0] || 'tendencias';
+          const datosPrueba = generarDatosPrueba(primaryContext, input);
           setDatosAnalisis(datosPrueba);
         }
         
@@ -713,6 +729,8 @@ const Sondeos: React.FC = () => {
     };
   };
 
+
+
   // Agrega esta función después de generarDatosPrueba para mostrar datos inmediatamente sin tener que consultar:
   // Esta función es sólo para propósitos de demostración
   const cargarDatosDemostracion = () => {
@@ -728,7 +746,8 @@ const Sondeos: React.FC = () => {
       const consultaDemo = input || "desarrollo económico";
       
       // Generar datos de muestra para el tipo de contexto seleccionado
-      const datosMuestra = generarDatosPrueba(tipoContexto, consultaDemo);
+      const primaryContext = selectedContexts[0] || 'tendencias';
+    const datosMuestra = generarDatosPrueba(primaryContext, consultaDemo);
       
       // Establecer la consulta de demostración si no hay ninguna
       if (!input) {
@@ -737,8 +756,11 @@ const Sondeos: React.FC = () => {
       
       // Actualizar los estados
       setDatosAnalisis(datosMuestra);
-      setLlmResponse(`Análisis de "${consultaDemo}" en el contexto de ${tipoContexto === 'tendencias' ? 'tendencias actuales' : 
-        tipoContexto === 'noticias' ? 'noticias recientes' : 'documentos del codex'}. 
+          const contextLabels = selectedContexts.map(ctx => 
+      ctx === 'tendencias' ? 'tendencias actuales' :
+      ctx === 'noticias' ? 'noticias recientes' : 'documentos del codex'
+    ).join(', ');
+    setLlmResponse(`Análisis de "${consultaDemo}" combinando contextos de ${contextLabels}. 
         Este es un texto de muestra generado para visualizar los gráficos. En un análisis real, 
         aquí se mostraría un resumen detallado elaborado por la IA sobre el tema consultado, 
         basado en el contexto seleccionado y la información relevante disponible.`);
@@ -781,174 +803,257 @@ const Sondeos: React.FC = () => {
   }, [user]);
 
   return (
-    <Box sx={{ p: 4 }}>
-      {/* Header */}
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom fontWeight="bold" color="text.primary">
-          Sondeos
-        </Typography>
-        <Typography variant="h6" color="text.secondary" sx={{ mb: 3 }}>
-          Unificando señales dispersas para entender el pulso social
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-          <FormControl sx={{ minWidth: 180 }}>
-            <InputLabel id="tipo-contexto-label">Tipo de contexto</InputLabel>
-            <Select
-              labelId="tipo-contexto-label"
-              id="tipo-contexto-select"
-              value={tipoContexto}
-              label="Tipo de contexto"
-              onChange={(e) => setTipoContexto(e.target.value)}
-              size="small"
-            >
-              {opcionesContexto.map((opcion) => (
-                <MenuItem key={opcion.value} value={opcion.value}>
-                  {opcion.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <input
-            type="text"
-            placeholder="Tema o pregunta a sondear..."
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            style={{ flex: 1, fontSize: '1.1rem', padding: '10px 16px', borderRadius: 8, border: '1px solid #ccc' }}
+    <Box sx={{ maxWidth: '1280px', mx: 'auto', p: { xs: 2, sm: 3, lg: 4 } }}>
+      {/* Buscador + Contexto + Configuración */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        justifyContent: 'center',
+        gap: 2,
+        mb: 6
+      }}>
+        <input
+          type="text"
+          placeholder='Buscar tema (ej. "desarrollo económico")'
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          style={{ 
+            width: '100%',
+            maxWidth: '600px',
+            fontSize: '14px', 
+            padding: '8px 16px', 
+            borderRadius: '6px', 
+            border: '1px solid #D1D5DB',
+            backgroundColor: 'white',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            outline: 'none',
+            transition: 'all 0.2s ease'
+          }}
+          onFocus={(e) => {
+            e.target.style.borderColor = '#3B82F6';
+            e.target.style.boxShadow = '0 0 0 2px rgba(59, 130, 246, 0.1)';
+          }}
+          onBlur={(e) => {
+            e.target.style.borderColor = '#D1D5DB';
+            e.target.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
+          }}
+        />
+        
+        {/* Contexto */}
+        <Box sx={{ minWidth: '160px' }}>
+          <MultiContextSelector
+            selectedContexts={selectedContexts}
+            onContextChange={setSelectedContexts}
+            disabled={loading || loadingSondeo}
           />
-          <Button
-            variant="contained"
-            size="large"
-            startIcon={<SearchIcon />}
-            sx={{ px: 4, py: 1.5, fontSize: '1.1rem', fontWeight: 'semibold', borderRadius: 2, textTransform: 'none', boxShadow: 3, '&:hover': { boxShadow: 6, transform: 'translateY(-2px)' }, transition: 'all 0.3s ease' }}
-            disabled={loading || !input}
-            onClick={sondearTema}
-          >
-            🧠 Sondear
-          </Button>
         </Box>
-        {loading && <Typography color="primary">Cargando contexto inicial...</Typography>}
-        {loadingSondeo && <Typography color="primary">Cargando contexto y respuesta de IA...</Typography>}
-        {error && <Typography color="error">{error}</Typography>}
-        {llmResponse && (
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
-            <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 1 }}>Respuesta de la IA:</Typography>
-            <Typography variant="body1" sx={{ mb: 1 }}>{llmResponse}</Typography>
-            <Button size="small" onClick={() => setShowContext(v => !v)} sx={{ mt: 1 }}>
-              {showContext ? 'Ocultar contexto' : 'Ver contexto enviado'}
-            </Button>
-            {showContext && contexto && (
-              <pre style={{ fontSize: 14, whiteSpace: 'pre-wrap', wordBreak: 'break-word', background: '#f7fafc', padding: 12, borderRadius: 8, maxHeight: 350, overflow: 'auto' }}>{JSON.stringify(contexto, null, 2)}</pre>
-            )}
-            {llmSources && (
-              <Button size="small" onClick={() => setLlmSources(null)} sx={{ mt: 1, ml: 2 }} disabled>
-                Fuentes usadas (ver JSON)
-              </Button>
-            )}
-          </Box>
-        )}
+
+        <Button
+          variant="outlined"
+          startIcon={<EditIcon />}
+          onClick={() => setConfigModalOpen(true)}
+          sx={{ 
+            px: 2, 
+            py: 1, 
+            fontSize: '14px', 
+            fontWeight: 500, 
+            borderRadius: '6px', 
+            textTransform: 'none',
+            borderColor: '#D1D5DB',
+            color: '#374151',
+            backgroundColor: 'white',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            '&:hover': { 
+              backgroundColor: '#F9FAFB',
+              borderColor: '#D1D5DB'
+            }, 
+            transition: 'all 0.2s ease',
+            minWidth: 'auto'
+          }}
+        >
+          Configurar
+        </Button>
+
+        <Button
+          variant="contained"
+          startIcon={<SearchIcon />}
+          disabled={loading || !input || selectedContexts.length === 0}
+          onClick={sondearTema}
+          sx={{ 
+            px: 2, 
+            py: 1, 
+            fontSize: '14px', 
+            fontWeight: 600, 
+            borderRadius: '6px', 
+            textTransform: 'none',
+            backgroundColor: '#3B82F6',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            '&:hover': { 
+              backgroundColor: '#2563EB'
+            }, 
+            transition: 'all 0.2s ease',
+            minWidth: 'auto'
+          }}
+        >
+          Sondear
+        </Button>
       </Box>
 
-      {/* Objective Section */}
-      <Paper 
-        elevation={2} 
-        sx={{ 
-          p: 3, 
+      {/* Análisis (Expandible) */}
+      {llmResponse && (
+        <Card sx={{ 
           mb: 4, 
-          backgroundColor: 'background.paper',
-          borderRadius: 2
-        }}
-      >
-        <Typography variant="h5" gutterBottom fontWeight="semibold" color="primary">
-          🎯 Objetivo del Módulo
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.7 }}>
-          Unificar señales dispersas (contenido, conversación, cobertura y territorio) para generar 
-          insights estratégicos sobre la opinión pública y las tendencias mediáticas.
-        </Typography>
-      </Paper>
+          borderRadius: '8px', 
+          border: '1px solid rgba(59, 130, 246, 0.1)', 
+          backgroundColor: 'rgba(59, 130, 246, 0.02)',
+          boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)'
+        }}>
+          <CardContent sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6" fontWeight={600} sx={{ letterSpacing: '-0.025em' }}>
+                Análisis
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => setShowContext(v => !v)}
+                sx={{ 
+                  minWidth: 'auto', 
+                  p: 0.5,
+                  color: '#3B82F6',
+                  '&:hover': { backgroundColor: 'rgba(59, 130, 246, 0.1)' }
+                }}
+              >
+                {showContext ? '▲' : '▼'}
+              </Button>
+            </Box>
+            {showContext && (
+              <Box sx={{ borderTop: '1px solid rgba(59, 130, 246, 0.1)', pt: 2 }}>
+                <AIResponseDisplay
+                  response={llmResponse}
+                  contexts={selectedContexts}
+                  contextData={contexto}
+                  onContextToggle={() => setShowContext(v => !v)}
+                  showContext={showContext}
+                  sources={llmSources}
+                  loading={loadingSondeo}
+                />
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Questions Grid */}
-      <Typography variant="h5" gutterBottom fontWeight="semibold" sx={{ mb: 3 }}>
-        Preguntas Clave
-      </Typography>
+      {/* Loading States */}
+      {loading && <Typography color="primary" sx={{ textAlign: 'center', mb: 4 }}>Cargando contexto inicial...</Typography>}
+      {loadingSondeo && <Typography color="primary" sx={{ textAlign: 'center', mb: 4 }}>Cargando contexto y respuesta de IA...</Typography>}
+      {error && <Typography color="error" sx={{ textAlign: 'center', mb: 4 }}>{error}</Typography>}
       
+      {loadingSondeo && !llmResponse && (
+        <Card sx={{ 
+          mb: 4, 
+          borderRadius: '8px', 
+          border: '1px solid rgba(59, 130, 246, 0.1)', 
+          backgroundColor: 'rgba(59, 130, 246, 0.02)'
+        }}>
+          <CardContent sx={{ p: 3 }}>
+            <AIResponseDisplay
+              response=""
+              contexts={selectedContexts}
+              contextData={contexto}
+              loading={true}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Objetivo */}
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'flex-start', 
+        gap: 2, 
+        p: 3, 
+        mb: 4,
+        borderRadius: '8px', 
+        backgroundColor: 'rgba(59, 130, 246, 0.02)', 
+        boxShadow: 'inset 0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        border: '1px solid #E5E7EB'
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          width: 40, 
+          height: 40, 
+          borderRadius: '50%', 
+          backgroundColor: 'rgba(59, 130, 246, 0.1)', 
+          color: '#3B82F6',
+          flexShrink: 0
+        }}>
+          🎯
+        </Box>
+        <Box>
+          <Typography variant="subtitle1" fontWeight={600} sx={{ letterSpacing: '-0.025em', mb: 0.5 }}>
+            Objetivo del Módulo
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+            Proporcionar una visión estratégica basada en datos para tomar decisiones informadas sobre desarrollo económico.
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Cuadrícula de Preguntas */}
       <Grid container spacing={4} sx={{ mb: 6 }}>
         {currentQuestions.map((question) => (
-          <Grid item xs={12} md={6} key={question.id}>
+          <Grid item xs={12} sm={6} lg={6} key={question.id}>
             <Card
               sx={{
                 height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
-                transition: 'all 0.3s ease',
+                borderRadius: '16px',
+                backgroundColor: 'white',
+                boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                border: '1px solid #E5E7EB',
+                transition: 'all 0.2s ease',
                 cursor: 'pointer',
                 '&:hover': {
                   transform: 'translateY(-4px)',
-                  boxShadow: 6
+                  boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
                 },
                 ...(selectedQuestion === question.id ? {
-                  borderColor: `${question.color}.main`,
-                  borderWidth: 2,
-                  borderStyle: 'solid'
+                  borderColor: '#3B82F6',
+                  borderWidth: 2
                 } : {})
               }}
               onClick={() => setSelectedQuestion(selectedQuestion === question.id ? null : question.id)}
             >
               <CardContent sx={{ flexGrow: 1, p: 3 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box
-                    sx={{
-                      mr: 2,
-                      p: 1,
-                      borderRadius: 2,
-                      backgroundColor: `${question.color}.light`,
-                      color: `${question.color}.contrastText`,
-                      display: 'flex',
-                      alignItems: 'center'
-                    }}
-                  >
-                    {question.icon}
-                  </Box>
-                  <Chip
-                    label={`Pregunta ${question.id}`}
-                    color={question.color as any}
-                    size="small"
-                  />
-                </Box>
-                
-                <Typography variant="h6" gutterBottom fontWeight="semibold" lineHeight={1.3}>
+                <Typography variant="subtitle1" fontWeight={600} sx={{ letterSpacing: '-0.025em', mb: 1 }}>
+                  Pregunta {question.id}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   {question.title}
                 </Typography>
                 
-                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-                  {question.description}
-                </Typography>
-                
                 {/* Área para visualización */}
-                <Box
-                  sx={{
-                    mt: 3,
-                    p: 1,
-                    backgroundColor: selectedQuestion === question.id ? 'grey.100' : 'grey.50',
-                    borderRadius: 1,
-                    border: '2px dashed',
-                    borderColor: selectedQuestion === question.id ? `${question.color}.main` : 'grey.300',
-                    minHeight: 250,
-                    height: 250
-                  }}
-                >
-                  {datosAnalisis ? (
-                    renderVisualization(question)
-                  ) : (
-                    <Typography variant="body2" color="text.secondary" sx={{ 
-                      height: '100%', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center' 
-                    }}>
-                      📊 Sondee un tema para ver análisis
-                    </Typography>
-                  )}
+                <Box sx={{ mt: 2, flexGrow: 1 }}>
+                  <Box sx={{ height: 280 }}>
+                    {datosAnalisis ? (
+                      renderVisualization(question)
+                    ) : (
+                      <Box sx={{ 
+                        height: '100%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        color: 'text.secondary',
+                        fontSize: '14px'
+                      }}>
+                        📊 Sondee un tema para ver análisis
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
               </CardContent>
             </Card>
@@ -956,184 +1061,76 @@ const Sondeos: React.FC = () => {
         ))}
       </Grid>
 
-      {/* Analytics Space */}
-      <Paper 
-        elevation={1}
-        sx={{ 
-          p: 4, 
-          backgroundColor: datosAnalisis ? 'background.paper' : 'grey.50',
-          borderRadius: 2,
-          border: datosAnalisis ? 'none' : '2px dashed',
-          borderColor: 'grey.300',
-          mb: 6
-        }}
-      >
-        {datosAnalisis ? (
-          <Box>
-            <Typography variant="h5" gutterBottom fontWeight="semibold" color="primary">
-              📈 Panel de Análisis de {tipoContexto === 'tendencias' ? 'Tendencias' : tipoContexto === 'noticias' ? 'Noticias' : 'Documentos'}
-            </Typography>
-            
-            <Grid container spacing={4}>
-              {/* Primera fila de gráficas */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight="semibold">
-                  {tipoContexto === 'tendencias' ? 'Temas Populares' : 
-                   tipoContexto === 'noticias' ? 'Relevancia de Noticias' : 
-                   'Relevancia de Documentos'}
-                </Typography>
-                {tipoContexto === 'tendencias' && datosAnalisis.temas_relevantes ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.temas_relevantes}
-                    xAxisKey="tema"
-                    barKey="valor"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'noticias' && datosAnalisis.noticias_relevantes ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.noticias_relevantes}
-                    xAxisKey="titulo"
-                    barKey="relevancia"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'codex' && datosAnalisis.documentos_relevantes ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.documentos_relevantes}
-                    xAxisKey="titulo"
-                    barKey="relevancia"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : (
-                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
-                    <Typography color="text.secondary">No hay datos disponibles</Typography>
-                  </Box>
-                )}
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight="semibold">
-                  {tipoContexto === 'tendencias' ? 'Distribución por Categoría' : 
-                   tipoContexto === 'noticias' ? 'Fuentes de Cobertura' : 
-                   'Conceptos Relacionados'}
-                </Typography>
-                {tipoContexto === 'tendencias' && datosAnalisis.distribucion_categorias ? (
-                  <PieChartVisual
-                    data={datosAnalisis.distribucion_categorias}
-                    nameKey="categoria"
-                    valueKey="valor"
-                    height={350}
-                  />
-                ) : tipoContexto === 'noticias' && datosAnalisis.fuentes_cobertura ? (
-                  <PieChartVisual
-                    data={datosAnalisis.fuentes_cobertura}
-                    nameKey="fuente"
-                    valueKey="cobertura"
-                    height={350}
-                  />
-                ) : tipoContexto === 'codex' && datosAnalisis.conceptos_relacionados ? (
-                  <PieChartVisual
-                    data={datosAnalisis.conceptos_relacionados}
-                    nameKey="concepto"
-                    valueKey="relacion"
-                    height={350}
-                  />
-                ) : (
-                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
-                    <Typography color="text.secondary">No hay datos disponibles</Typography>
-                  </Box>
-                )}
-              </Grid>
 
-              {/* Segunda fila de gráficas */}
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight="semibold">
-                  {tipoContexto === 'tendencias' ? 'Distribución Geográfica' : 
-                   tipoContexto === 'noticias' ? 'Evolución de Cobertura' : 
-                   'Evolución de Análisis'}
-                </Typography>
-                {tipoContexto === 'tendencias' && datosAnalisis.mapa_menciones ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.mapa_menciones}
-                    xAxisKey="region"
-                    barKey="valor"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'noticias' && datosAnalisis.evolucion_cobertura ? (
-                  <LineChartVisual 
-                    data={datosAnalisis.evolucion_cobertura}
-                    xAxisKey="fecha"
-                    lineKey="valor"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'codex' && datosAnalisis.evolucion_analisis ? (
-                  <AreaChartVisual 
-                    data={datosAnalisis.evolucion_analisis}
-                    xAxisKey="fecha"
-                    areaKey="valor"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : (
-                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
-                    <Typography color="text.secondary">No hay datos disponibles</Typography>
-                  </Box>
-                )}
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <Typography variant="subtitle1" fontWeight="semibold">
-                  {tipoContexto === 'tendencias' ? 'Subtemas Relacionados' : 
-                   tipoContexto === 'noticias' ? 'Aspectos Cubiertos' : 
-                   'Aspectos Documentados'}
-                </Typography>
-                {tipoContexto === 'tendencias' && datosAnalisis.subtemas_relacionados ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.subtemas_relacionados}
-                    xAxisKey="subtema"
-                    barKey="relacion"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'noticias' && datosAnalisis.aspectos_cubiertos ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.aspectos_cubiertos}
-                    xAxisKey="aspecto"
-                    barKey="cobertura"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : tipoContexto === 'codex' && datosAnalisis.aspectos_documentados ? (
-                  <BarChartVisual 
-                    data={datosAnalisis.aspectos_documentados}
-                    xAxisKey="aspecto"
-                    barKey="profundidad"
-                    height={350}
-                    showAverage={true}
-                  />
-                ) : (
-                  <Box sx={{ height: 350, display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px dashed', borderColor: 'grey.300', borderRadius: 1 }}>
-                    <Typography color="text.secondary">No hay datos disponibles</Typography>
-                  </Box>
-                )}
-              </Grid>
-            </Grid>
-          </Box>
-        ) : (
-          <Box sx={{ textAlign: 'center' }}>
-            <Typography variant="h5" gutterBottom fontWeight="semibold" color="text.secondary">
-              📈 Panel de Análisis Principal
-            </Typography>
-            <Typography variant="body1" color="text.secondary">
-              Utilice el campo de búsqueda para iniciar un sondeo y visualizar los resultados aquí.
-            </Typography>
-          </Box>
-        )}
-      </Paper>
+
+      {/* Acciones Globales */}
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 2,
+        mt: 6,
+        mb: 4
+      }}>
+        <Button
+          variant="contained"
+          startIcon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/>
+              <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/>
+              <path d="M7 3v4a1 1 0 0 0 1 1h7"/>
+            </svg>
+          }
+          sx={{
+            px: 2,
+            py: 1,
+            fontSize: '14px',
+            fontWeight: 600,
+            borderRadius: '6px',
+            textTransform: 'none',
+            backgroundColor: '#3B82F6',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            '&:hover': {
+              backgroundColor: '#2563EB'
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Guardar Cambios
+        </Button>
+        <Button
+          variant="outlined"
+          startIcon={
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+              <path d="M16 16h5v5"/>
+            </svg>
+          }
+          onClick={cargarDatosDemostracion}
+          sx={{
+            px: 2,
+            py: 1,
+            fontSize: '14px',
+            fontWeight: 600,
+            borderRadius: '6px',
+            textTransform: 'none',
+            borderColor: '#D1D5DB',
+            color: '#374151',
+            backgroundColor: 'white',
+            boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+            '&:hover': {
+              backgroundColor: '#F9FAFB',
+              borderColor: '#D1D5DB'
+            },
+            transition: 'all 0.2s ease'
+          }}
+        >
+          Regenerar Todo
+        </Button>
+      </Box>
 
       {/* Mapa de Sondeos */}
       <Box sx={{ mb: 4 }}>
@@ -1146,6 +1143,14 @@ const Sondeos: React.FC = () => {
           <SondeosMap sondeos={sondeos} />
         )}
       </Box>
+
+      {/* Modal de Configuración */}
+      <SondeoConfigModal
+        open={configModalOpen}
+        onClose={() => setConfigModalOpen(false)}
+        selectedContexts={selectedContexts}
+      />
+
     </Box>
   );
 };

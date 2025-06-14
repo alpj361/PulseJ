@@ -71,7 +71,7 @@ const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   // Si hay usuario, verificar que venga desde AuthVerification
   // Para esto, verificamos si estamos en una ruta protegida sin haber pasado por verificación
   const currentPath = window.location.pathname;
-  const isProtectedPath = ['/dashboard', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library', '/codex', '/news'].includes(currentPath);
+  const isProtectedPath = ['/dashboard', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library', '/codex', '/news', '/sondeos'].includes(currentPath);
   
   if (isProtectedPath) {
     // Verificar si el usuario viene directamente sin verificación
@@ -172,8 +172,13 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
-          {/* Rutas deshabilitadas por seguridad - redirigir al dashboard */}
-          <Route path="/sondeos" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/sondeos" element={
+            <VerifiedRoute>
+              <Layout>
+                <Sondeos />
+              </Layout>
+            </VerifiedRoute>
+          } />
           <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
           <Route path="/timeline-demo" element={
             <VerifiedRoute>

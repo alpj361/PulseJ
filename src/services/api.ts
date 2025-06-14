@@ -22,14 +22,13 @@ export interface TrendResponse {
 // Types for backend response with about and statistics
 export interface AboutInfo {
   nombre: string;
-  resumen: string;
-  categoria: string;
   tipo: string;
-  relevancia: 'alta' | 'media' | 'baja';
+  relevancia: string;
+  razon_tendencia: string;
+  fecha_evento: string;
+  palabras_clave: string[];
+  categoria: string;
   contexto_local: boolean;
-  razon_tendencia?: string;
-  fecha_evento?: string;
-  palabras_clave?: string[];
   source: string;
   model: string;
 }
@@ -504,4 +503,44 @@ export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: stri
     console.error('❌ Error en sendSondeoToExtractorW:', error);
     throw error;
   }
-} 
+}
+
+export interface TrendDetail {
+  id: number;
+  nombre: string;
+  tipo: string;
+  relevancia: 'Alta' | 'Media' | 'Baja';
+  razon_tendencia: string;
+  fecha: string;
+  palabras_clave: string[];
+}
+
+export const transformTrendData = (backendData: any): AboutInfo[] => {
+  if (!backendData || !backendData.about || !Array.isArray(backendData.about)) {
+    return [];
+  }
+
+  return backendData.about.map((item: any) => {
+    // Asegurar que la relevancia esté en minúsculas y sea uno de los valores permitidos
+    const normalizeRelevancia = (rel: string): 'alta' | 'media' | 'baja' => {
+      const normalized = rel?.toLowerCase() || '';
+      if (normalized.includes('alta')) return 'alta';
+      if (normalized.includes('baja')) return 'baja';
+      return 'media';
+    };
+
+    return {
+      nombre: item.nombre || 'Sin nombre',
+      resumen: item.resumen || 'Procesando información detallada...',
+      categoria: item.categoria || 'General',
+      tipo: item.tipo || 'hashtag',
+      relevancia: normalizeRelevancia(item.relevancia),
+      contexto_local: item.contexto_local ?? true,
+      razon_tendencia: item.razon_tendencia || undefined,
+      fecha_evento: item.fecha_evento || undefined,
+      palabras_clave: Array.isArray(item.palabras_clave) ? item.palabras_clave : undefined,
+      source: item.source || 'perplexity-individual',
+      model: item.model || 'sonar'
+    };
+  });
+}; 
