@@ -191,7 +191,10 @@ export async function fetchTrendsFromExtractorW(rawTrendsData?: any, authToken?:
   try {
     console.log('🚀 Iniciando fetchTrendsFromExtractorW');
     
-    const requestBody = rawTrendsData ? { rawData: rawTrendsData } : undefined;
+    // SIEMPRE enviar background: true para activar procesamiento detallado
+    const requestBody = rawTrendsData ? 
+      { rawData: rawTrendsData, background: true } : 
+      { background: true };
     
     // Preparar headers
     const headers: Record<string, string> = {
@@ -207,10 +210,11 @@ export async function fetchTrendsFromExtractorW(rawTrendsData?: any, authToken?:
     }
     
     console.log('📡 Llamando a ExtractorW backend para procesamiento rápido...');
+    console.log('📝 Request body:', requestBody); // Debug log para verificar que se envía background: true
     const response = await fetch(`${EXTRACTORW_API_URL}/processTrends`, {
       method: 'POST',
       headers,
-      body: requestBody ? JSON.stringify(requestBody) : JSON.stringify({})
+      body: JSON.stringify(requestBody)
     });
     
     if (!response.ok) {
