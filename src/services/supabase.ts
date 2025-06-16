@@ -184,6 +184,7 @@ export async function saveCodexItem(item: any) {
       descripcion: item.descripcion,
       etiquetas: item.etiquetas,
       proyecto: item.proyecto,
+      project_id: item.project_id || null,
       storage_path: item.storagePath,
       url: item.url,
       nombre_archivo: item.nombreArchivo,
@@ -205,6 +206,97 @@ export async function getCodexItemsByUser(user_id: string) {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data || [];
+}
+
+/**
+ * Obtener activos (codex items) asociados a un proyecto específico
+ */
+export async function getProjectAssets(projectId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching project assets:', error);
+    return [];
+  }
+}
+
+/**
+ * Obtener codex items disponibles para agregar a un proyecto (sin project_id asignado)
+ */
+export async function getAvailableCodexItems(userId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+  
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .select('*')
+      .eq('user_id', userId)
+      .is('project_id', null) // Solo items no asignados a proyectos
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching available codex items:', error);
+    return [];
+  }
+}
+
+/**
+ * Asignar un codex item a un proyecto
+ */
+export async function assignCodexItemToProject(itemId: string, projectId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .update({ project_id: projectId })
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error assigning codex item to project:', error);
+    throw error;
+  }
+}
+
+/**
+ * Desasignar un codex item de un proyecto
+ */
+export async function unassignCodexItemFromProject(itemId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .update({ project_id: null })
+      .eq('id', itemId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error unassigning codex item from project:', error);
+    throw error;
+  }
 }
 
 /**
@@ -245,14 +337,14 @@ export async function getLatestNews() {
 
 /**
  * Obtiene los sondeos de un usuario desde la tabla 'sondeos'
- * @param userId UUID del usuario
+ * @param userEmail Email del usuario
  * @returns Array de sondeos
  */
-export async function getSondeosByUser(userId: string) {
+export async function getSondeosByUser(userEmail: string) {
   const { data, error } = await supabase
     .from('sondeos')
     .select('*')
-    .eq('user_id', userId)
+    .eq('email_usuario', userEmail)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data;
@@ -353,5 +445,515 @@ export async function getTweetStatsByCategory() {
   } catch (error) {
     console.error('Error fetching tweet stats:', error);
     return {};
+  }
+}
+
+// ===================================================================
+// GESTIÓN DE PROYECTOS Y DECISIONES EN CAPAS
+// ===================================================================
+
+/**
+ * Tipos para el sistema de proyectos
+ */
+export interface Project {
+  id: string;
+  user_id: string;
+  title: string;
+  description?: string;
+  status: 'active' | 'paused' | 'completed' | 'archived';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category?: string;
+  tags: string[];
+  start_date?: string;
+  target_date?: string;
+  completed_date?: string;
+  visibility: 'private' | 'team' | 'public';
+  collaborators?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProjectDecision {
+  id: string;
+  project_id: string;
+  title: string;
+  description: string;
+  decision_type: 'enfoque' | 'alcance' | 'configuracion';
+  sequence_number: number;
+  parent_decision_id?: string | null;
+  // Campos específicos para el sistema de capas
+  change_description?: string | null;
+  objective?: string | null;
+  next_steps?: string | null;
+  deadline?: string | null;
+  // Campos específicos por tipo de decisión
+  focus_area?: string | null;           // Para enfoque
+  focus_context?: string | null;        // Para enfoque
+  geographic_scope?: string | null;     // Para alcance
+  monetary_scope?: string | null;       // Para alcance
+  time_period_start?: string | null;    // Para alcance
+  time_period_end?: string | null;      // Para alcance
+  target_entities?: string | null;      // Para alcance
+  scope_limitations?: string | null;    // Para alcance
+  output_format?: string[] | null;      // Para configuración (array para selección múltiple)
+  methodology?: string | null;          // Para configuración
+  data_sources?: string | null;         // Para configuración
+  search_locations?: string | null;     // Para configuración
+  tools_required?: string | null;       // Para configuración
+  references?: string[] | null;         // Para configuración (array de links)
+  // Campos existentes mantenidos por compatibilidad
+  rationale?: string | null;
+  expected_impact?: string | null;
+  resources_required?: string | null;
+  risks_identified: string[] | null;
+  urgency: 'low' | 'medium' | 'high' | 'critical';
+  stakeholders?: string[] | null;
+  tags: string[] | null;
+  attachments: any[] | null;
+  decision_references: any[] | null;
+  success_metrics: Record<string, any> | null;
+  implementation_date?: string | null;
+  actual_impact?: string | null;
+  lessons_learned?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ===================================================================
+// CRUD DE PROYECTOS
+// ===================================================================
+
+/**
+ * Crear un nuevo proyecto
+ */
+export async function createProject(projectData: {
+  title: string;
+  description?: string;
+  status?: Project['status'];
+  priority?: Project['priority'];
+  category?: string;
+  tags?: string[];
+  start_date?: string;
+  target_date?: string;
+  visibility?: Project['visibility'];
+}): Promise<Project> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const projectToCreate = {
+      user_id: user.id,
+      title: projectData.title,
+      description: projectData.description || null,
+      status: projectData.status || 'active',
+      priority: projectData.priority || 'medium',
+      category: projectData.category || null,
+      tags: projectData.tags || [],
+      start_date: projectData.start_date || null,
+      target_date: projectData.target_date || null,
+      visibility: projectData.visibility || 'private',
+      collaborators: []
+    };
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(projectToCreate)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating project:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener proyectos del usuario autenticado
+ */
+export async function getUserProjects(): Promise<Project[]> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching user projects:', error);
+    return [];
+  }
+}
+
+/**
+ * Obtener un proyecto específico por ID
+ */
+export async function getProjectById(projectId: string): Promise<Project | null> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // No rows found
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    return null;
+  }
+}
+
+/**
+ * Actualizar un proyecto
+ */
+export async function updateProject(projectId: string, updates: Partial<Project>): Promise<Project> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('projects')
+      .update(updates)
+      .eq('id', projectId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating project:', error);
+    throw error;
+  }
+}
+
+/**
+ * Eliminar un proyecto
+ */
+export async function deleteProject(projectId: string): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', projectId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    throw error;
+  }
+}
+
+// ===================================================================
+// CRUD DE DECISIONES EN CAPAS
+// ===================================================================
+
+/**
+ * Crear una nueva decisión con soporte para campos específicos por tipo
+ */
+export async function createProjectDecision(
+  projectId: string,
+  decisionData: {
+    title: string;
+    description: string;
+    decision_type: 'enfoque' | 'alcance' | 'configuracion';
+    parent_decision_id?: string;
+    // Campos generales
+    change_description?: string;
+    objective?: string;
+    next_steps?: string;
+    deadline?: string;
+    urgency?: ProjectDecision['urgency'];
+    tags?: string[];
+    // Campos específicos para enfoque
+    focus_area?: string;
+    focus_context?: string;
+    // Campos específicos para alcance
+    geographic_scope?: string;
+    monetary_scope?: string;
+    time_period_start?: string;
+    time_period_end?: string;
+    target_entities?: string;
+    scope_limitations?: string;
+    // Campos específicos para configuración
+    output_format?: string[];
+    methodology?: string;
+    data_sources?: string;
+    search_locations?: string;
+    tools_required?: string;
+    references?: string[];
+  }
+): Promise<ProjectDecision> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    // Obtener el siguiente número de secuencia
+    const { data: sequenceData, error: sequenceError } = await supabase
+      .rpc('get_next_decision_sequence', { project_uuid: projectId });
+
+    if (sequenceError) throw sequenceError;
+
+    const decisionToCreate = {
+      project_id: projectId,
+      title: decisionData.title,
+      description: decisionData.description,
+      decision_type: decisionData.decision_type,
+      sequence_number: sequenceData || 1,
+      parent_decision_id: decisionData.parent_decision_id || null,
+      // Campos generales
+      change_description: decisionData.change_description || null,
+      objective: decisionData.objective || null,
+      next_steps: decisionData.next_steps || null,
+      deadline: decisionData.deadline || null,
+      urgency: decisionData.urgency || 'medium',
+      tags: decisionData.tags || [],
+      // Campos específicos para enfoque
+      focus_area: decisionData.focus_area || null,
+      focus_context: decisionData.focus_context || null,
+      // Campos específicos para alcance
+      geographic_scope: decisionData.geographic_scope || null,
+      monetary_scope: decisionData.monetary_scope || null,
+      time_period_start: decisionData.time_period_start || null,
+      time_period_end: decisionData.time_period_end || null,
+      target_entities: decisionData.target_entities || null,
+      scope_limitations: decisionData.scope_limitations || null,
+      // Campos específicos para configuración
+      output_format: decisionData.output_format || null,
+      methodology: decisionData.methodology || null,
+      data_sources: decisionData.data_sources || null,
+      search_locations: decisionData.search_locations || null,
+      tools_required: decisionData.tools_required || null,
+      references: decisionData.references || null,
+      // Campos de compatibilidad
+      rationale: null,
+      expected_impact: null,
+      resources_required: null,
+      risks_identified: [],
+      stakeholders: [],
+      attachments: [],
+      decision_references: [],
+      success_metrics: {},
+      implementation_date: null,
+      actual_impact: null,
+      lessons_learned: null
+    };
+
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .insert(decisionToCreate)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error creating project decision:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener decisiones de un proyecto con soporte para jerarquía
+ */
+export async function getProjectDecisions(projectId: string): Promise<ProjectDecision[]> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('sequence_number', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching project decisions:', error);
+    return [];
+  }
+}
+
+/**
+ * Actualizar una decisión
+ */
+export async function updateProjectDecision(
+  decisionId: string,
+  updates: Partial<ProjectDecision>
+): Promise<ProjectDecision> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .update(updates)
+      .eq('id', decisionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating project decision:', error);
+    throw error;
+  }
+}
+
+/**
+ * Eliminar una decisión
+ */
+export async function deleteProjectDecision(decisionId: string): Promise<void> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { error } = await supabase
+      .from('project_decisions')
+      .delete()
+      .eq('id', decisionId);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error deleting project decision:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener estadísticas de un proyecto
+ */
+export async function getProjectStats(projectId: string): Promise<any> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+
+  try {
+    const { data, error } = await supabase
+      .rpc('get_project_stats', { project_uuid: projectId });
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching project stats:', error);
+    return null;
+  }
+}
+
+/**
+ * Obtener decisiones hijas de una decisión padre
+ */
+export async function getChildDecisions(parentDecisionId: string): Promise<ProjectDecision[]> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .select('*')
+      .eq('parent_decision_id', parentDecisionId)
+      .order('sequence_number', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching child decisions:', error);
+    return [];
+  }
+}
+
+/**
+ * Obtener decisiones raíz (sin padre) de un proyecto
+ */
+export async function getRootDecisions(projectId: string): Promise<ProjectDecision[]> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .select('*')
+      .eq('project_id', projectId)
+      .is('parent_decision_id', null)
+      .order('sequence_number', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching root decisions:', error);
+    return [];
+  }
+}
+
+/**
+ * Mover una decisión como hija de otra
+ */
+export async function moveDecisionAsChild(
+  decisionId: string,
+  newParentId: string
+): Promise<ProjectDecision> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .update({ parent_decision_id: newParentId })
+      .eq('id', decisionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error moving decision as child:', error);
+    throw error;
+  }
+}
+
+/**
+ * Promover una decisión a raíz (eliminar padre)
+ */
+export async function promoteDecisionToRoot(decisionId: string): Promise<ProjectDecision> {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .update({ parent_decision_id: null })
+      .eq('id', decisionId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error promoting decision to root:', error);
+    throw error;
   }
 }

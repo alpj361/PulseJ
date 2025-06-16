@@ -4,66 +4,166 @@ import {
   CreateProjectDecisionData,
   SuccessMetric
 } from '../types/projects';
+import { 
+  createProjectDecision as createProjectDecisionDB,
+  getProjectDecisions as getProjectDecisionsDB,
+  updateProjectDecision as updateProjectDecisionDB,
+  deleteProjectDecision as deleteProjectDecisionDB,
+  getChildDecisions as getChildDecisionsDB,
+  getRootDecisions,
+  moveDecisionAsChild as moveDecisionAsChildDB,
+  promoteDecisionToRoot,
+  getProjectStats
+} from './supabase';
 
 /**
- * Service para manejo de decisiones de proyectos
- * Incluye CRUD, secuencias y métricas de decisiones
+ * Service para manejo de decisiones de proyectos con sistema de capas
+ * Incluye CRUD, secuencias y métricas de decisiones con campos específicos por tipo
  */
 
 // ===================================================================
-// CRUD BÁSICO DE DECISIONES
+// CRUD BÁSICO DE DECISIONES CON CAMPOS ESPECÍFICOS
 // ===================================================================
 
 /**
- * Crear una nueva decisión en un proyecto
+ * Encontrar la última decisión del mismo tipo para usarla como padre automáticamente
+ */
+export const findLastDecisionOfType = async (
+  projectId: string, 
+  decisionType: 'enfoque' | 'alcance' | 'configuracion'
+): Promise<string | null> => {
+  try {
+    console.log(`🔍 Buscando última decisión de tipo "${decisionType}" en proyecto:`, projectId);
+
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .select('id, sequence_number, created_at')
+      .eq('project_id', projectId)
+      .eq('decision_type', decisionType)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      console.log(`✅ Encontrada decisión padre de tipo "${decisionType}":`, data[0].id);
+      return data[0].id;
+    }
+
+    console.log(`ℹ️ No se encontró decisión anterior de tipo "${decisionType}"`);
+    return null;
+  } catch (error) {
+    console.error('Error en findLastDecisionOfType:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtener el número de capa para una decisión del mismo tipo
+ */
+export const getNextLayerNumber = async (
+  projectId: string, 
+  decisionType: 'enfoque' | 'alcance' | 'configuracion'
+): Promise<number> => {
+  try {
+    console.log(`🔢 Calculando número de capa para tipo "${decisionType}" en proyecto:`, projectId);
+
+    const { data, error } = await supabase
+      .from('project_decisions')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('decision_type', decisionType)
+      .is('parent_decision_id', null); // Solo contar decisiones raíz del mismo tipo
+
+    if (error) throw error;
+
+    const layerNumber = (data?.length || 0) + 1;
+    console.log(`✅ Número de capa calculado: ${layerNumber}`);
+    return layerNumber;
+  } catch (error) {
+    console.error('Error en getNextLayerNumber:', error);
+    return 1;
+  }
+};
+
+/**
+ * Crear una nueva decisión de proyecto con sistema de capas numeradas
+ * Las decisiones del mismo tipo se apilan como capas (Capa 1, Capa 2, etc.)
+ * Solo las decisiones derivadas usan parent_decision_id
  */
 export const createProjectDecision = async (
   projectId: string,
-  decisionData: CreateProjectDecisionData
+  decisionData: CreateProjectDecisionData & {
+    // Campos específicos para enfoque
+    focus_area?: string;
+    focus_context?: string;
+    // Campos específicos para alcance
+    geographic_scope?: string;
+    monetary_scope?: string;
+    time_period_start?: string;
+    time_period_end?: string;
+    target_entities?: string;
+    scope_limitations?: string;
+    // Campos específicos para configuración
+    output_format?: string[];
+    methodology?: string;
+    data_sources?: string;
+    search_locations?: string;
+    tools_required?: string;
+    references?: string[];
+    // Nuevo campo para identificar si es decisión derivada
+    is_derived?: boolean;
+  }
 ): Promise<ProjectDecision> => {
   try {
     console.log('⚖️ Creando decisión para proyecto:', projectId);
 
-    // Obtener el siguiente número de secuencia
-    const nextSequenceNumber = await getNextSequenceNumber(projectId);
+    // Si no es una decisión derivada (no tiene parent_decision_id explícito), 
+    // NO asignar padre automáticamente - solo apilar como capas
+    let parentDecisionId = decisionData.parent_decision_id;
+    let layerNumber = null;
 
-    // Preparar datos con valores por defecto (compatibles con estructura Supabase)
-    const decisionToCreate = {
-      project_id: projectId,
-      title: decisionData.title,
-      description: decisionData.description,
-      decision_type: decisionData.decision_type || 'operational',
-      sequence_number: nextSequenceNumber,
-      parent_decision_id: decisionData.parent_decision_id || null,
-      rationale: decisionData.rationale || null,
-      expected_impact: decisionData.expected_impact || null,
-      resources_required: decisionData.resources_required || null,
-      risks_identified: decisionData.risks_identified || null,
-      status: 'pending', // Siempre empieza como pending (campo requerido en DB)
-      urgency: decisionData.urgency || 'medium',
-      stakeholders: null, // Inicializar como null
-      tags: decisionData.tags || null,
-      attachments: null, // Inicializar como null (jsonb)
-      decision_references: null, // Inicializar como null (jsonb)
-      success_metrics: decisionData.success_metrics || null,
-      implementation_date: null,
-      actual_impact: null,
-      lessons_learned: null
-    };
-
-    const { data, error } = await supabase
-      .from('project_decisions')
-      .insert(decisionToCreate)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error creando decisión:', error);
-      throw error;
+    if (!parentDecisionId && !decisionData.is_derived) {
+      // Es una capa nueva del mismo tipo - calcular número de capa
+      layerNumber = await getNextLayerNumber(projectId, decisionData.decision_type || 'enfoque');
+      console.log(`📋 Creando capa ${layerNumber} de tipo "${decisionData.decision_type}"`);
     }
 
-    console.log('✅ Decisión creada exitosamente:', data);
-    return data;
+    // Preparar datos específicos según el tipo de decisión
+    const specificData = {
+      title: decisionData.title,
+      description: decisionData.description,
+      decision_type: decisionData.decision_type || 'enfoque',
+      parent_decision_id: parentDecisionId, // Solo si es decisión derivada
+      // Campos generales
+      change_description: decisionData.change_description,
+      objective: decisionData.objective,
+      next_steps: decisionData.next_steps,
+      deadline: decisionData.deadline,
+      urgency: decisionData.urgency,
+      tags: decisionData.tags,
+      // Campos específicos para enfoque
+      focus_area: decisionData.focus_area,
+      focus_context: decisionData.focus_context,
+      // Campos específicos para alcance
+      geographic_scope: decisionData.geographic_scope,
+      monetary_scope: decisionData.monetary_scope,
+      time_period_start: decisionData.time_period_start,
+      time_period_end: decisionData.time_period_end,
+      target_entities: decisionData.target_entities,
+      scope_limitations: decisionData.scope_limitations,
+      // Campos específicos para configuración
+      output_format: decisionData.output_format,
+      methodology: decisionData.methodology,
+      data_sources: decisionData.data_sources,
+      search_locations: decisionData.search_locations,
+      tools_required: decisionData.tools_required,
+      references: decisionData.references
+    };
+
+    const result = await createProjectDecisionDB(projectId, specificData);
+    console.log('✅ Decisión creada exitosamente:', result);
+    return result;
   } catch (error) {
     console.error('Error en createProjectDecision:', error);
     throw error;
@@ -79,21 +179,9 @@ export const getProjectDecisions = async (
 ): Promise<ProjectDecision[]> => {
   try {
     console.log('📋 Obteniendo decisiones del proyecto:', projectId);
-
-    // Simplificar consulta para evitar recursión infinita en policies
-    const { data, error } = await supabase
-      .from('project_decisions')
-      .select('*')
-      .eq('project_id', projectId)
-      .order('sequence_number', { ascending: true });
-
-    if (error) {
-      console.error('❌ Error obteniendo decisiones:', error);
-      throw error;
-    }
-
-    console.log(`✅ Obtenidas ${data?.length || 0} decisiones`);
-    return data || [];
+    const decisions = await getProjectDecisionsDB(projectId);
+    console.log(`✅ Obtenidas ${decisions.length} decisiones`);
+    return decisions;
   } catch (error) {
     console.error('Error en getProjectDecisions:', error);
     throw error;
@@ -131,7 +219,7 @@ export const getProjectDecisionById = async (decisionId: string): Promise<Projec
 };
 
 /**
- * Actualizar una decisión existente
+ * Actualizar una decisión existente con campos específicos
  */
 export const updateProjectDecision = async (
   decisionId: string,
@@ -139,31 +227,9 @@ export const updateProjectDecision = async (
 ): Promise<ProjectDecision> => {
   try {
     console.log('📝 Actualizando decisión:', decisionId, updates);
-
-    // Filtrar campos que no deberían actualizarse directamente
-    const { 
-      id, 
-      project_id, 
-      sequence_number, 
-      created_at, 
-      updated_at, 
-      ...allowedUpdates 
-    } = updates;
-
-    const { data, error } = await supabase
-      .from('project_decisions')
-      .update(allowedUpdates)
-      .eq('id', decisionId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('❌ Error actualizando decisión:', error);
-      throw error;
-    }
-
-    console.log('✅ Decisión actualizada:', data);
-    return data;
+    const result = await updateProjectDecisionDB(decisionId, updates);
+    console.log('✅ Decisión actualizada:', result);
+    return result;
   } catch (error) {
     console.error('Error en updateProjectDecision:', error);
     throw error;
@@ -178,27 +244,12 @@ export const deleteProjectDecision = async (decisionId: string): Promise<void> =
     console.log('🗑️ Eliminando decisión:', decisionId);
 
     // Verificar si tiene decisiones hijas antes de eliminar
-    const { data: childDecisions, error: childError } = await supabase
-      .from('project_decisions')
-      .select('id')
-      .eq('parent_decision_id', decisionId);
-
-    if (childError) throw childError;
-
-    if (childDecisions && childDecisions.length > 0) {
+    const childDecisions = await getChildDecisionsDB(decisionId);
+    if (childDecisions.length > 0) {
       throw new Error('No se puede eliminar una decisión que tiene decisiones dependientes');
     }
 
-    const { error } = await supabase
-      .from('project_decisions')
-      .delete()
-      .eq('id', decisionId);
-
-    if (error) {
-      console.error('❌ Error eliminando decisión:', error);
-      throw error;
-    }
-
+    await deleteProjectDecisionDB(decisionId);
     console.log('✅ Decisión eliminada exitosamente');
   } catch (error) {
     console.error('Error en deleteProjectDecision:', error);
@@ -303,8 +354,6 @@ export const getDecisionTree = async (projectId: string): Promise<ProjectDecisio
 // FUNCIONES PARA ESTADO Y MÉTRICAS
 // ===================================================================
 
-
-
 /**
  * Actualizar métricas de éxito de una decisión
  */
@@ -334,11 +383,9 @@ export const getProjectDecisionStats = async (projectId: string) => {
     const stats = {
       total: decisions.length,
       by_type: {
-        strategic: decisions.filter(d => d.decision_type === 'strategic').length,
-        tactical: decisions.filter(d => d.decision_type === 'tactical').length,
-        operational: decisions.filter(d => d.decision_type === 'operational').length,
-        research: decisions.filter(d => d.decision_type === 'research').length,
-        analytical: decisions.filter(d => d.decision_type === 'analytical').length,
+        enfoque: decisions.filter(d => d.decision_type === 'enfoque').length,
+        alcance: decisions.filter(d => d.decision_type === 'alcance').length,
+        configuracion: decisions.filter(d => d.decision_type === 'configuracion').length,
       },
       by_urgency: {
         low: decisions.filter(d => d.urgency === 'low').length,
@@ -559,8 +606,8 @@ function calculateComplexityScore(decision: ProjectDecision, allDecisions: Proje
   // +1 por cada métrica de éxito
   score += Object.keys(decision.success_metrics || {}).length;
   
-  // +2 si es decisión estratégica
-  if (decision.decision_type === 'strategic') score += 2;
+  // +2 si es decisión de enfoque (equivalente a estratégica)
+  if (decision.decision_type === 'enfoque') score += 2;
   
   // +1 por urgencia alta/crítica
   if (decision.urgency === 'high' || decision.urgency === 'critical') score += 1;

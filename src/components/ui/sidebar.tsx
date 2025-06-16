@@ -129,7 +129,7 @@ interface NavSection {
 export function SessionNavBar() {
   const [isCollapsed, setIsCollapsed] = useState(true);
   const location = useLocation();
-  const { language } = useContext(LanguageContext);
+  const { language, setLanguage } = useContext(LanguageContext);
   const { isAdmin } = useAdmin();
   const { user, signOut } = useAuth();
 
@@ -175,11 +175,9 @@ export function SessionNavBar() {
           path: "/codex"
         },
         {
-          icon: <Layers className="h-4 w-4" style={{ color: 'grey' }}/>,
+          icon: <Layers className="h-4 w-4" />,
           label: t.proyectos,
-          path: "#",
-          disabled: true,
-          maintenanceMode: true
+          path: "/projectos"
         }
       ]
     },
@@ -415,12 +413,20 @@ export function SessionNavBar() {
                          </NavLink>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                       <DropdownMenuItem
-                         className="flex items-center gap-2"
-                         onClick={signOut}
-                       >
-                         <span className="h-4 w-4">🚪</span> Cerrar sesión
-                       </DropdownMenuItem>
+                                             <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="flex items-center gap-2"
+                        onClick={() => setLanguage(language === 'es' ? 'en' : 'es')}
+                      >
+                        <span className="h-4 w-4">🌐</span> 
+                        {language === 'es' ? 'English' : 'Español'}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="flex items-center gap-2"
+                        onClick={signOut}
+                      >
+                        <span className="h-4 w-4">🚪</span> Cerrar sesión
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>

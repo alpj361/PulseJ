@@ -73,8 +73,8 @@ const ModernPieChart: React.FC<ModernPieChartProps> = ({
   data, 
   height = 400, 
   showLegend = true,
-  innerRadius = 0,
-  outerRadius = Math.min(height * 0.35, 140)
+  innerRadius: propInnerRadius,
+  outerRadius: propOuterRadius
 }) => {
   // Default colors optimized for white background
   const defaultColors = [
@@ -96,10 +96,15 @@ const ModernPieChart: React.FC<ModernPieChartProps> = ({
     color: item.color || defaultColors[index % defaultColors.length]
   }));
 
+  // Calculate sizing - use props if provided, otherwise calculate
+  const isMobile = window.innerWidth < 768;
+  const calculatedOuterRadius = propOuterRadius || Math.min(height * 0.32, isMobile ? 80 : 120);
+  const calculatedInnerRadius = propInnerRadius || (showLegend ? calculatedOuterRadius * 0.5 : calculatedOuterRadius * 0.6);
+
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height={height}>
-        <PieChart>
+        <PieChart margin={{ top: 10, right: 10, bottom: showLegend ? 40 : 10, left: 10 }}>
           <defs>
             {/* Create gradients for each slice */}
             {dataWithColors.map((item, index) => (
@@ -113,11 +118,11 @@ const ModernPieChart: React.FC<ModernPieChartProps> = ({
           <Pie
             data={dataWithColors}
             cx="50%"
-            cy="50%"
+            cy={showLegend ? "45%" : "50%"}
             labelLine={false}
             label={<CustomLabel />}
-            outerRadius={outerRadius}
-            innerRadius={innerRadius}
+            outerRadius={calculatedOuterRadius}
+            innerRadius={calculatedInnerRadius}
             fill="#8884d8"
             dataKey="value"
             stroke="rgba(255,255,255,0.8)"
@@ -139,13 +144,13 @@ const ModernPieChart: React.FC<ModernPieChartProps> = ({
           {showLegend && (
             <Legend 
               verticalAlign="bottom" 
-              height={50}
+              height={showLegend ? 40 : 0}
               iconType="circle"
               wrapperStyle={{
-                paddingTop: '30px',
-                fontSize: '11px',
+                paddingTop: '15px',
+                fontSize: '10px',
                 color: 'rgba(55, 65, 81, 0.8)',
-                lineHeight: '1.4'
+                lineHeight: '1.2'
               }}
             />
           )}

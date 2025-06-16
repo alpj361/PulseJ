@@ -29,8 +29,6 @@ interface WordCloudItem {
 
 interface WordCloudProps {
   data: WordCloudItem[];
-  width?: number;
-  height?: number;
   onWordClick?: (word: WordCloudItem) => void;
 }
 
@@ -87,8 +85,6 @@ const GLOBE_CONFIG: COBEOptions = {
 
 const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({ 
   data, 
-  width = 800, 
-  height = 500, 
   onWordClick 
 }) => {
   let phi = 0;
@@ -100,6 +96,7 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
   const pointerInteracting = useRef<any>(null);
   const pointerInteractionMovement = useRef(0);
   const [r, setR] = useState(0);
+  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
   
   const [orbitingWords, setOrbitingWords] = useState<OrbitingWord[]>([]);
   const [hoveredWord, setHoveredWord] = useState<OrbitingWord | null>(null);
@@ -107,20 +104,24 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [rotation, setRotation] = useState(0);
 
-  // Preparar palabras para órbitas
+  // Preparar palabras para órbitas - ajustar radios basado en dimensiones del container
   const prepareOrbitingWords = useCallback((words: WordCloudItem[]): OrbitingWord[] => {
     const sorted = [...words]
       .sort((a, b) => b.value - a.value)
       .slice(0, 12); // Máximo 12 palabras para claridad
 
-    const baseRadius = 200;
-    const maxRadius = 350;
+    const containerWidth = containerDimensions.width || 800;
+    const containerHeight = containerDimensions.height || 400;
+    const minDimension = Math.min(containerWidth, containerHeight);
+    
+    const baseRadius = minDimension * 0.25; // 25% del tamaño mínimo
+    const maxRadius = minDimension * 0.45;  // 45% del tamaño mínimo
     
     return sorted.map((word, i) => {
       const progress = i / Math.max(1, sorted.length - 1);
       const orbitRadius = baseRadius + progress * (maxRadius - baseRadius);
       const angle = (i * (2 * Math.PI / sorted.length)) + (i * 0.3);
-      const fontSize = Math.max(16, 32 - (i * 1.8));
+      const fontSize = Math.max(14, Math.min(28, minDimension * 0.035 - (i * 1.5)));
       
       return {
         ...word,
@@ -132,7 +133,7 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
         hovered: false
       };
     });
-  }, []);
+  }, [containerDimensions]);
 
   // Obtener color por categoría
   const getCategoryColor = (category?: string): { color: string; glow: string } => {
@@ -168,17 +169,35 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
     [r, globeWidth],
   );
 
-  // Redimensionar globo
+  // Redimensionar globo y container
   const onResize = useCallback(() => {
-    if (canvasRef.current) {
-      setGlobeWidth(canvasRef.current.offsetWidth);
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const newWidth = rect.width;
+      const newHeight = rect.height;
+      
+      console.log('🔄 WordCloud Resize:', { newWidth, newHeight });
+      
+      setContainerDimensions({ width: newWidth, height: newHeight });
+      
+      // El globo debe ser proporcional al espacio disponible - más grande
+      const minDimension = Math.min(newWidth, newHeight);
+      const newGlobeWidth = minDimension * 0.9;
+      
+      console.log('🌍 Globe dimensions:', { minDimension, newGlobeWidth });
+      
+      setGlobeWidth(newGlobeWidth); // 90% del espacio disponible
     }
   }, []);
 
+  // Obtener dimensiones efectivas
+  const effectiveWidth = containerDimensions.width || 800;
+  const effectiveHeight = containerDimensions.height || 400;
+
   // Dibujar palabras orbitando
   const drawOrbitingWords = useCallback((ctx: CanvasRenderingContext2D, words: OrbitingWord[], rotation: number) => {
-    const centerX = width / 2;
-    const centerY = height / 2;
+    const centerX = effectiveWidth / 2;
+    const centerY = effectiveHeight / 2;
 
     words.forEach((word, index) => {
       const currentAngle = word.angle + rotation * 0.3;
@@ -223,7 +242,7 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
       ctx.fillText(word.text, x, y); // Dibujar relleno
       ctx.restore();
     });
-  }, [width, height]);
+  }, [effectiveWidth, effectiveHeight]);
 
   // Detectar hover sobre palabras
   const handleMouseMove = (event: React.MouseEvent<HTMLCanvasElement>) => {
@@ -280,7 +299,7 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
     if (!ctx) return;
 
     // Limpiar canvas de palabras
-    ctx.clearRect(0, 0, width, height);
+    ctx.clearRect(0, 0, effectiveWidth, effectiveHeight);
     
     // Dibujar palabras orbitando
     drawOrbitingWords(ctx, orbitingWords, rotation);
@@ -293,8 +312,10 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
 
   // Inicialización
   useEffect(() => {
-    setOrbitingWords(prepareOrbitingWords(data));
-  }, [data, prepareOrbitingWords]);
+    if (data && data.length > 0 && containerDimensions.width > 0 && containerDimensions.height > 0) {
+      setOrbitingWords(prepareOrbitingWords(data));
+    }
+  }, [data, prepareOrbitingWords, containerDimensions]);
 
   // Inicializar globo COBE
   useEffect(() => {
@@ -322,6 +343,31 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
     }
   }, [onRender, globeWidth, onResize]);
 
+  // Monitorear cambios en el container para responsive behavior
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver(() => {
+      onResize();
+    });
+
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [onResize]);
+
+  // Efecto inicial para obtener dimensiones
+  useEffect(() => {
+    // Pequeño delay para asegurar que el DOM esté renderizado
+    const timer = setTimeout(() => {
+      onResize();
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [onResize]);
+
   // Iniciar animación de palabras
   useEffect(() => {
     if (orbitingWords.length > 0) {
@@ -336,10 +382,19 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
   }, [animateWords, orbitingWords]);
 
   return (
-    <Box sx={{ position: 'relative', width, height, mx: 'auto', my: 2 }}>
+    <Box 
+      ref={containerRef}
+      sx={{ 
+        position: 'relative', 
+        width: '100%', 
+        height: '100%',
+        minHeight: effectiveHeight,
+        mx: 'auto', 
+        my: 2 
+      }}
+    >
       {/* Contenedor principal */}
       <Box
-        ref={containerRef}
         sx={{
           position: 'relative',
           width: '100%',
@@ -354,9 +409,13 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
         {/* Globo COBE */}
         <div
           className={cn(
-            "absolute inset-0 mx-auto aspect-[1/1] w-full max-w-[400px]",
+            "absolute inset-0 mx-auto aspect-[1/1] w-full",
             "top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
           )}
+          style={{ 
+            maxWidth: `${Math.min(effectiveWidth * 0.85, effectiveHeight * 0.95)}px`,
+            maxHeight: `${Math.min(effectiveWidth * 0.85, effectiveHeight * 0.95)}px`
+          }}
         >
           <canvas
             className={cn(
@@ -380,8 +439,8 @@ const ProfessionalTrendGlobe: React.FC<WordCloudProps> = ({
         {/* Canvas de palabras orbitando */}
         <canvas
           ref={wordCanvasRef}
-          width={width}
-          height={height}
+          width={effectiveWidth}
+          height={effectiveHeight}
           onMouseMove={handleMouseMove}
           onClick={handleClick}
           style={{

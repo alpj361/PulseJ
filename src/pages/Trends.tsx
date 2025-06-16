@@ -111,6 +111,8 @@ export const Trends = () => {
   const [lastProcessingTimestamp, setLastProcessingTimestamp] = useState<string | null>(null);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [tweetsExpanded, setTweetsExpanded] = useState(false);
+  const [statisticsExpanded, setStatisticsExpanded] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadLatestTrends = async () => {
@@ -731,6 +733,7 @@ export const Trends = () => {
 
       {/* Word Cloud Section */}
       <Paper
+        ref={containerRef}
         elevation={0}
         sx={{
           p: 3,
@@ -814,8 +817,9 @@ export const Trends = () => {
         </Box>
         
         <Box sx={{ 
-          aspectRatio: '16/9', 
-          maxHeight: 400,
+          width: '100%',
+          height: '450px',
+          minHeight: '400px',
           position: 'relative',
           '&:before': {
             content: '""',
@@ -837,8 +841,6 @@ export const Trends = () => {
         }}>
           <WordCloud 
             data={wordCloudData}
-            width={800}
-            height={400}
             onWordClick={(word) => {
               console.log('Clicked word:', word);
             }}
@@ -854,47 +856,126 @@ export const Trends = () => {
             sx={{
               p: 3,
               borderRadius: 4,
-              bgcolor: 'background.paper',
+              bgcolor: alpha(theme.palette.background.paper, 0.85),
+              backdropFilter: 'blur(12px)',
               border: '1px solid',
-              borderColor: 'divider',
-              boxShadow: theme.shadows[1],
+              borderColor: alpha(theme.palette.primary.main, 0.15),
+              boxShadow: `0 8px 32px ${alpha(theme.palette.primary.main, 0.08)}`,
               height: '100%',
-              transition: 'all 0.3s ease',
+              transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
               '&:hover': {
-                boxShadow: theme.shadows[4],
-                transform: 'translateY(-4px)'
+                boxShadow: `0 12px 48px ${alpha(theme.palette.primary.main, 0.12)}`,
+                transform: 'translateY(-8px)',
+                borderColor: alpha(theme.palette.primary.main, 0.25),
+                bgcolor: alpha(theme.palette.background.paper, 0.9),
               },
               overflow: 'hidden',
-              position: 'relative'
+              position: 'relative',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: '4px',
+                background: `linear-gradient(90deg, 
+                  ${theme.palette.primary.main} 0%, 
+                  ${alpha(theme.palette.primary.main, 0.8)} 50%, 
+                  ${theme.palette.primary.light} 100%)`,
+                borderRadius: '4px 4px 0 0',
+              },
+              '&::after': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: `radial-gradient(ellipse at top left, ${alpha(theme.palette.primary.main, 0.03)} 0%, transparent 50%)`,
+                pointerEvents: 'none',
+                zIndex: -1
+              }
             }}
           >
-            <Box 
-              sx={{ 
-                position: 'absolute', 
-                top: 0, 
-                left: 0, 
-                right: 0, 
-                height: 6, 
-                background: 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)' 
-              }}
-            />
-            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-              <BarChartIcon size={20} color={theme.palette.primary.main} style={{ marginRight: 8 }} />
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1.5 }}>
+              <Box 
+                sx={{ 
+                  p: 1.5, 
+                  borderRadius: '12px',
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  backdropFilter: 'blur(8px)',
+                  border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                  transition: 'all 0.3s ease',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.15),
+                    transform: 'scale(1.05)'
+                  }
+                }}
+              >
+                <BarChartIcon 
+                  sx={{ 
+                    fontSize: 20, 
+                    color: theme.palette.primary.main,
+                    filter: 'drop-shadow(0 2px 4px rgba(59, 130, 246, 0.3))'
+                  }} 
+                />
+              </Box>
               <Typography 
                 variant="h6" 
                 color="text.primary" 
-                fontWeight="medium"
-                fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
+                fontWeight="600"
+                letterSpacing="-0.025em"
+                sx={{
+                  fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+                  background: `linear-gradient(135deg, ${theme.palette.text.primary} 0%, ${alpha(theme.palette.primary.main, 0.8)} 100%)`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text'
+                }}
               >
                 {t.categoryDistribution}
               </Typography>
+              <Box sx={{ ml: 'auto' }}>
+                <Chip
+                  label={`${categoryData?.length || 0} categorías`}
+                  size="small"
+                  sx={{
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    color: theme.palette.primary.main,
+                    fontWeight: '500',
+                    border: `1px solid ${alpha(theme.palette.primary.main, 0.15)}`,
+                    backdropFilter: 'blur(4px)'
+                  }}
+                />
+              </Box>
             </Box>
             {categoryData && categoryData.length > 0 ? (
               <BarChart data={categoryData} title={t.categoryDistribution} />
             ) : (
-              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 180 }}>
-                <CircularProgress size={24} sx={{ mr: 2 }} />
-                <Typography color="text.secondary">Cargando categorías...</Typography>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                minHeight: 180,
+                flexDirection: 'column',
+                gap: 2
+              }}>
+                <CircularProgress 
+                  size={32} 
+                  sx={{ 
+                    color: theme.palette.primary.main,
+                    filter: 'drop-shadow(0 2px 8px rgba(59, 130, 246, 0.3))'
+                  }} 
+                />
+                <Typography 
+                  color="text.secondary"
+                  sx={{ 
+                    fontWeight: '500',
+                    letterSpacing: '-0.01em'
+                  }}
+                >
+                  Cargando categorías...
+                </Typography>
               </Box>
             )}
           </Paper>
@@ -914,19 +995,48 @@ export const Trends = () => {
         onChange={() => setAboutExpanded(!aboutExpanded)}
         elevation={0}
         sx={{
-          mt: 3,
+          mt: 4,
           borderRadius: 4,
           border: '1px solid',
-          borderColor: 'divider',
-          boxShadow: theme.shadows[1],
-          transition: 'all 0.3s ease',
+          borderColor: alpha(theme.palette.success.main, 0.15),
+          boxShadow: `0 8px 32px ${alpha(theme.palette.success.main, 0.08)}`,
+          bgcolor: alpha(theme.palette.background.paper, 0.85),
+          backdropFilter: 'blur(12px)',
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          position: 'relative',
           '&:hover': {
-            boxShadow: theme.shadows[3],
+            boxShadow: `0 12px 48px ${alpha(theme.palette.success.main, 0.12)}`,
+            borderColor: alpha(theme.palette.success.main, 0.25),
+            bgcolor: alpha(theme.palette.background.paper, 0.9),
           },
-          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
           '&:before': {
             display: 'none',
           },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: `linear-gradient(90deg, 
+              ${theme.palette.success.main} 0%, 
+              ${alpha(theme.palette.success.main, 0.8)} 50%, 
+              ${theme.palette.success.light} 100%)`,
+            borderRadius: '4px 4px 0 0',
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `radial-gradient(ellipse at top left, ${alpha(theme.palette.success.main, 0.03)} 0%, transparent 50%)`,
+            pointerEvents: 'none',
+            zIndex: -1
+          }
         }}
       >
         <AccordionSummary
@@ -935,7 +1045,14 @@ export const Trends = () => {
             p: 3,
             '& .MuiAccordionSummary-content': {
               alignItems: 'center',
-              gap: 1
+              gap: 2
+            },
+            '& .MuiAccordionSummary-expandIconWrapper': {
+              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              color: theme.palette.success.main,
+              '&.Mui-expanded': {
+                transform: 'rotate(180deg)',
+              }
             }
           }}
         >
@@ -943,18 +1060,38 @@ export const Trends = () => {
             component="span" 
             sx={{ 
               display: 'inline-flex', 
-              p: 1, 
-              borderRadius: '50%',
-              bgcolor: alpha(theme.palette.primary.main, 0.1)
+              p: 1.5, 
+              borderRadius: '12px',
+              bgcolor: alpha(theme.palette.success.main, 0.1),
+              backdropFilter: 'blur(8px)',
+              border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.success.main, 0.15),
+                transform: 'scale(1.05)'
+              }
             }}
           >
-            <InfoOutlinedIcon sx={{ fontSize: 16, color: theme.palette.primary.main }} />
+            <InfoOutlinedIcon 
+              sx={{ 
+                fontSize: 18, 
+                color: theme.palette.success.main,
+                filter: 'drop-shadow(0 2px 4px rgba(76, 175, 80, 0.3))'
+              }} 
+            />
           </Box>
           <Typography 
             variant="h6" 
             color="text.primary" 
-            fontWeight="medium"
-            fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
+            fontWeight="600"
+            letterSpacing="-0.025em"
+            sx={{
+              fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+              background: `linear-gradient(135deg, ${theme.palette.text.primary} 0%, ${alpha(theme.palette.success.main, 0.8)} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
+            }}
           >
             Información Detallada de Tendencias
           </Typography>
@@ -963,9 +1100,11 @@ export const Trends = () => {
               label={`${aboutInfo.length} tendencias`} 
               size="small" 
               sx={{ 
-                ml: 1,
-                bgcolor: alpha(theme.palette.primary.main, 0.1),
-                color: theme.palette.primary.main
+                bgcolor: alpha(theme.palette.success.main, 0.08),
+                color: theme.palette.success.main,
+                fontWeight: '500',
+                border: `1px solid ${alpha(theme.palette.success.main, 0.15)}`,
+                backdropFilter: 'blur(4px)'
               }} 
             />
           )}
@@ -1011,85 +1150,169 @@ export const Trends = () => {
         </AccordionDetails>
       </Accordion>
 
-      {/* Statistics Card */}
-      <Paper
+      {/* Statistics Section - Desplegable */}
+      <Accordion 
+        expanded={statisticsExpanded} 
+        onChange={() => setStatisticsExpanded(!statisticsExpanded)}
         elevation={0}
         sx={{
-          p: 3,
-          borderRadius: 4,
-          bgcolor: 'background.paper',
-          border: '1px solid',
-          borderColor: 'divider',
-          boxShadow: theme.shadows[1],
           mt: 3,
-          transition: 'all 0.3s ease',
+          borderRadius: 4,
+          border: '1px solid',
+          borderColor: alpha(theme.palette.warning.main, 0.15),
+          boxShadow: `0 8px 32px ${alpha(theme.palette.warning.main, 0.08)}`,
+          bgcolor: alpha(theme.palette.background.paper, 0.85),
+          backdropFilter: 'blur(12px)',
+          transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+          overflow: 'hidden',
+          position: 'relative',
           '&:hover': {
-            boxShadow: theme.shadows[3],
+            boxShadow: `0 12px 48px ${alpha(theme.palette.warning.main, 0.12)}`,
+            borderColor: alpha(theme.palette.warning.main, 0.25),
+            bgcolor: alpha(theme.palette.background.paper, 0.9),
           },
-          background: `linear-gradient(135deg, ${alpha(theme.palette.background.paper, 1)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+          '&:before': {
+            display: 'none',
+          },
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '4px',
+            background: `linear-gradient(90deg, 
+              ${theme.palette.warning.main} 0%, 
+              ${alpha(theme.palette.warning.main, 0.8)} 50%, 
+              ${theme.palette.warning.light} 100%)`,
+            borderRadius: '4px 4px 0 0',
+          },
+          '&::after': {
+            content: '""',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: `radial-gradient(ellipse at bottom right, ${alpha(theme.palette.warning.main, 0.03)} 0%, transparent 50%)`,
+            pointerEvents: 'none',
+            zIndex: -1
+          }
         }}
       >
-        <Typography 
-          variant="h6" 
-          color="text.primary" 
-          fontWeight="medium"
-          fontFamily="Helvetica Neue, Helvetica, Arial, sans-serif"
-          sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+        <AccordionSummary
+          expandIcon={<ExpandMoreIcon />}
+          sx={{
+            p: 3,
+            '& .MuiAccordionSummary-content': {
+              alignItems: 'center',
+              gap: 2
+            },
+            '& .MuiAccordionSummary-expandIconWrapper': {
+              transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              color: theme.palette.warning.main,
+              '&.Mui-expanded': {
+                transform: 'rotate(180deg)',
+              }
+            }
+          }}
         >
           <Box 
             component="span" 
             sx={{ 
               display: 'inline-flex', 
-              p: 1, 
-              borderRadius: '50%',
-              bgcolor: alpha(theme.palette.primary.main, 0.1)
+              p: 1.5, 
+              borderRadius: '12px',
+              bgcolor: alpha(theme.palette.warning.main, 0.1),
+              backdropFilter: 'blur(8px)',
+              border: `1px solid ${alpha(theme.palette.warning.main, 0.2)}`,
+              transition: 'all 0.3s ease',
+              '&:hover': {
+                bgcolor: alpha(theme.palette.warning.main, 0.15),
+                transform: 'scale(1.05)'
+              }
             }}
           >
-            <TrendingUp size={16} color={theme.palette.primary.main} />
+            <BarChartIcon 
+              sx={{ 
+                fontSize: 18, 
+                color: theme.palette.warning.main,
+                filter: 'drop-shadow(0 2px 4px rgba(255, 152, 0, 0.3))'
+              }} 
+            />
           </Box>
-          {t.statistics}
-        </Typography>
-        {statistics ? (
-          <StatisticsCard statistics={statistics} />
-        ) : (
-          <Box 
-            sx={{ 
-              textAlign: 'center', 
-              py: 6,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 2
+          <Typography 
+            variant="h6" 
+            color="text.primary" 
+            fontWeight="600"
+            letterSpacing="-0.025em"
+            sx={{
+              fontFamily: '"Inter", "Helvetica Neue", Helvetica, Arial, sans-serif',
+              background: `linear-gradient(135deg, ${theme.palette.text.primary} 0%, ${alpha(theme.palette.warning.main, 0.8)} 100%)`,
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text'
             }}
           >
-            {isPollingForDetails ? (
-              <>
-                <CircularProgress size={32} />
-                <Typography color="text.secondary">
-                  Generando estadísticas de procesamiento...
-                </Typography>
-                <Typography variant="caption" color="text.disabled">
-                  Analizando resultados de IA
-                </Typography>
-              </>
-            ) : hasData ? (
-              <>
-                <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-                <Typography color="text.secondary">
-                  Estadísticas se generarán automáticamente tras el análisis con IA
-                </Typography>
-              </>
-            ) : (
-              <>
-                <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
-                <Typography color="text.secondary">
-                  {t.noStatisticsAvailable}
-                </Typography>
-              </>
-            )}
+            Estadísticas Detalladas
+          </Typography>
+          <Box sx={{ ml: 'auto' }}>
+            <Chip
+              label="Métricas avanzadas"
+              size="small"
+              sx={{
+                bgcolor: alpha(theme.palette.warning.main, 0.08),
+                color: theme.palette.warning.main,
+                fontWeight: '500',
+                border: `1px solid ${alpha(theme.palette.warning.main, 0.15)}`,
+                backdropFilter: 'blur(4px)'
+              }}
+            />
           </Box>
-        )}
-      </Paper>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 3, pt: 0 }}>
+          {statistics ? (
+            <StatisticsCard statistics={statistics} />
+          ) : (
+            <Box 
+              sx={{ 
+                textAlign: 'center', 
+                py: 6,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              {isPollingForDetails ? (
+                <>
+                  <CircularProgress size={32} />
+                  <Typography color="text.secondary">
+                    Generando estadísticas de procesamiento...
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    Analizando resultados de IA
+                  </Typography>
+                </>
+              ) : hasData ? (
+                <>
+                  <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+                  <Typography color="text.secondary">
+                    Estadísticas se generarán automáticamente tras el análisis con IA
+                  </Typography>
+                </>
+              ) : (
+                <>
+                  <BarChartIcon sx={{ fontSize: 48, color: 'text.disabled' }} />
+                  <Typography color="text.secondary">
+                    {t.noStatisticsAvailable}
+                  </Typography>
+                </>
+              )}
+            </Box>
+          )}
+        </AccordionDetails>
+      </Accordion>
 
       {/* Trending Tweets Section - Desplegable */}
       <Accordion 

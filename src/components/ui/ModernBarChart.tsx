@@ -115,50 +115,45 @@ const ModernBarChart: React.FC<ModernBarChartProps> = ({
     return colors[index % colors.length];
   };
 
+  // Get gradient colors for bars
+  const getGradientColors = (index: number) => {
+    const gradientColors = [
+      { start: '59, 130, 246', end: '59, 130, 246' },    // Blue
+      { start: '16, 185, 129', end: '16, 185, 129' },    // Green
+      { start: '245, 101, 101', end: '245, 101, 101' },  // Red
+      { start: '251, 191, 36', end: '251, 191, 36' },    // Yellow
+      { start: '139, 92, 246', end: '139, 92, 246' },    // Purple
+      { start: '236, 72, 153', end: '236, 72, 153' },    // Pink
+    ];
+    return gradientColors[(index - 1) % gradientColors.length];
+  };
+
   return (
     <div className="w-full h-full">
       <ResponsiveContainer width="100%" height={height}>
         <BarChart
           data={data}
           margin={{
-            top: 40,
-            right: 40,
-            left: 30,
-            bottom: 60,
+            top: 20,
+            right: 20,
+            left: 10,
+            bottom: 40,
           }}
-          barCategoryGap="25%"
-          maxBarSize={80}
+          barCategoryGap="20%"
+          maxBarSize={60}
         >
           <defs>
-            {/* Gradient definitions optimized for white background */}
-            <linearGradient id="barGradient1" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(59, 130, 246, 0.9)" />
-              <stop offset="100%" stopColor="rgba(59, 130, 246, 0.6)" />
-            </linearGradient>
-            <linearGradient id="barGradient2" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(16, 185, 129, 0.9)" />
-              <stop offset="100%" stopColor="rgba(16, 185, 129, 0.6)" />
-            </linearGradient>
-            <linearGradient id="barGradient3" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(245, 101, 101, 0.9)" />
-              <stop offset="100%" stopColor="rgba(245, 101, 101, 0.6)" />
-            </linearGradient>
-            <linearGradient id="barGradient4" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(251, 191, 36, 0.9)" />
-              <stop offset="100%" stopColor="rgba(251, 191, 36, 0.6)" />
-            </linearGradient>
-            <linearGradient id="barGradient5" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(139, 92, 246, 0.9)" />
-              <stop offset="100%" stopColor="rgba(139, 92, 246, 0.6)" />
-            </linearGradient>
-            <linearGradient id="barGradient6" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="rgba(236, 72, 153, 0.9)" />
-              <stop offset="100%" stopColor="rgba(236, 72, 153, 0.6)" />
-            </linearGradient>
+            {/* Create 6 different gradients for bars */}
+            {[1,2,3,4,5,6].map(i => (
+              <linearGradient key={`barGradient${i}`} id={`barGradient${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={`rgba(${getGradientColors(i).start}, 0.9)`} />
+                <stop offset="100%" stopColor={`rgba(${getGradientColors(i).end}, 0.7)`} />
+              </linearGradient>
+            ))}
           </defs>
           
           <CartesianGrid 
-            strokeDasharray="3 3" 
+            strokeDasharray="2 2" 
             stroke="rgba(0,0,0,0.1)" 
             horizontal={true}
             vertical={false}
@@ -171,9 +166,9 @@ const ModernBarChart: React.FC<ModernBarChartProps> = ({
             tickLine={false}
             axisLine={false}
             interval={0}
-            angle={-45}
+            angle={-35}
             textAnchor="end"
-            height={80}
+            height={60}
             tick={{ fontSize: 11, fill: 'rgba(55, 65, 81, 0.8)' }}
           />
           
@@ -182,7 +177,7 @@ const ModernBarChart: React.FC<ModernBarChartProps> = ({
             fontSize={11}
             tickLine={false}
             axisLine={false}
-            width={60}
+            width={50}
             tick={{ fontSize: 11, fill: 'rgba(55, 65, 81, 0.8)' }}
           />
           

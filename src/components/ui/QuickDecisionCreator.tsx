@@ -35,7 +35,7 @@ export const QuickDecisionCreator: React.FC<QuickDecisionCreatorProps> = ({
     description: '',
     impact: 'medium' as 'low' | 'medium' | 'high',
     urgency: 'medium' as 'low' | 'medium' | 'high' | 'critical',
-    type: 'strategic' as 'strategic' | 'tactical' | 'operational'
+    type: 'enfoque' as 'enfoque' | 'alcance' | 'configuracion'
   });
 
   const resetForm = () => {
@@ -44,7 +44,7 @@ export const QuickDecisionCreator: React.FC<QuickDecisionCreatorProps> = ({
       description: '',
       impact: 'medium',
       urgency: 'medium',
-      type: 'strategic'
+      type: 'enfoque'
     });
     setStep(1);
   };
@@ -184,9 +184,9 @@ export const QuickDecisionCreator: React.FC<QuickDecisionCreatorProps> = ({
                 <h4 className="font-medium mb-2">Tipo de decisión:</h4>
                 <div className="grid grid-cols-3 gap-2">
                   {[
-                    { value: 'strategic', label: '🎯 Estratégica', desc: 'Cambia el rumbo' },
-                    { value: 'tactical', label: '⚡ Táctica', desc: 'Ajusta el enfoque' },
-                    { value: 'operational', label: '🔧 Operativa', desc: 'Mejora procesos' }
+                    { value: 'enfoque', label: '🎯 Enfoque', desc: 'Define la dirección' },
+                    { value: 'alcance', label: '📏 Alcance', desc: 'Establece límites' },
+                    { value: 'configuracion', label: '⚙️ Configuración', desc: 'Define herramientas' }
                   ].map(option => (
                     <button
                       key={option.value}

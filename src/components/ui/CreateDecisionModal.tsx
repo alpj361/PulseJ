@@ -22,7 +22,7 @@ export const CreateDecisionModal: React.FC<CreateDecisionModalProps> = ({
   const [formData, setFormData] = useState<CreateProjectDecisionData>({
     title: '',
     description: '',
-    decision_type: 'strategic',
+    decision_type: 'enfoque',
     rationale: '',
     expected_impact: '',
     resources_required: '',
@@ -48,7 +48,7 @@ export const CreateDecisionModal: React.FC<CreateDecisionModalProps> = ({
       setFormData({
         title: '',
         description: '',
-        decision_type: 'strategic',
+        decision_type: 'enfoque',
         rationale: '',
         expected_impact: '',
         resources_required: '',
@@ -234,11 +234,9 @@ export const CreateDecisionModal: React.FC<CreateDecisionModalProps> = ({
                   onChange={(e) => setFormData(prev => ({ ...prev, decision_type: e.target.value as any }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
-                  <option value="strategic">Estratégica</option>
-                  <option value="tactical">Táctica</option>
-                  <option value="operational">Operacional</option>
-                  <option value="research">Investigación</option>
-                  <option value="analytical">Analítica</option>
+                  <option value="enfoque">Enfoque</option>
+                  <option value="alcance">Alcance</option>
+                  <option value="configuracion">Configuración</option>
                 </select>
               </div>
 

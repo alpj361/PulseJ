@@ -1,5 +1,23 @@
 import { TrendingTweet } from './index';
 
+// Tipos para sugerencias de IA
+export interface ProjectSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  category: 'analysis' | 'research' | 'platform' | 'external' | 'documentation';
+  priority: 'high' | 'medium' | 'low';
+  action: string;
+  estimatedTime: string;
+  tools: string[];
+}
+
+export interface SuggestionsResponse {
+  suggestions: ProjectSuggestion[];
+  analysis: string;
+  generatedAt: string;
+}
+
 // Tipos básicos para el sistema de proyectos
 export interface Actor {
   name: string;
@@ -40,6 +58,7 @@ export interface Project {
   completed_date?: string;
   visibility: 'private' | 'team' | 'public';
   collaborators?: string[]; // Array de UUIDs de usuarios
+  suggestions?: SuggestionsResponse | null; // Sugerencias de IA persistentes
   created_at: string;
   updated_at: string;
 }
@@ -71,14 +90,35 @@ export interface ProjectDecision {
   project_id: string;
   title: string;
   description: string;
-  decision_type: 'strategic' | 'tactical' | 'operational' | 'research' | 'analytical';
+  decision_type: 'enfoque' | 'alcance' | 'configuracion';
   sequence_number: number;
   parent_decision_id?: string | null;
+  // Nuevos campos para el sistema de capas
+  change_description?: string | null; // Descripción del cambio
+  objective?: string | null; // Objetivo de la decisión
+  next_steps?: string | null; // Siguientes pasos
+  deadline?: string | null; // Fecha límite (opcional)
+  // Campos específicos por tipo de decisión
+  focus_area?: string | null;           // Para enfoque
+  focus_context?: string | null;        // Para enfoque
+  geographic_scope?: string | null;     // Para alcance
+  monetary_scope?: string | null;       // Para alcance
+  time_period_start?: string | null;    // Para alcance
+  time_period_end?: string | null;      // Para alcance
+  target_entities?: string | null;      // Para alcance
+  scope_limitations?: string | null;    // Para alcance
+  output_format?: string[] | null;      // Para configuración (array para selección múltiple)
+  methodology?: string | null;          // Para configuración
+  data_sources?: string | null;         // Para configuración
+  search_locations?: string | null;     // Para configuración
+  tools_required?: string | null;       // Para configuración
+  references?: string[] | null;         // Para configuración (array de links)
+  // Campos existentes mantenidos por compatibilidad
   rationale?: string | null; // Justificación
   expected_impact?: string | null; // Impacto esperado
   resources_required?: string | null; // Recursos necesarios
   risks_identified: string[] | null; // Riesgos identificados
-  status: 'pending' | 'approved' | 'rejected' | 'implemented' | 'cancelled'; // Campo mantenido por compatibilidad con DB
+  // Campo status eliminado - las decisiones se toman cuando se crean
   implementation_date?: string | null;
   actual_impact?: string | null; // Impacto real después de implementar
   lessons_learned?: string | null; // Lecciones aprendidas
@@ -124,6 +164,12 @@ export interface CreateProjectDecisionData {
   description: string;
   decision_type?: ProjectDecision['decision_type'];
   parent_decision_id?: string;
+  // Nuevos campos para el sistema de capas
+  change_description?: string;
+  objective?: string;
+  next_steps?: string;
+  deadline?: string;
+  // Campos existentes mantenidos por compatibilidad
   rationale?: string;
   expected_impact?: string;
   resources_required?: string;

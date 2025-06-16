@@ -76,7 +76,12 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon,
   Computer as ComputerIcon,
-  Visibility as VisibilityIcon
+  Visibility as VisibilityIcon,
+  // 🎯 Iconos para gestión de límites de capas
+  Layers as LayersIcon,
+  Input as InputIcon,
+  Check as CheckCircleIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
 import AirtableConfig from '../components/AirtableConfig';
 
@@ -396,6 +401,25 @@ interface LogsFiltersAdvanced {
   offset: number;
 }
 
+// 🎯 Interfaces para gestión de límites de capas
+interface UserLayersLimit {
+  id: string;
+  email: string;
+  layerslimit: number;
+  role: string;
+  created_at: string;
+}
+
+interface LayersLimitsStats {
+  total_users: number;
+  average_limit: number;
+  distribution: Record<number, number>;
+}
+
+interface InvitationCodeWithLayers extends InvitationCode {
+  layerslimit?: number;
+}
+
 function TabPanel(props: TabPanelProps) {
   const { children, value, index, ...other } = props;
   return (
@@ -499,6 +523,15 @@ export default function AdminPanel() {
   const [selectedUser, setSelectedUser] = useState<UserCredit | null>(null);
   const [openAddCreditsDialog, setOpenAddCreditsDialog] = useState(false);
   const [addCreditsAmount, setAddCreditsAmount] = useState<number>(0);
+
+  // 🎯 Estados para gestión de límites de capas
+  const [layersUsers, setLayersUsers] = useState<UserLayersLimit[]>([]);
+  const [layersStats, setLayersStats] = useState<LayersLimitsStats | null>(null);
+  const [loadingLayers, setLoadingLayers] = useState(false);
+  const [layersSearchTerm, setLayersSearchTerm] = useState('');
+  const [layersRoleFilter, setLayersRoleFilter] = useState('');
+  const [editingLayers, setEditingLayers] = useState<Record<string, number>>({});
+  const [userSubTab, setUserSubTab] = useState(0); // 0: Créditos, 1: Límites de Capas
   const [usersFilters, setUsersFilters] = useState({
     user_type: '',
     role: '',
@@ -570,6 +603,13 @@ export default function AdminPanel() {
     loadCodes();
   }, []);
 
+  // 🎯 Effect para cargar límites cuando cambie el sub-tab
+  useEffect(() => {
+    if (activeTab === 3 && userSubTab === 1) {
+      loadLayersLimits();
+    }
+  }, [userSubTab]);
+
   // 💳 Cargar datos de créditos cuando se cambie a esas pestañas
   useEffect(() => {
     if (activeTab === 2) { // Dashboard Créditos
@@ -577,6 +617,10 @@ export default function AdminPanel() {
     } else if (activeTab === 3) { // Gestión Usuarios
       loadUsersWithFilters();
       loadLogsWithFilters();
+      // Cargar límites de capas si está en el sub-tab correspondiente
+      if (userSubTab === 1) {
+        loadLayersLimits();
+      }
     } else if (activeTab === 4) { // Sistema de Logs
       loadSystemLogsDashboard();
     } else if (activeTab === 5) { // Logs Avanzados
@@ -1828,6 +1872,98 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
   // Formatear número con separadores de miles
   const formatNumber = (num: number) => {
     return num.toLocaleString('es-ES');
+  };
+
+  // 🎯 ============== FUNCIONES PARA GESTIÓN DE LÍMITES DE CAPAS ==============
+
+  // Cargar límites de capas de usuarios
+  const loadLayersLimits = async () => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    setLoadingLayers(true);
+    try {
+      const params = new URLSearchParams();
+      if (layersSearchTerm) params.append('search', layersSearchTerm);
+      if (layersRoleFilter) params.append('role', layersRoleFilter);
+      params.append('limit', '100');
+
+      const response = await fetch(`https://server.standatpd.com/api/admin/users/layers-limits?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setLayersUsers(data.users || []);
+        setLayersStats(data.stats || null);
+      } else {
+        const errorData = await response.json();
+        setError(`Error cargando límites: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error cargando límites de capas:', error);
+      setError('Error de conexión al cargar límites de capas');
+    } finally {
+      setLoadingLayers(false);
+    }
+  };
+
+  // Actualizar límite de capas de un usuario
+  const updateUserLayersLimit = async (userId: string, newLimit: number) => {
+    const token = getAuthToken();
+    if (!token) return;
+
+    try {
+      const response = await fetch(`https://server.standatpd.com/api/admin/users/layers-limits/${userId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ layerslimit: newLimit })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSuccess(`✅ ${data.message}`);
+        // Actualizar el estado local
+        setLayersUsers(prev => prev.map(user => 
+          user.id === userId ? { ...user, layerslimit: newLimit } : user
+        ));
+        // Limpiar edición
+        setEditingLayers(prev => {
+          const newEditing = { ...prev };
+          delete newEditing[userId];
+          return newEditing;
+        });
+        // Recargar estadísticas
+        loadLayersLimits();
+      } else {
+        const errorData = await response.json();
+        setError(`Error actualizando límite: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error actualizando límite:', error);
+      setError('Error de conexión al actualizar límite');
+    }
+  };
+
+  // Filtrar usuarios de límites de capas
+  const filteredLayersUsers = layersUsers.filter(user => {
+    const matchesSearch = !layersSearchTerm || user.email.toLowerCase().includes(layersSearchTerm.toLowerCase());
+    const matchesRole = !layersRoleFilter || user.role === layersRoleFilter;
+    return matchesSearch && matchesRole;
+  });
+
+  // Manejar cambio de sub-tab en gestión de usuarios
+  const handleUserSubTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setUserSubTab(newValue);
+    if (newValue === 1) { // Límites de capas
+      loadLayersLimits();
+    }
   };
 
   // 📊 Funciones para estadísticas avanzadas de logs
@@ -3465,8 +3601,44 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
           <Box sx={{ p: 3 }}>
             <Typography variant="h5" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <PersonIcon color="primary" />
-              Gestión de Usuarios y Créditos
+              Gestión de Usuarios
             </Typography>
+
+            {/* Sub-tabs para Créditos y Límites de Capas */}
+            <Paper sx={{ mb: 3 }}>
+              <Tabs 
+                value={userSubTab} 
+                onChange={handleUserSubTabChange}
+                indicatorColor="secondary"
+                textColor="secondary"
+                variant="fullWidth"
+                sx={{
+                  borderBottom: 1,
+                  borderColor: 'divider',
+                  '& .MuiTab-root': {
+                    minHeight: 48,
+                    fontWeight: 'medium'
+                  }
+                }}
+              >
+                <Tab 
+                  icon={<CreditsIcon />} 
+                  label="Gestión de Créditos"
+                  iconPosition="start"
+                  sx={{ gap: 1 }}
+                />
+                <Tab 
+                  icon={<LayersIcon />} 
+                  label="Límites de Capas"
+                  iconPosition="start"
+                  sx={{ gap: 1 }}
+                />
+              </Tabs>
+            </Paper>
+
+            {/* Sub-Tab 1: Gestión de Créditos */}
+            {userSubTab === 0 && (
+              <Box>
 
             {/* Tabla de Usuarios */}
             <Paper sx={{ mb: 4 }}>
@@ -3569,6 +3741,202 @@ Este contenido ha sido optimizado para mejor claridad y profesionalismo.`;
                 </Table>
               </TableContainer>
             </Paper>
+              </Box>
+            )}
+
+            {/* Sub-Tab 2: Límites de Capas */}
+            {userSubTab === 1 && (
+              <Box>
+                {/* Estadísticas de Límites */}
+                {layersStats && (
+                  <Grid container spacing={3} sx={{ mb: 4 }}>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <GroupsIcon sx={{ mr: 2, color: 'primary.main' }} />
+                            <Box>
+                              <Typography color="text.secondary" gutterBottom>
+                                Total Usuarios
+                              </Typography>
+                              <Typography variant="h5" component="div">
+                                {layersStats.total_users}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={3}>
+                      <Card>
+                        <CardContent>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <LayersIcon sx={{ mr: 2, color: 'info.main' }} />
+                            <Box>
+                              <Typography color="text.secondary" gutterBottom>
+                                Límite Promedio
+                              </Typography>
+                              <Typography variant="h5" component="div">
+                                {layersStats.average_limit.toFixed(1)}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  </Grid>
+                )}
+
+                {/* Filtros */}
+                <Paper sx={{ p: 2, mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Filtros de Búsqueda
+                  </Typography>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Buscar por email"
+                        value={layersSearchTerm}
+                        onChange={(e) => setLayersSearchTerm(e.target.value)}
+                        placeholder="Escribe email del usuario..."
+                      />
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Rol</InputLabel>
+                        <Select
+                          value={layersRoleFilter}
+                          label="Rol"
+                          onChange={(e) => setLayersRoleFilter(e.target.value)}
+                        >
+                          <MenuItem value="">Todos</MenuItem>
+                          <MenuItem value="user">Usuario</MenuItem>
+                          <MenuItem value="admin">Admin</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Button
+                        fullWidth
+                        variant="contained"
+                        onClick={loadLayersLimits}
+                        startIcon={<RefreshIcon />}
+                        size="small"
+                      >
+                        Actualizar
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
+
+                {/* Tabla de Límites de Capas */}
+                <Paper>
+                  <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Typography variant="h6">
+                      Límites de Capas por Usuario ({filteredLayersUsers.length})
+                    </Typography>
+                  </Box>
+                  <TableContainer>
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell>Email</TableCell>
+                          <TableCell>Rol</TableCell>
+                          <TableCell align="center">Límite de Capas</TableCell>
+                          <TableCell>Registro</TableCell>
+                          <TableCell align="center">Acciones</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {loadingLayers ? (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center">
+                              <CircularProgress />
+                            </TableCell>
+                          </TableRow>
+                        ) : filteredLayersUsers.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} align="center">
+                              No hay usuarios que mostrar
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          filteredLayersUsers.map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <Chip 
+                                  label={user.role} 
+                                  size="small" 
+                                  color={user.role === 'admin' ? 'error' : 'default'}
+                                />
+                              </TableCell>
+                              <TableCell align="center">
+                                {editingLayers[user.id] !== undefined ? (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      value={editingLayers[user.id]}
+                                      onChange={(e) => setEditingLayers(prev => ({
+                                        ...prev,
+                                        [user.id]: parseInt(e.target.value) || 0
+                                      }))}
+                                      inputProps={{ min: 1, max: 50 }}
+                                      sx={{ width: 80 }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      color="primary"
+                                      onClick={() => updateUserLayersLimit(user.id, editingLayers[user.id])}
+                                    >
+                                      <CheckCircleIcon />
+                                    </IconButton>
+                                    <IconButton
+                                      size="small"
+                                      color="secondary"
+                                      onClick={() => setEditingLayers(prev => {
+                                        const newEditing = { ...prev };
+                                        delete newEditing[user.id];
+                                        return newEditing;
+                                      })}
+                                    >
+                                      <CloseIcon />
+                                    </IconButton>
+                                  </Box>
+                                ) : (
+                                  <Typography variant="h6" color="primary">
+                                    {user.layerslimit} capas
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>{formatDate(user.created_at)}</TableCell>
+                              <TableCell align="center">
+                                {editingLayers[user.id] === undefined && (
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => setEditingLayers(prev => ({
+                                      ...prev,
+                                      [user.id]: user.layerslimit
+                                    }))}
+                                    startIcon={<EditIcon />}
+                                  >
+                                    Editar
+                                  </Button>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Paper>
+              </Box>
+            )}
           </Box>
         </TabPanel>
 

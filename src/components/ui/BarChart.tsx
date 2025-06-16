@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, Typography, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CategoryCount } from '../../types';
 import { formatCount } from '../../utils/formatNumbers';
+import { alpha } from '@mui/material/styles';
 
 interface BarChartProps {
   data: CategoryCount[];
@@ -129,7 +130,7 @@ const BarChart: React.FC<BarChartProps> = ({ data, title = 'Distribución por Ca
         }
       }}
     >
-      <CardHeader sx={{ pb: 1 }}>
+      <CardHeader sx={{ pb: 1, px: 2, pt: 2 }}>
         <Typography 
           variant="h6" 
           component="h3"
@@ -149,51 +150,53 @@ const BarChart: React.FC<BarChartProps> = ({ data, title = 'Distribución por Ca
           Total de categorías: {sortedData.length} • Total tendencias: {sortedData.reduce((acc, item) => acc + item.count, 0)}
         </Typography>
       </CardHeader>
-      
-      <CardContent sx={{ pt: 0 }}>
-        <ResponsiveContainer width="100%" height={350}>
-          <RechartsBarChart 
+
+      <CardContent sx={{ p: 2, pt: 1, pb: 2, height: 'calc(100% - 80px)' }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <RechartsBarChart
             data={sortedData}
-            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+            margin={{
+              top: 20,
+              right: 20,
+              left: 10,
+              bottom: 40,
+            }}
+            barCategoryGap="20%"
+            maxBarSize={60}
           >
             <CartesianGrid 
               strokeDasharray="3 3" 
-              stroke={theme.palette.divider}
-              opacity={0.5}
+              stroke={alpha(theme.palette.divider, 0.3)}
+              horizontal={true}
+              vertical={false}
             />
             
-            <XAxis 
+            <XAxis
               dataKey="category"
-              tick={<CustomXAxisTick />}
-              axisLine={false}
+              stroke={theme.palette.text.secondary}
+              fontSize={11}
               tickLine={false}
-              height={80}
+              axisLine={false}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+              interval={0}
             />
             
-            <YAxis 
-              tick={{ 
-                fontSize: 11, 
-                fill: theme.palette.text.secondary,
-                fontWeight: 'bold'
-              }}
-              axisLine={false}
+            <YAxis
+              stroke={theme.palette.text.secondary}
+              fontSize={11}
               tickLine={false}
-              tickFormatter={formatCount}
+              axisLine={false}
+              width={40}
             />
             
-            <Tooltip 
-              content={<CustomTooltip />}
-              cursor={{ 
-                fill: theme.palette.action.hover,
-                radius: 4
-              }}
-            />
+            <Tooltip content={<CustomTooltip />} />
             
             <Bar 
               dataKey="count" 
               radius={[6, 6, 0, 0]}
-              stroke={theme.palette.divider}
-              strokeWidth={1}
+              fill={theme.palette.primary.main}
             >
               {sortedData.map((entry, index) => (
                 <Cell 

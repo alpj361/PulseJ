@@ -179,7 +179,20 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
-          <Route path="/projects" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/projects" element={
+            <VerifiedRoute>
+              <Layout>
+                <Projects />
+              </Layout>
+            </VerifiedRoute>
+          } />
+          <Route path="/projectos" element={
+            <VerifiedRoute>
+              <Layout>
+                <Projects />
+              </Layout>
+            </VerifiedRoute>
+          } />
           <Route path="/timeline-demo" element={
             <VerifiedRoute>
               <Layout>

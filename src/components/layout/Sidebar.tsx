@@ -112,10 +112,9 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       disabled: true
     },
     {
-      icon: <Layers size={20} style={{ color: 'grey' }} />,
+      icon: <Layers size={20} />,
       label: language === 'es' ? 'Proyectos' : 'Projects',
-      path: '#', // Cambiamos la ruta para que no vaya a ningún lado
-      disabled: true
+      path: '/projects'
     },
     {
       icon: <Search size={20} />,

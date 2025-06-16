@@ -19,6 +19,25 @@ import {
   Tabs,
   Tab
 } from '@mui/material';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import {
+  useSortable
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
 import BarChartIcon from '@mui/icons-material/BarChart';
@@ -277,6 +296,204 @@ const templates: Template[] = [
   }
 ];
 
+// Componente sortable para preguntas individuales
+const SortableQuestionItem: React.FC<{
+  question: Question;
+  onToggle: (id: number) => void;
+  onChangeChartType: (id: number, chartType: 'bar' | 'pie' | 'line') => void;
+  onUpdateTitle: (id: number, title: string) => void;
+  onUpdateDescription: (id: number, description: string) => void;
+}> = ({ question, onToggle, onChangeChartType, onUpdateTitle, onUpdateDescription }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(question.title);
+  const [editDescription, setEditDescription] = useState(question.description);
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: question.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1
+  };
+
+  const handleSaveEdit = () => {
+    onUpdateTitle(question.id, editTitle);
+    onUpdateDescription(question.id, editDescription);
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditTitle(question.title);
+    setEditDescription(question.description);
+    setIsEditing(false);
+  };
+
+  return (
+    <Card
+      ref={setNodeRef}
+      style={style}
+      sx={{
+        mb: 2,
+        opacity: question.enabled ? 1 : 0.6,
+        '&:hover': {
+          boxShadow: 2
+        }
+      }}
+    >
+      <CardContent>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          {/* Handle de drag separado */}
+          <Box
+            {...attributes}
+            {...listeners}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 24,
+              height: 24,
+              cursor: isDragging ? 'grabbing' : 'grab',
+              color: 'text.secondary',
+              mr: 1,
+              '&:hover': {
+                color: 'primary.main'
+              }
+            }}
+          >
+            ⋮⋮
+          </Box>
+          
+          <Box sx={{ flexGrow: 1, mr: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              {question.icon}
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={question.enabled}
+                    onChange={(e) => {
+                      e.stopPropagation();
+                      onToggle(question.id);
+                    }}
+                    size="small"
+                  />
+                }
+                label=""
+                sx={{ ml: 1, mr: 1 }}
+              />
+              {isEditing ? (
+                <TextField
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  sx={{ ml: 1 }}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              ) : (
+                <Typography variant="subtitle2" sx={{ ml: 1, flexGrow: 1 }}>
+                  {question.title}
+                </Typography>
+              )}
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsEditing(!isEditing);
+                }}
+                sx={{ ml: 1 }}
+              >
+                <EditIcon fontSize="small" />
+              </IconButton>
+            </Box>
+            
+            {isEditing ? (
+              <TextField
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                variant="outlined"
+                size="small"
+                fullWidth
+                multiline
+                rows={2}
+                sx={{ mb: 2 }}
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {question.description}
+              </Typography>
+            )}
+
+            {isEditing && (
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Button 
+                  size="small" 
+                  variant="contained" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveEdit();
+                  }}
+                >
+                  Guardar
+                </Button>
+                <Button 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCancelEdit();
+                  }}
+                >
+                  Cancelar
+                </Button>
+              </Box>
+            )}
+
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {chartTypes.map((chartType) => (
+                <Tooltip key={chartType.type} title={chartType.description}>
+                  <Chip
+                    icon={chartType.icon as React.ReactElement}
+                    label={chartType.label}
+                    variant={question.chartType === chartType.type ? 'filled' : 'outlined'}
+                    color={question.chartType === chartType.type ? 'primary' : 'default'}
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onChangeChartType(question.id, chartType.type);
+                    }}
+                    sx={{
+                      cursor: 'pointer',
+                      '&:hover': {
+                        backgroundColor: chartType.color + '20'
+                      }
+                    }}
+                  />
+                </Tooltip>
+              ))}
+            </Box>
+          </Box>
+          
+          <Chip
+            label={question.context}
+            size="small"
+            variant="outlined"
+            sx={{ mt: 1 }}
+          />
+        </Box>
+      </CardContent>
+    </Card>
+  );
+};
+
 const SondeoConfigModal: React.FC<SondeoConfigModalProps> = ({
   open,
   onClose,
@@ -285,6 +502,14 @@ const SondeoConfigModal: React.FC<SondeoConfigModalProps> = ({
   const [currentTab, setCurrentTab] = useState(0);
   const [editingQuestion, setEditingQuestion] = useState<number | null>(null);
   const [selectedTrends, setSelectedTrends] = useState<string[]>([]);
+
+  // Configurar sensores para drag and drop
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   
   // Preguntas predefinidas basadas en contextos
   const getQuestionsByContext = (contexts: string[]): Question[] => {
@@ -465,6 +690,20 @@ const SondeoConfigModal: React.FC<SondeoConfigModalProps> = ({
     );
   };
 
+  // Handler para drag and drop
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setQuestions((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+  };
+
   const applyTemplate = (template: Template) => {
     const newQuestions = template.questions.map((q, index) => ({
       ...q,
@@ -629,131 +868,28 @@ const SondeoConfigModal: React.FC<SondeoConfigModalProps> = ({
                     onTrendChange={setSelectedTrends} 
                   />
                 )}
-                {questions.map((question) => (
-                  <Card
-                    key={question.id}
-                    sx={{
-                      border: question.enabled 
-                        ? '2px solid #3B82F6' 
-                        : '1px solid #E5E7EB',
-                      borderRadius: 2,
-                      transition: 'all 0.3s ease',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1)'
-                      }
-                    }}
+                
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={questions.map(q => q.id)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                        <Box sx={{ color: '#3B82F6', mt: 0.5 }}>
-                          {question.icon}
-                        </Box>
-                        
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                            {editingQuestion === question.id ? (
-                              <TextField
-                                fullWidth
-                                value={question.title}
-                                onChange={(e) => updateQuestionTitle(question.id, e.target.value)}
-                                onBlur={() => setEditingQuestion(null)}
-                                onKeyPress={(e) => e.key === 'Enter' && setEditingQuestion(null)}
-                                autoFocus
-                                variant="outlined"
-                                size="small"
-                              />
-                            ) : (
-                              <Typography 
-                                variant="h6" 
-                                sx={{ 
-                                  color: '#1F2937',
-                                  cursor: 'pointer',
-                                  '&:hover': { color: '#3B82F6' }
-                                }}
-                                onClick={() => setEditingQuestion(question.id)}
-                              >
-                                {question.title}
-                              </Typography>
-                            )}
-                            <Chip
-                              label={contextLabels[question.context]}
-                              size="small"
-                              sx={{
-                                backgroundColor: question.context === 'tendencias' 
-                                  ? '#FEF3C7' : question.context === 'noticias' 
-                                  ? '#DBEAFE' : '#F3E8FF',
-                                color: question.context === 'tendencias' 
-                                  ? '#92400E' : question.context === 'noticias' 
-                                  ? '#1E40AF' : '#6B21A8'
-                              }}
-                            />
-                          </Box>
-                          
-                          <TextField
-                            fullWidth
-                            multiline
-                            rows={2}
-                            value={question.description}
-                            onChange={(e) => updateQuestionDescription(question.id, e.target.value)}
-                            variant="outlined"
-                            size="small"
-                            sx={{ mb: 2 }}
-                            placeholder="Descripción de la pregunta..."
-                          />
-
-                          {/* Selector de tipo de gráfico */}
-                          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                            {chartTypes.map((chartType) => (
-                              <Tooltip key={chartType.type} title={chartType.description}>
-                                <Button
-                                  size="small"
-                                  variant={question.chartType === chartType.type ? "contained" : "outlined"}
-                                  onClick={() => changeChartType(question.id, chartType.type)}
-                                  sx={{
-                                    minWidth: 'auto',
-                                    p: 1,
-                                    backgroundColor: question.chartType === chartType.type 
-                                      ? chartType.color 
-                                      : 'transparent',
-                                    borderColor: chartType.color,
-                                    color: question.chartType === chartType.type 
-                                      ? 'white' 
-                                      : chartType.color,
-                                    '&:hover': {
-                                      backgroundColor: chartType.color,
-                                      color: 'white'
-                                    }
-                                  }}
-                                >
-                                  {chartType.icon}
-                                </Button>
-                              </Tooltip>
-                            ))}
-                          </Box>
-                        </Box>
-
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={question.enabled}
-                              onChange={() => toggleQuestion(question.id)}
-                              sx={{
-                                '& .MuiSwitch-switchBase.Mui-checked': {
-                                  color: '#3B82F6',
-                                },
-                                '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track': {
-                                  backgroundColor: '#3B82F6',
-                                },
-                              }}
-                            />
-                          }
-                          label=""
-                        />
-                      </Box>
-                    </CardContent>
-                  </Card>
-                ))}
+                    {questions.map((question) => (
+                      <SortableQuestionItem
+                        key={question.id}
+                        question={question}
+                        onToggle={toggleQuestion}
+                        onChangeChartType={changeChartType}
+                        onUpdateTitle={updateQuestionTitle}
+                        onUpdateDescription={updateQuestionDescription}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </Box>
             </Box>
           </>

@@ -25,6 +25,7 @@ import {
 } from '@mui/icons-material';
 import { getLatestNews, getCodexItemsByUser, getSondeosByUser } from '../services/supabase';
 import { sendSondeoToExtractorW, getLatestTrends } from '../services/api';
+import { sondearTema as sondearTemaService } from '../services/sondeos';
 import { useAuth } from '../context/AuthContext';
 import { NewsItem } from '../types';
 import type { TrendResponse } from '../services/api';
@@ -39,6 +40,23 @@ import ModernPieChart from '../components/ui/ModernPieChart';
 import MultiContextSelector from '../components/ui/MultiContextSelector';
 import AIResponseDisplay from '../components/ui/AIResponseDisplay';
 import SondeoConfigModal from '../components/ui/SondeoConfigModal';
+import SondeoProgressIndicator from '../components/ui/SondeoProgressIndicator';
+import { useSondeoConfig } from '../hooks/useSondeoConfig';
+import { useSondeoForm } from '../hooks/useSondeoForm';
+import { useI18n } from '../hooks/useI18n';
+
+// Tipo para el historial de sondeos
+interface SondeoHistorial {
+  id: string;
+  pregunta: string;
+  respuesta_llm: string;
+  datos_analisis: any;
+  contextos_utilizados: string[];
+  created_at: string;
+  creditos_utilizados: number;
+  modelo_ia: string;
+  tokens_utilizados: number;
+}
 
 // Utilidad mejorada para buscar relevancia por palabras clave del input
 function filtrarPorRelevancia(texto: string, input: string) {
@@ -62,6 +80,16 @@ function resumirTexto(texto: string, maxLen = 220) {
 
 const Sondeos: React.FC = () => {
   const { user, session } = useAuth();
+  const { selectedContexts, setSelectedContexts, questions: dynamicQuestions } = useSondeoConfig();
+  const { 
+    validateSondeoReady, 
+    getValidationMessage, 
+    updateSelectedContexts, 
+    updateInput,
+    getValues 
+  } = useSondeoForm();
+  const { t, getErrorMessage } = useI18n();
+  
   const [news, setNews] = useState<NewsItem[]>([]);
   const [codex, setCodex] = useState<any[]>([]);
   const [loading, setLoading] = useState(false); // loading de datos iniciales
@@ -73,17 +101,18 @@ const Sondeos: React.FC = () => {
   const [showContext, setShowContext] = useState(false);
   const [llmResponse, setLlmResponse] = useState<string | null>(null);
   const [llmSources, setLlmSources] = useState<any>(null);
-  const [sondeos, setSondeos] = useState<Sondeo[]>([]);
+  const [sondeos, setSondeos] = useState<SondeoHistorial[]>([]);
   const [loadingSondeos, setLoadingSondeos] = useState(false);
-  
-  // Nuevo estado para el tipo de contexto seleccionado
-  const [selectedContexts, setSelectedContexts] = useState<string[]>(['tendencias']);
   
   // Nuevo estado para datos de visualización
   const [datosAnalisis, setDatosAnalisis] = useState<any>(null);
   
   // Estado para el modal de configuración
   const [configModalOpen, setConfigModalOpen] = useState(false);
+  
+  // Estados para el indicador de progreso
+  const [currentStep, setCurrentStep] = useState<string>('preparing');
+  const [progress, setProgress] = useState<number>(0);
 
   // Opciones para el dropdown de contexto
   const opcionesContexto = [
@@ -123,123 +152,8 @@ const Sondeos: React.FC = () => {
     }
   ];
 
-  // Obtener preguntas específicas según el tipo de contexto
-  const getQuestionsByContext = () => {
-    // Si hay múltiples contextos, usar el primero para las preguntas por ahora
-    const primaryContext = selectedContexts[0] || 'tendencias';
-    if (primaryContext === 'tendencias') {
-      return [
-        {
-          id: 1,
-          title: '¿Qué temas son tendencia en relación a mi búsqueda?',
-          icon: <TrendingUp />,
-          description: 'Análisis de tendencias relevantes al tema consultado',
-          color: 'primary',
-          dataKey: 'temas_relevantes'
-        },
-        {
-          id: 2,
-          title: '¿Cómo se distribuyen las categorías en este tema?',
-          icon: <Assessment />,
-          description: 'Distribución por categorías para el tema consultado',
-          color: 'secondary',
-          dataKey: 'distribucion_categorias'
-        },
-        {
-          id: 3,
-          title: '¿Dónde se mencionan más estos temas?',
-          icon: <LocationOn />,
-          description: 'Análisis geográfico de menciones sobre el tema',
-          color: 'success',
-          dataKey: 'mapa_menciones'
-        },
-        {
-          id: 4,
-          title: '¿Qué subtemas están relacionados con mi búsqueda?',
-          icon: <BarChart />,
-          description: 'Relaciones entre el tema principal y subtemas',
-          color: 'warning',
-          dataKey: 'subtemas_relacionados'
-        }
-      ];
-    } else if (primaryContext === 'noticias') {
-      return [
-        {
-          id: 1,
-          title: '¿Qué noticias son más relevantes para mi tema?',
-          icon: <TrendingUp />,
-          description: 'Análisis de relevancia de noticias para el tema consultado',
-          color: 'primary',
-          dataKey: 'noticias_relevantes'
-        },
-        {
-          id: 2,
-          title: '¿Qué fuentes cubren más mi tema?',
-          icon: <Assessment />,
-          description: 'Análisis de fuentes que cubren el tema consultado',
-          color: 'secondary',
-          dataKey: 'fuentes_cobertura'
-        },
-        {
-          id: 3,
-          title: '¿Cómo ha evolucionado la cobertura de este tema?',
-          icon: <LocationOn />,
-          description: 'Evolución temporal de la cobertura del tema',
-          color: 'success',
-          dataKey: 'evolucion_cobertura'
-        },
-        {
-          id: 4,
-          title: '¿Qué aspectos del tema reciben más atención?',
-          icon: <BarChart />,
-          description: 'Análisis de los aspectos más cubiertos del tema',
-          color: 'warning',
-          dataKey: 'aspectos_cubiertos'
-        }
-      ];
-    } else if (primaryContext === 'codex') {
-      return [
-        {
-          id: 1,
-          title: '¿Qué documentos son más relevantes para mi tema?',
-          icon: <TrendingUp />,
-          description: 'Análisis de relevancia de documentos para el tema consultado',
-          color: 'primary',
-          dataKey: 'documentos_relevantes'
-        },
-        {
-          id: 2,
-          title: '¿Qué conceptos se relacionan más con mi tema?',
-          icon: <Assessment />,
-          description: 'Análisis de conceptos relacionados con el tema',
-          color: 'secondary',
-          dataKey: 'conceptos_relacionados'
-        },
-        {
-          id: 3,
-          title: '¿Cómo ha evolucionado el análisis de este tema?',
-          icon: <LocationOn />,
-          description: 'Evolución temporal del análisis del tema',
-          color: 'success',
-          dataKey: 'evolucion_analisis'
-        },
-        {
-          id: 4,
-          title: '¿Qué aspectos del tema se analizan más a fondo?',
-          icon: <BarChart />,
-          description: 'Análisis de los aspectos más documentados del tema',
-          color: 'warning',
-          dataKey: 'aspectos_documentados'
-        }
-      ];
-    }
-    
-    // Retornar las preguntas por defecto si no hay coincidencia
-    return questions;
-  };
-  
-  // Obtener las preguntas dinámicas según el contexto
-  const currentQuestions = getQuestionsByContext();
+  // Las preguntas dinámicas ahora vienen del hook useSondeoConfig
+  const currentQuestions = dynamicQuestions;
   
   // Función auxiliar para renderizar visualizaciones según la pregunta
   const renderVisualization = (question: any) => {
@@ -254,11 +168,25 @@ const Sondeos: React.FC = () => {
     const data = datosAnalisis[question.dataKey];
     const primaryContext = selectedContexts[0] || 'tendencias';
     
+    // Función para obtener la conclusión y metodología
+    const getInsights = (dataKey: string) => {
+      const conclusiones = datosAnalisis.conclusiones || {};
+      const metodologia = datosAnalisis.metodologia || {};
+      
+      return {
+        conclusion: conclusiones[dataKey] || "Análisis completado exitosamente.",
+        methodology: metodologia[dataKey] || "Datos procesados usando algoritmos de análisis avanzado."
+      };
+    };
+    
+    let chartComponent = null;
+    let insights = null;
+    
     // Visualizaciones específicas según el tipo de contexto y pregunta
     if (primaryContext === 'tendencias') {
       switch (question.id) {
         case 1: // Temas relevantes
-          return (
+          chartComponent = (
             <ModernBarChart 
               data={data.map((item: any) => ({ name: item.tema, value: item.valor }))} 
               height={280} 
@@ -266,18 +194,22 @@ const Sondeos: React.FC = () => {
               glassmorphism={true}
             />
           );
+          insights = getInsights('temas_relevantes');
+          break;
           
         case 2: // Distribución por categorías
-          return (
+          chartComponent = (
             <ModernPieChart
               data={data.map((item: any) => ({ name: item.categoria, value: item.valor }))}
               height={280}
               showLegend={true}
             />
           );
+          insights = getInsights('distribucion_categorias');
+          break;
           
         case 3: // Mapa de menciones
-          return (
+          chartComponent = (
             <ModernBarChart 
               data={data.map((item: any) => ({ name: item.region, value: item.valor }))}
               height={280}
@@ -285,9 +217,11 @@ const Sondeos: React.FC = () => {
               glassmorphism={true}
             />
           );
+          insights = getInsights('mapa_menciones');
+          break;
           
         case 4: // Subtemas relacionados
-          return (
+          chartComponent = (
             <ModernBarChart 
               data={data.map((item: any) => ({ name: item.subtema, value: item.relacion }))}
               height={280}
@@ -295,30 +229,36 @@ const Sondeos: React.FC = () => {
               glassmorphism={true}
             />
           );
+          insights = getInsights('subtemas_relacionados');
+          break;
       }
     } else if (primaryContext === 'noticias') {
       switch (question.id) {
         case 1: // Noticias más relevantes
-          return (
+          chartComponent = (
             <ModernBarChart 
-              data={data.map((item: any) => ({ name: item.titulo.substring(0, 20) + '...', value: item.relevancia }))} 
+              data={data.map((item: any) => ({ name: item.titulo, value: item.relevancia }))} 
               height={280} 
               gradient={true}
               glassmorphism={true}
             />
           );
+          insights = getInsights('noticias_relevantes');
+          break;
           
         case 2: // Fuentes que cubren más
-          return (
+          chartComponent = (
             <ModernPieChart
               data={data.map((item: any) => ({ name: item.fuente, value: item.cobertura }))}
               height={280}
               showLegend={true}
             />
           );
+          insights = getInsights('fuentes_cobertura');
+          break;
           
         case 3: // Evolución de cobertura
-          return (
+          chartComponent = (
             <ModernLineChart 
               data={data.map((item: any) => ({ name: item.fecha, value: item.valor }))}
               height={280}
@@ -326,9 +266,11 @@ const Sondeos: React.FC = () => {
               showTarget={false}
             />
           );
+          insights = getInsights('evolucion_cobertura');
+          break;
           
         case 4: // Aspectos cubiertos
-          return (
+          chartComponent = (
             <ModernBarChart 
               data={data.map((item: any) => ({ name: item.aspecto, value: item.cobertura }))}
               height={280}
@@ -336,30 +278,36 @@ const Sondeos: React.FC = () => {
               glassmorphism={true}
             />
           );
+          insights = getInsights('aspectos_cubiertos');
+          break;
       }
     } else if (primaryContext === 'codex') {
       switch (question.id) {
         case 1: // Documentos más relevantes
-          return (
+          chartComponent = (
             <ModernBarChart 
-              data={data.map((item: any) => ({ name: item.titulo.substring(0, 20) + '...', value: item.relevancia }))} 
+              data={data.map((item: any) => ({ name: item.titulo, value: item.relevancia }))} 
               height={280} 
               gradient={true}
               glassmorphism={true}
             />
           );
+          insights = getInsights('documentos_relevantes');
+          break;
           
         case 2: // Conceptos relacionados
-          return (
+          chartComponent = (
             <ModernPieChart
               data={data.map((item: any) => ({ name: item.concepto, value: item.relacion }))}
               height={280}
               showLegend={true}
             />
           );
+          insights = getInsights('conceptos_relacionados');
+          break;
           
         case 3: // Evolución de análisis
-          return (
+          chartComponent = (
             <ModernLineChart 
               data={data.map((item: any) => ({ name: item.fecha, value: item.valor }))}
               height={280}
@@ -367,9 +315,11 @@ const Sondeos: React.FC = () => {
               showTarget={false}
             />
           );
+          insights = getInsights('evolucion_analisis');
+          break;
           
         case 4: // Aspectos documentados
-          return (
+          chartComponent = (
             <ModernBarChart 
               data={data.map((item: any) => ({ name: item.aspecto, value: item.profundidad }))}
               height={280}
@@ -377,16 +327,53 @@ const Sondeos: React.FC = () => {
               glassmorphism={true}
             />
           );
+          insights = getInsights('aspectos_documentados');
+          break;
       }
     }
     
     // Si no hay una visualización específica, mostrar los datos en JSON
+    if (!chartComponent) {
+      chartComponent = (
+        <pre style={{ fontSize: 12, maxHeight: 120, overflow: 'auto', margin: 0 }}>
+          {JSON.stringify(data, null, 2)}
+        </pre>
+      );
+      insights = { conclusion: "Datos mostrados en formato JSON.", methodology: "Visualización de datos sin procesar." };
+    }
+    
     return (
-      <pre style={{ fontSize: 12, maxHeight: 120, overflow: 'auto', margin: 0 }}>
-        {JSON.stringify(data, null, 2)}
-      </pre>
+      <Box>
+        {/* Gráfico */}
+        {chartComponent}
+        
+        {/* Respuesta conclusiva */}
+        {insights && (
+          <Box sx={{ mt: 3, p: 2, backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: 2, border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1976d2', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>💡</span> Conclusión
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2, lineHeight: 1.6, color: 'text.primary' }}>
+              {insights.conclusion}
+            </Typography>
+            
+            <Typography variant="caption" sx={{ fontWeight: 500, mb: 0.5, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
+              <span>🔍</span> Metodología
+            </Typography>
+            <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4, fontStyle: 'italic' }}>
+              {insights.methodology}
+            </Typography>
+          </Box>
+        )}
+      </Box>
     );
   };
+
+  // Sincronizar estados iniciales con el hook de validación
+  useEffect(() => {
+    updateSelectedContexts(selectedContexts);
+    updateInput(input);
+  }, []);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -404,131 +391,89 @@ const Sondeos: React.FC = () => {
     }).finally(() => setLoading(false));
   }, [user]);
 
-  // Función para sondear tema según los contextos seleccionados
+  // Función para sondear tema usando el servicio
   const sondearTema = async () => {
+    if (!user) return;
+    
+    // Obtener valores actuales del hook de validación
+    const formValues = getValues();
+    const currentInput = input || formValues.input;
+    const currentContexts = selectedContexts.length > 0 ? selectedContexts : formValues.selectedContexts;
+    
+    // Validar antes de proceder
+    const validationMessage = getValidationMessage();
+    if (validationMessage || !currentInput || currentInput.trim().length < 3 || currentContexts.length === 0) {
+      setError(validationMessage || 'Complete todos los campos requeridos');
+      return;
+    }
+    
     setLlmResponse(null);
     setLlmSources(null);
     setDatosAnalisis(null);
     setShowContext(true);
     setLoadingSondeo(true);
     setError('');
+    setProgress(0);
     
     try {
-      let contextoArmado: any = { 
-        input,
-        contextos_seleccionados: selectedContexts,
-        tipo_contexto: selectedContexts.join('+') // Para compatibilidad con backend
-      };
+      // Paso 1: Preparando contexto
+      setCurrentStep('preparing');
+      setProgress(25);
       
-      // Obtener datos según los contextos seleccionados
-      if (selectedContexts.includes('tendencias')) {
-        // Obtener tendencias actuales
-        const tendenciasData = await getLatestTrends();
-        if (tendenciasData) {
-          contextoArmado = {
-            ...contextoArmado,
-            tipo: 'tendencias',
-            tema_consulta: input,
-            tendencias: tendenciasData.topKeywords?.map(k => k.keyword) || [],
-            wordcloud: tendenciasData.wordCloudData || [],
-            categorias: tendenciasData.categoryData || [],
-            about: tendenciasData.about || [],
-            timestamp: tendenciasData.timestamp
-          };
-        } else {
-          throw new Error('No se pudieron obtener las tendencias actuales');
-        }
-      }
+      // Paso 2: Obteniendo datos
+      setCurrentStep('fetching');
+      setProgress(50);
       
-      if (selectedContexts.includes('noticias')) {
-        // Filtrar noticias relevantes
-        const noticiasRelevantes = news.filter(n =>
-          filtrarPorRelevancia(n.title, input) ||
-          filtrarPorRelevancia(n.excerpt, input) ||
-          (n.keywords || []).some(k => filtrarPorRelevancia(k, input))
-        ).slice(0, 3);
-        
-        contextoArmado = {
-          ...contextoArmado,
-          tipo: 'noticias',
-          tema_consulta: input,
-          noticias: noticiasRelevantes.map(n => ({
-            titulo: n.title,
-            resumen: resumirTexto(n.excerpt),
-            fuente: n.source,
-            fecha: n.date,
-            url: n.url,
-            categoria: n.category,
-            keywords: n.keywords
-          }))
-        };
-      }
+      const result = await sondearTemaService(
+        currentInput,
+        currentContexts,
+        user.id,
+        session?.access_token
+      );
       
-      if (selectedContexts.includes('codex')) {
-        // Filtrar documentos relevantes
-        const codexRelevantes = codex.filter((d: any) =>
-          filtrarPorRelevancia(d.titulo, input) ||
-          filtrarPorRelevancia(d.descripcion, input) ||
-          ((d.etiquetas || []).some((k: string) => filtrarPorRelevancia(k, input)))
-        ).slice(0, 3);
-        
-        contextoArmado = {
-          ...contextoArmado,
-          tipo: 'codex',
-          tema_consulta: input,
-          codex: codexRelevantes.map((d: any) => ({
-            titulo: d.titulo,
-            descripcion: resumirTexto(d.descripcion),
-            tipo: d.tipo,
-            fecha: d.fecha,
-            etiquetas: d.etiquetas,
-            url: d.url
-          }))
-        };
-      }
+      // Paso 3: Analizando con IA
+      setCurrentStep('analyzing');
+      setProgress(75);
       
-      setContexto(contextoArmado);
+      // Paso 4: Generando visualizaciones
+      setCurrentStep('generating');
+      setProgress(100);
       
-      // --- Llamada a ExtractorW/Perplexity ---
-      try {
-        console.log('Enviando contexto para sondeo:', contextoArmado);
-        const result = await sendSondeoToExtractorW(contextoArmado, input, session?.access_token);
-        console.log('Respuesta del sondeo:', result);
-        
-        // Manejar respuesta de texto
-        let respuesta = '';
-        if (result.about && Array.isArray(result.about) && result.about.length > 0) {
-          respuesta = result.about[0].resumen || result.about[0].summary || JSON.stringify(result.about[0]);
-        } else if (result.llm_response) {
-          respuesta = result.llm_response;
-        } else {
-          respuesta = 'No se obtuvo respuesta del LLM.';
-        }
-        setLlmResponse(respuesta);
-        
-        // Manejar datos para visualizaciones
-        if (result.datos_analisis) {
-          console.log('Datos para visualizaciones recibidos:', result.datos_analisis);
-          setDatosAnalisis(result.datos_analisis);
-        } else {
-          // Si no hay datos de análisis específicos, generar datos de muestra para testing
-          console.log('Generando datos de prueba para visualizaciones');
-          const primaryContext = selectedContexts[0] || 'tendencias';
-          const datosPrueba = generarDatosPrueba(primaryContext, input);
-          setDatosAnalisis(datosPrueba);
-        }
-        
-        setLlmSources(result);
-      } catch (e: any) {
-        setError('Error al consultar análisis: ' + (e.message || e));
-      }
+      setContexto(result.contexto);
+      setLlmResponse(result.llmResponse);
+      setLlmSources(result.llmSources);
+      setDatosAnalisis(result.datosAnalisis);
+      
     } catch (e: any) {
-      setError('Error al armar contexto: ' + (e.message || e));
+      console.error('❌ Error en sondearTema:', e);
+      const errorMessage = e.message || e.toString() || getErrorMessage('sondeo');
+      setError(errorMessage);
     } finally {
       setLoadingSondeo(false);
+      setProgress(0);
+      setCurrentStep('preparing');
     }
   };
-  
+
+  // Función para actualizar input y sincronizar con el hook
+  const handleInputChange = (value: string) => {
+    setInput(value);
+    updateInput(value);
+  };
+
+  // Función para actualizar contextos y sincronizar con el hook
+  const handleContextChange = (contexts: string[]) => {
+    setSelectedContexts(contexts);
+    updateSelectedContexts(contexts);
+  };
+
+  // Función de validación mejorada que considera ambos estados
+  const isFormValid = () => {
+    const hasInput = input && input.trim().length >= 3;
+    const hasContexts = selectedContexts && selectedContexts.length > 0;
+    return hasInput && hasContexts && validateSondeoReady();
+  };
+
   // Mejorar la función de generación de datos de prueba para visualizaciones
   // Ahora generando más datos para probar la capacidad de manejo de muchos elementos
   const generarDatosPrueba = (tipo: string, consulta: string) => {
@@ -729,8 +674,6 @@ const Sondeos: React.FC = () => {
     };
   };
 
-
-
   // Agrega esta función después de generarDatosPrueba para mostrar datos inmediatamente sin tener que consultar:
   // Esta función es sólo para propósitos de demostración
   const cargarDatosDemostracion = () => {
@@ -778,27 +721,31 @@ const Sondeos: React.FC = () => {
     // Solo ejecutar una vez al montar el componente
   }, []);
 
-  // Cargar sondeos para el mapa
+  // Cargar historial de sondeos del usuario
   useEffect(() => {
-    if (!user) return;
+    if (!user?.email) return;
     setLoadingSondeos(true);
-    getSondeosByUser(user.id)
+    getSondeosByUser(user.email)
       .then((data) => {
-        // Mapear los datos de Supabase al tipo Sondeo
+        console.log('📊 Sondeos cargados:', data?.length || 0);
+        // Mapear los datos de Supabase para mostrar el historial
         const mapped = (data || []).map((s: any) => ({
           id: s.id,
-          lat: s.lat,
-          lng: s.lng,
-          zona: s.zona || undefined,
-          lugar: s.lugar || undefined,
-          municipio: s.municipio || undefined,
-          departamento: s.departamento || undefined,
           pregunta: s.pregunta,
-          created_at: s.created_at
+          respuesta_llm: s.respuesta_llm,
+          datos_analisis: s.datos_analisis,
+          contextos_utilizados: s.contextos_utilizados,
+          created_at: s.created_at,
+          creditos_utilizados: s.creditos_utilizados,
+          modelo_ia: s.modelo_ia,
+          tokens_utilizados: s.tokens_utilizados
         }));
         setSondeos(mapped);
       })
-      .catch(() => setSondeos([]))
+      .catch((error) => {
+        console.error('❌ Error cargando sondeos:', error);
+        setSondeos([]);
+      })
       .finally(() => setLoadingSondeos(false));
   }, [user]);
 
@@ -817,7 +764,7 @@ const Sondeos: React.FC = () => {
           type="text"
           placeholder='Buscar tema (ej. "desarrollo económico")'
           value={input}
-          onChange={e => setInput(e.target.value)}
+          onChange={e => handleInputChange(e.target.value)}
           style={{ 
             width: '100%',
             maxWidth: '600px',
@@ -844,7 +791,7 @@ const Sondeos: React.FC = () => {
         <Box sx={{ minWidth: '160px' }}>
           <MultiContextSelector
             selectedContexts={selectedContexts}
-            onContextChange={setSelectedContexts}
+            onContextChange={handleContextChange}
             disabled={loading || loadingSondeo}
           />
         </Box>
@@ -878,7 +825,7 @@ const Sondeos: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<SearchIcon />}
-          disabled={loading || !input || selectedContexts.length === 0}
+          disabled={loading || loadingSondeo || !isFormValid()}
           onClick={sondearTema}
           sx={{ 
             px: 2, 
@@ -945,9 +892,17 @@ const Sondeos: React.FC = () => {
       )}
 
       {/* Loading States */}
-      {loading && <Typography color="primary" sx={{ textAlign: 'center', mb: 4 }}>Cargando contexto inicial...</Typography>}
-      {loadingSondeo && <Typography color="primary" sx={{ textAlign: 'center', mb: 4 }}>Cargando contexto y respuesta de IA...</Typography>}
-      {error && <Typography color="error" sx={{ textAlign: 'center', mb: 4 }}>{error}</Typography>}
+      {loading && <Typography color="primary" sx={{ textAlign: 'center', mb: 4 }}>{t('loading.data')}</Typography>}
+      
+      {/* Indicador de progreso mejorado */}
+      <SondeoProgressIndicator
+        isLoading={loadingSondeo}
+        currentStep={currentStep}
+        progress={progress}
+        selectedContexts={selectedContexts}
+        error={error}
+        variant="steps"
+      />
       
       {loadingSondeo && !llmResponse && (
         <Card sx={{ 
@@ -1061,8 +1016,6 @@ const Sondeos: React.FC = () => {
         ))}
       </Grid>
 
-
-
       {/* Acciones Globales */}
       <Box sx={{ 
         display: 'flex', 
@@ -1132,15 +1085,115 @@ const Sondeos: React.FC = () => {
         </Button>
       </Box>
 
-      {/* Mapa de Sondeos */}
+      {/* Historial de Sondeos */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" gutterBottom fontWeight="semibold" color="primary">
-          🗺️ Mapa de Exploración de Sondeos
+          📊 Historial de Sondeos
         </Typography>
         {loadingSondeos ? (
-          <Typography color="primary">Cargando mapa...</Typography>
+          <Typography color="primary">Cargando historial...</Typography>
+        ) : sondeos.length > 0 ? (
+          <Grid container spacing={3}>
+            {sondeos.map((sondeo) => (
+              <Grid item xs={12} md={6} lg={4} key={sondeo.id}>
+                <Card sx={{ 
+                  height: '100%',
+                  borderRadius: '12px',
+                  border: '1px solid #E5E7EB',
+                  boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    transform: 'translateY(-2px)',
+                    boxShadow: '0 4px 12px 0 rgba(0, 0, 0, 0.1)'
+                  }
+                }}>
+                  <CardContent sx={{ p: 3 }}>
+                    <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1, lineHeight: 1.3 }}>
+                      {sondeo.pregunta}
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+                      {sondeo.contextos_utilizados?.map((contexto, idx) => (
+                        <Chip 
+                          key={idx}
+                          label={contexto} 
+                          size="small" 
+                          sx={{ 
+                            backgroundColor: '#F3F4F6',
+                            color: '#374151',
+                            fontSize: '12px'
+                          }}
+                        />
+                      ))}
+                    </Box>
+                    
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2, lineHeight: 1.4 }}>
+                      {resumirTexto(sondeo.respuesta_llm, 150)}
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 'auto' }}>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(sondeo.created_at).toLocaleDateString('es-GT', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        <Chip 
+                          label={`${sondeo.creditos_utilizados || 0} créditos`}
+                          size="small"
+                          sx={{ 
+                            backgroundColor: '#EEF2FF',
+                            color: '#3B82F6',
+                            fontSize: '11px'
+                          }}
+                        />
+                        <Button 
+                          size="small" 
+                          variant="outlined"
+                          sx={{ 
+                            minWidth: 'auto',
+                            px: 1.5,
+                            py: 0.5,
+                            fontSize: '12px',
+                            borderColor: '#D1D5DB',
+                            color: '#374151',
+                            '&:hover': {
+                              backgroundColor: '#F9FAFB'
+                            }
+                          }}
+                          onClick={() => {
+                            // Cargar los datos del sondeo en el estado actual
+                            setInput(sondeo.pregunta);
+                            setLlmResponse(sondeo.respuesta_llm);
+                            setDatosAnalisis(sondeo.datos_analisis);
+                            setSelectedContexts(sondeo.contextos_utilizados || []);
+                            setShowContext(true);
+                          }}
+                        >
+                          Ver
+                        </Button>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
         ) : (
-          <SondeosMap sondeos={sondeos} />
+          <Paper sx={{ 
+            p: 4, 
+            textAlign: 'center',
+            backgroundColor: '#F9FAFB',
+            border: '1px solid #E5E7EB'
+          }}>
+            <Typography variant="body1" color="text.secondary">
+              No tienes sondeos guardados aún. ¡Realiza tu primer sondeo arriba!
+            </Typography>
+          </Paper>
         )}
       </Box>
 

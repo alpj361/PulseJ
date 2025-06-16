@@ -474,29 +474,83 @@ export async function sendSondeoToExtractorW(contextoArmado: any, pregunta: stri
       headers['Authorization'] = `Bearer ${authToken}`;
     }
     
+    // Mapear contextos del frontend al formato que espera el backend
+    const selectedContexts = [];
+    if (contextoArmado.tipo_contexto) {
+      const tipos = contextoArmado.tipo_contexto.split('+');
+      tipos.forEach((tipo: string) => {
+        if (tipo === 'tendencias') selectedContexts.push('tendencias');
+        if (tipo === 'noticias') selectedContexts.push('noticias');
+        if (tipo === 'codex') selectedContexts.push('codex');
+        if (tipo === 'tweets') selectedContexts.push('tweets');
+      });
+    }
+    
+    // Si no hay contextos específicos, usar los contextos seleccionados directamente
+    if (selectedContexts.length === 0 && contextoArmado.contextos_seleccionados) {
+      selectedContexts.push(...contextoArmado.contextos_seleccionados);
+    }
+    
+    // Fallback a tendencias si no hay contextos
+    if (selectedContexts.length === 0) {
+      selectedContexts.push('tendencias');
+    }
+    
+    console.log('📊 Contextos mapeados:', selectedContexts);
+    
+    // Preparar payload en el formato correcto para el backend
+    const payload = {
+      pregunta: pregunta,
+      selectedContexts: selectedContexts,
+      configuracion: {
+        detalle_nivel: 'alto',
+        incluir_recomendaciones: true,
+        incluir_visualizaciones: true,
+        tipo_analisis: contextoArmado.tipo_contexto || 'general',
+        contexto_original: contextoArmado // Incluir contexto original para referencia
+      }
+    };
+    
+    console.log('📤 Payload enviado:', JSON.stringify(payload, null, 2));
+    
     // 1. Enviar el contexto y pregunta a ExtractorW (nuevo endpoint /api/sondeo)
     const response = await fetch('https://server.standatpd.com/api/sondeo', {
       method: 'POST',
       headers,
-      body: JSON.stringify({
-        contexto: contextoArmado,
-        pregunta: pregunta,
-        incluir_visualizaciones: true, // Solicitar explícitamente datos para visualizaciones
-        tipo_analisis: contextoArmado.tipo_contexto || 'general' // Indicar el tipo de análisis que necesitamos
-      })
+      body: JSON.stringify(payload)
     });
+    
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    const responseText = await response.text();
+    console.log('📡 Response text (raw):', responseText);
     
     if (!response.ok) {
-      throw new Error(`Error enviando sondeo: ${response.statusText}`);
+      console.error('❌ Error response status:', response.status);
+      console.error('❌ Error response text:', responseText);
+      throw new Error(`Error enviando sondeo (${response.status}): ${response.statusText} - ${responseText}`);
     }
     
-    const data = await response.json();
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError: any) {
+      console.error('❌ Error parsing JSON response:', parseError);
+      console.error('❌ Raw response:', responseText);
+      throw new Error(`Error parsing response: ${parseError.message}`);
+    }
+    
     console.log('✅ Respuesta de sondeo recibida:', {
-      status: data.status || 'desconocido',
-      tiene_respuesta: !!data.llm_response,
-      tiene_about: Array.isArray(data.about) && data.about.length > 0,
-      tiene_datos_analisis: !!data.datos_analisis
+      success: data.success,
+      tiene_resultado: !!data.resultado,
+      tiene_contexto: !!data.contexto,
+      creditos_costo: data.creditos?.costo_total,
+      creditos_restantes: data.creditos?.creditos_restantes,
+      keys: Object.keys(data)
     });
+    
+    console.log('📊 Datos completos recibidos:', JSON.stringify(data, null, 2));
     
     return data;
   } catch (error) {
