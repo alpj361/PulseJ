@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.ts';
 import { 
   ProjectDecision, 
   CreateProjectDecisionData,
@@ -14,7 +14,7 @@ import {
   moveDecisionAsChild as moveDecisionAsChildDB,
   promoteDecisionToRoot,
   getProjectStats
-} from './supabase';
+} from './supabase.ts';
 
 /**
  * Service para manejo de decisiones de proyectos con sistema de capas

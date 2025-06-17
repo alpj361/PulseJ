@@ -2,15 +2,20 @@
 export const formatNumber = (count: number | undefined): string => {
   // Manejar caso de valores undefined o null
   if (count === undefined || count === null) {
-    return "0K";
+    return "0";
   }
   
-  // Si el número tiene decimales, usar M
-  if (count % 1 !== 0) {
-    return `${count.toFixed(1)}M`;
-  } else {
-    // Siempre agregar K por defecto para números enteros
-    return `${count}K`;
+  // Para números >= 1,000,000 usar M
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  // Para números >= 1,000 usar K
+  else if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  // Para números < 1,000 mostrar el número sin sufijo
+  else {
+    return count.toString();
   }
 };
 
@@ -18,15 +23,20 @@ export const formatNumber = (count: number | undefined): string => {
 export const formatMentions = (count: number | undefined): string => {
   // Manejar caso de valores undefined o null
   if (count === undefined || count === null) {
-    return "0K menciones";
+    return "0 menciones";
   }
   
-  // Si el número tiene decimales, usar M
-  if (count % 1 !== 0) {
-    return `${count.toFixed(1)}M menciones`;
-  } else {
-    // Siempre agregar K por defecto para números enteros
-    return `${count}K menciones`;
+  // Para números >= 1,000,000 usar M
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M menciones`;
+  }
+  // Para números >= 1,000 usar K
+  else if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K menciones`;
+  }
+  // Para números < 1,000 mostrar el número sin sufijo
+  else {
+    return `${count} menciones`;
   }
 };
 
@@ -34,14 +44,19 @@ export const formatMentions = (count: number | undefined): string => {
 export const formatCount = (count: number | undefined): string => {
   // Manejar caso de valores undefined o null
   if (count === undefined || count === null) {
-    return "0K";
+    return "0";
   }
   
-  // Si el número tiene decimales, usar M
-  if (count % 1 !== 0) {
-    return `${count.toFixed(1)}M`;
-  } else {
-    // Siempre agregar K por defecto para números enteros
-    return `${count}K`;
+  // Para números >= 1,000,000 usar M
+  if (count >= 1000000) {
+    return `${(count / 1000000).toFixed(1)}M`;
+  }
+  // Para números >= 1,000 usar K
+  else if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  // Para números < 1,000 mostrar el número sin sufijo
+  else {
+    return count.toString();
   }
 }; 

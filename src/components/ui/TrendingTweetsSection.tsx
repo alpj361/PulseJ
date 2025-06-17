@@ -51,10 +51,7 @@ const translations = {
     sortByDate: 'Por fecha',
     sortByLikes: 'Por likes',
     sortByRetweets: 'Por retweets',
-    refreshData: 'Actualizar datos',
-    tweetLiked: 'Tweet marcado como favorito',
-    tweetRetweeted: 'Tweet compartido',
-    tweetShared: 'Tweet copiado al portapapeles'
+    refreshData: 'Actualizar datos'
   },
   en: {
     title: 'What\'s happening on social media',
@@ -75,10 +72,7 @@ const translations = {
     sortByDate: 'By date',
     sortByLikes: 'By likes',
     sortByRetweets: 'By retweets',
-    refreshData: 'Refresh data',
-    tweetLiked: 'Tweet liked',
-    tweetRetweeted: 'Tweet retweeted',
-    tweetShared: 'Tweet copied to clipboard'
+    refreshData: 'Refresh data'
   }
 };
 
@@ -179,30 +173,6 @@ const TrendingTweetsSection: React.FC = () => {
   ) => {
     if (newSort !== null) {
       setSortBy(newSort);
-    }
-  };
-
-  // Funciones para acciones de tweet
-  const handleTweetLike = (tweetId: string) => {
-    console.log('Liked tweet:', tweetId);
-    showSnackbar(t.tweetLiked, 'success');
-  };
-
-  const handleTweetRetweet = (tweetId: string) => {
-    console.log('Retweeted tweet:', tweetId);
-    showSnackbar(t.tweetRetweeted, 'success');
-  };
-
-  const handleTweetShare = async (tweetId: string) => {
-    const tweet = tweets.find(t => t.tweet_id === tweetId);
-    if (tweet?.enlace) {
-      try {
-        await navigator.clipboard.writeText(tweet.enlace);
-        showSnackbar(t.tweetShared, 'success');
-      } catch (error) {
-        console.error('Error copying to clipboard:', error);
-        showSnackbar('Error al copiar enlace', 'error');
-      }
     }
   };
 
@@ -625,9 +595,6 @@ const TrendingTweetsSection: React.FC = () => {
               <MagicTweetCard 
                 tweet={tweet} 
                 layout={layout}
-                onLike={handleTweetLike}
-                onRetweet={handleTweetRetweet}
-                onShare={handleTweetShare}
               />
             </Grid>
           ))}

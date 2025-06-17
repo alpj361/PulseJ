@@ -1,5 +1,5 @@
 import { getLatestTrends, sendSondeoToExtractorW } from './api';
-import { getLatestNews, getCodexItemsByUser } from './supabase';
+import { getLatestNews, getCodexItemsByUser } from './supabase.ts';
 import type { NewsItem } from '../types';
 
 // Utilidad para filtrar por relevancia

@@ -17,7 +17,12 @@ import {
   FiTarget,
   FiUser,
   FiSave,
-  FiXCircle
+  FiXCircle,
+  FiFile,
+  FiMusic,
+  FiVideo,
+  FiLink,
+  FiImage
 } from 'react-icons/fi';
 
 import { Card, CardContent, CardHeader, CardTitle } from './card';
@@ -40,7 +45,7 @@ import {
   getProjectAssets,
   unassignCodexItemFromProject,
   getProjectDecisions
-} from '../../services/supabase';
+} from '../../services/supabase.ts';
 import AddAssetsModal from './AddAssetsModal';
 
 // ===================================================================
@@ -83,6 +88,34 @@ const priorityColors = {
   high: 'text-red-600 dark:text-red-400',
   medium: 'text-yellow-600 dark:text-yellow-400',
   low: 'text-green-600 dark:text-green-400',
+};
+
+// ===================================================================
+// HELPER FUNCTIONS
+// ===================================================================
+
+const getAssetTypeIcon = (tipo: string, isDrive?: boolean) => {
+  if (isDrive) {
+    return <FiDatabase className="w-5 h-5 text-blue-600" />;
+  }
+  
+  switch (tipo?.toLowerCase()) {
+    case 'documento':
+    case 'document':
+      return <FiFileText className="w-5 h-5 text-blue-600" />;
+    case 'audio':
+      return <FiMusic className="w-5 h-5 text-purple-600" />;
+    case 'video':
+      return <FiVideo className="w-5 h-5 text-red-600" />;
+    case 'enlace':
+    case 'link':
+      return <FiLink className="w-5 h-5 text-green-600" />;
+    case 'imagen':
+    case 'image':
+      return <FiImage className="w-5 h-5 text-orange-600" />;
+    default:
+      return <FiFile className="w-5 h-5 text-gray-600" />;
+  }
 };
 
 // ===================================================================

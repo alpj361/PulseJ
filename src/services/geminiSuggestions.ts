@@ -87,20 +87,39 @@ export async function saveSuggestionsToDatabase(projectId: string, suggestions: 
  */
 export function getSuggestionsFromDatabase(project: Project): SuggestionsResponse | null {
   try {
+    console.log('🔍 [getSuggestionsFromDatabase] Verificando proyecto:', {
+      id: project.id,
+      title: project.title,
+      hasSuggestions: !!project.suggestions,
+      suggestionsType: typeof project.suggestions,
+      suggestionsValue: project.suggestions
+    });
+
     if (project.suggestions) {
-      // Verificar si las sugerencias no son muy viejas (menos de 1 hora)
+      // Verificar si las sugerencias no son muy viejas (menos de 24 horas para debugging)
       const cacheAge = Date.now() - new Date(project.suggestions.generatedAt).getTime();
-      if (cacheAge < 60 * 60 * 1000) { // 1 hora
-        console.log('📄 Usando sugerencias desde base de datos (menos de 1 hora)');
+      const maxAge = 24 * 60 * 60 * 1000; // 24 horas para debugging
+      
+      console.log('⏰ [getSuggestionsFromDatabase] Verificando edad:', {
+        generatedAt: project.suggestions.generatedAt,
+        cacheAge: Math.round(cacheAge / (60 * 60 * 1000)) + ' horas',
+        maxAge: Math.round(maxAge / (60 * 60 * 1000)) + ' horas',
+        isValid: cacheAge < maxAge
+      });
+      
+      if (cacheAge < maxAge) {
+        console.log('✅ [getSuggestionsFromDatabase] Usando sugerencias desde base de datos');
         return project.suggestions;
       } else {
-        console.log('⏰ Sugerencias en base de datos están viejas (más de 1 hora)');
+        console.log('⏰ [getSuggestionsFromDatabase] Sugerencias en base de datos están viejas');
       }
+    } else {
+      console.log('❌ [getSuggestionsFromDatabase] No hay sugerencias en el proyecto');
     }
     
     return null;
   } catch (error) {
-    console.warn('⚠️ Error obteniendo sugerencias desde base de datos:', error);
+    console.warn('⚠️ [getSuggestionsFromDatabase] Error:', error);
     return null;
   }
 }

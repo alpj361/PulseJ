@@ -16,7 +16,7 @@ import Terms from './pages/Terms';
 import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Box, CircularProgress } from '@mui/material';
-import Codex from './pages/Codex';
+import EnhancedCodex from './pages/EnhancedCodex';
 import News from './pages/News';
 import Sondeos from './pages/Sondeos';
 import Projects from './pages/Projects';
@@ -161,7 +161,7 @@ function App() {
           <Route path="/codex" element={
             <VerifiedRoute>
               <Layout>
-                <Codex />
+                <EnhancedCodex />
               </Layout>
             </VerifiedRoute>
           } />

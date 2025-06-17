@@ -14,7 +14,7 @@ import {
   FavoriteBorder,
   Repeat,
   ChatBubbleOutline,
-  Share,
+  OpenInNew,
   Verified
 } from '@mui/icons-material';
 
@@ -169,25 +169,15 @@ const getIntentionIcon = (intencion: string) => {
 interface MagicTweetCardProps {
   tweet: MagicTweetData;
   layout?: 'compact' | 'expanded' | 'full';
-  onLike?: (tweetId: string) => void;
-  onRetweet?: (tweetId: string) => void;
-  onShare?: (tweetId: string) => void;
 }
 
 export function MagicTweetCard(props: MagicTweetCardProps) {
   const { 
     tweet, 
-    layout = 'expanded',
-    onLike,
-    onRetweet,
-    onShare
+    layout = 'expanded'
   } = props;
 
   const theme = useTheme();
-  const [isLiked, setIsLiked] = useState(false);
-  const [isRetweeted, setIsRetweeted] = useState(false);
-  const [localLikes, setLocalLikes] = useState(tweet.likes);
-  const [localRetweets, setLocalRetweets] = useState(tweet.retweets);
 
   // Solo usar los datos si existen, no valores por defecto
   const sentimiento = tweet.sentimiento;
@@ -197,23 +187,28 @@ export function MagicTweetCard(props: MagicTweetCardProps) {
   const categoria = tweet.categoria || 'General';
   const categoryColor = getCategoryColor(categoria);
 
-  const handleLike = (e: any) => {
+  const handleViewTweet = (e: any) => {
     e.stopPropagation();
-    setIsLiked(!isLiked);
-    setLocalLikes((prev: number) => isLiked ? prev - 1 : prev + 1);
-    onLike?.(tweet.tweet_id);
-  };
-
-  const handleRetweet = (e: any) => {
-    e.stopPropagation();
-    setIsRetweeted(!isRetweeted);
-    setLocalRetweets((prev: number) => isRetweeted ? prev - 1 : prev + 1);
-    onRetweet?.(tweet.tweet_id);
-  };
-
-  const handleShare = (e: any) => {
-    e.stopPropagation();
-    onShare?.(tweet.tweet_id);
+    // Abrir el tweet original si tiene enlace
+    if (tweet.enlace) {
+      // Convertir enlaces de nitter a x.com
+      let finalUrl = tweet.enlace;
+      if (tweet.enlace.includes('nitter.')) {
+        // Extraer la parte después del dominio de nitter
+        const urlParts = tweet.enlace.split('/');
+        const domainIndex = urlParts.findIndex(part => part.includes('nitter.'));
+        if (domainIndex !== -1 && urlParts.length > domainIndex + 1) {
+          // Reconstruir URL con x.com
+          const pathAfterDomain = urlParts.slice(domainIndex + 1).join('/');
+          finalUrl = `https://x.com/${pathAfterDomain}`;
+        }
+      }
+      window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    } else {
+      // Construir URL de Twitter con el tweet_id
+      const xUrl = `https://x.com/i/status/${tweet.tweet_id}`;
+      window.open(xUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   // Extract username from the usuario field - handle various formats
@@ -330,67 +325,51 @@ export function MagicTweetCard(props: MagicTweetCardProps) {
               
               {/* Engagement Stats */}
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Box>
                   <Tooltip title="Respuestas">
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary', cursor: 'pointer' }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                       <ChatBubbleOutline sx={{ fontSize: 16 }} />
                       <Typography variant="caption">{formatNumber(tweet.replies)}</Typography>
                     </Box>
                   </Tooltip>
-                </motion.div>
+                </Box>
                 
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Box>
                   <Tooltip title="Retweets">
-                    <Box 
-                      onClick={handleRetweet}
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 0.5, 
-                        color: isRetweeted ? '#4caf50' : 'text.secondary',
-                        cursor: 'pointer',
-                        transition: 'color 0.2s ease'
-                      }}
-                    >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
                       <Repeat sx={{ fontSize: 16 }} />
-                      <Typography variant="caption">{formatNumber(localRetweets)}</Typography>
+                      <Typography variant="caption">{formatNumber(tweet.retweets)}</Typography>
                     </Box>
                   </Tooltip>
-                </motion.div>
+                </Box>
                 
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Box>
                   <Tooltip title="Me gusta">
-                    <Box 
-                      onClick={handleLike}
-                      sx={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 0.5, 
-                        color: isLiked ? '#f44336' : 'text.secondary',
-                        cursor: 'pointer',
-                        transition: 'color 0.2s ease'
-                      }}
-                    >
-                      {isLiked ? <Favorite sx={{ fontSize: 16 }} /> : <FavoriteBorder sx={{ fontSize: 16 }} />}
-                      <Typography variant="caption">{formatNumber(localLikes)}</Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.secondary' }}>
+                      <FavoriteBorder sx={{ fontSize: 16 }} />
+                      <Typography variant="caption">{formatNumber(tweet.likes)}</Typography>
                     </Box>
                   </Tooltip>
-                </motion.div>
+                </Box>
                 
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <Tooltip title="Compartir">
+                  <Tooltip title="Ver Tweet">
                     <Box 
-                      onClick={handleShare}
+                      onClick={handleViewTweet}
                       sx={{ 
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: 0.5, 
-                        color: 'text.secondary',
+                        color: theme.palette.primary.main,
                         cursor: 'pointer',
-                        transition: 'color 0.2s ease'
+                        transition: 'color 0.2s ease',
+                        '&:hover': {
+                          color: theme.palette.primary.dark
+                        }
                       }}
                     >
-                      <Share sx={{ fontSize: 16 }} />
+                      <OpenInNew sx={{ fontSize: 16 }} />
+                      <Typography variant="caption" sx={{ fontWeight: 500 }}>Ver original</Typography>
                     </Box>
                   </Tooltip>
                 </motion.div>

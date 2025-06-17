@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { flushSync } from 'react-dom';
 import { BarChart3 as BarChartIcon, LayoutDashboard, Search, TrendingUp } from 'lucide-react';
 import WordCloud from '../components/ui/WordCloud';
 import BarChart from '../components/ui/BarChart';
@@ -250,7 +251,7 @@ export const Trends = () => {
     console.log('🔄 Iniciando polling para datos completos...');
     setIsPollingForDetails(true);
     
-    const maxAttempts = 8; // 8 intentos = ~64 segundos máximo
+    const maxAttempts = 15; // 15 intentos = ~150 segundos máximo
     let attempt = 0;
     
     const poll = async () => {
@@ -258,7 +259,7 @@ export const Trends = () => {
       console.log(`📡 Polling intento ${attempt}/${maxAttempts} para timestamp: ${timestamp}`);
       
       try {
-        const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(timestamp)}`);
+        const response = await fetch(`${import.meta.env.VITE_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(timestamp)}`);
         
         if (response.ok) {
           const statusData = await response.json();
@@ -267,25 +268,35 @@ export const Trends = () => {
           if (statusData.status === 'complete' && statusData.has_about && statusData.has_statistics) {
             console.log('✅ ¡Datos completos listos!');
             
-            // Actualizar con datos completos
-            if (statusData.data.about && Array.isArray(statusData.data.about)) {
-              setAboutInfo(statusData.data.about);
-            }
-            if (statusData.data.statistics) {
-              setStatistics(statusData.data.statistics);
-            }
-            if (statusData.data.categoryData && Array.isArray(statusData.data.categoryData)) {
-              // Transformar formato del backend (name, value) al formato esperado por el frontend (category, count)
-              const transformedCategoryData = statusData.data.categoryData.map((item: any) => ({
-                category: item.name || item.category,
-                count: item.value || item.count
-              }));
-              setCategoryData(transformedCategoryData);
-              setShowCategoryUpdate(true);
-              setTimeout(() => setShowCategoryUpdate(false), 3500);
-            }
+            // Actualizar con datos completos - forzar re-render inmediato
+            flushSync(() => {
+              if (statusData.data.about && Array.isArray(statusData.data.about)) {
+                setAboutInfo(statusData.data.about);
+                setAboutExpanded(true);
+              }
+              if (statusData.data.statistics) {
+                setStatistics(statusData.data.statistics);
+                setStatisticsExpanded(true);
+              }
+              if (statusData.data.categoryData && Array.isArray(statusData.data.categoryData)) {
+                // Transformar formato del backend (name, value) al formato esperado por el frontend (category, count)
+                const transformedCategoryData = statusData.data.categoryData.map((item: any) => ({
+                  category: item.name || item.category,
+                  count: item.value || item.count
+                }));
+                setCategoryData(transformedCategoryData);
+                setShowCategoryUpdate(true);
+              }
+              
+              setIsPollingForDetails(false);
+            });
             
-            setIsPollingForDetails(false);
+            // Ocultar el indicador de actualización después de un momento
+            setTimeout(() => setShowCategoryUpdate(false), 3500);
+            
+            // Mostrar notificación de éxito
+            console.log('🎉 Análisis IA completado - secciones expandidas automáticamente');
+            
             return;
           }
           
@@ -325,17 +336,22 @@ export const Trends = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${process.env.REACT_APP_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(lastProcessingTimestamp)}`);
+      const response = await fetch(`${import.meta.env.VITE_EXTRACTORW_API_URL || 'https://server.standatpd.com/api'}/processingStatus/${encodeURIComponent(lastProcessingTimestamp)}`);
       if (response.ok) {
         const statusData = await response.json();
         if (statusData.status === 'complete' && statusData.has_about && statusData.has_statistics) {
-          if (statusData.data.about && Array.isArray(statusData.data.about)) {
-            setAboutInfo(statusData.data.about);
-          }
-          if (statusData.data.statistics) {
-            setStatistics(statusData.data.statistics);
-          }
-          setIsPollingForDetails(false);
+          // Forzar re-render inmediato también en retry manual
+          flushSync(() => {
+            if (statusData.data.about && Array.isArray(statusData.data.about)) {
+              setAboutInfo(statusData.data.about);
+              setAboutExpanded(true); // Auto-expandir
+            }
+            if (statusData.data.statistics) {
+              setStatistics(statusData.data.statistics);
+              setStatisticsExpanded(true); // Auto-expandir
+            }
+            setIsPollingForDetails(false);
+          });
         } else {
           setError('El análisis con IA aún está en proceso. Intenta de nuevo en 1-2 minutos.');
         }
@@ -839,6 +855,11 @@ export const Trends = () => {
             '100%': { transform: 'scale(1)' }
           }
         }}>
+          {isPollingForDetails && (
+            <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 2 }}>
+              <CircularProgress size={24} color="secondary" />
+            </Box>
+          )}
           <WordCloud 
             data={wordCloudData}
             onWordClick={(word) => {
@@ -950,7 +971,14 @@ export const Trends = () => {
               </Box>
             </Box>
             {categoryData && categoryData.length > 0 ? (
-              <BarChart data={categoryData} title={t.categoryDistribution} />
+              <Box sx={{ position: 'relative' }}>
+                {isPollingForDetails && (
+                  <Box sx={{ position: 'absolute', top: 8, right: 8, zIndex: 2 }}>
+                    <CircularProgress size={20} color="secondary" />
+                  </Box>
+                )}
+                <BarChart data={categoryData} title={t.categoryDistribution} />
+              </Box>
             ) : (
               <Box sx={{ 
                 display: 'flex', 

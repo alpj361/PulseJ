@@ -71,14 +71,14 @@ export async function insertTrendData(data: any): Promise<void> {
   try {
     const { error } = await supabase
       .from('trends')
-      .insert([
+      .upsert([
         {
           timestamp: data.timestamp,
           word_cloud_data: data.wordCloudData,
           top_keywords: data.topKeywords,
           category_data: data.categoryData
         }
-      ]);
+      ], { ignoreDuplicates: true }); // Evita error 409 si el timestamp ya existe
     
     if (error) throw error;
   } catch (error) {
@@ -296,6 +296,31 @@ export async function unassignCodexItemFromProject(itemId: string) {
   } catch (error) {
     console.error('Error unassigning codex item from project:', error);
     throw error;
+  }
+}
+
+/**
+ * Create digitalstorage bucket if it doesn't exist (or verify it exists)
+ */
+export async function createCodexBucket() {
+  try {
+    // Check if bucket exists
+    const { data: buckets, error: listError } = await supabase.storage.listBuckets()
+    
+    if (listError) {
+      console.error('Error listing buckets:', listError)
+      return
+    }
+    
+    const bucketExists = buckets?.some(bucket => bucket.name === 'digitalstorage')
+    
+    if (bucketExists) {
+      console.log('digitalstorage bucket already exists')
+    } else {
+      console.warn('digitalstorage bucket not found. Please create it manually in Supabase dashboard.')
+    }
+  } catch (error) {
+    console.error('Error checking digitalstorage bucket:', error)
   }
 }
 
@@ -850,17 +875,37 @@ export async function deleteProjectDecision(decisionId: string): Promise<void> {
  * Obtener estadísticas de un proyecto
  */
 export async function getProjectStats(projectId: string): Promise<any> {
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return null;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return { total: 0, by_type: {}, by_urgency: {} };
 
   try {
     const { data, error } = await supabase
-      .rpc('get_project_stats', { project_uuid: projectId });
+      .from('project_decisions')
+      .select('decision_type, urgency')
+      .eq('project_id', projectId);
 
     if (error) throw error;
-    return data;
+
+    // Calculate statistics
+    const stats = {
+      total: data?.length || 0,
+      by_type: {} as Record<string, number>,
+      by_urgency: {} as Record<string, number>
+    };
+
+    data?.forEach((decision: any) => {
+      // Count by type
+      const type = decision.decision_type || 'enfoque';
+      stats.by_type[type] = (stats.by_type[type] || 0) + 1;
+
+      // Count by urgency
+      const urgency = decision.urgency || 'medium';
+      stats.by_urgency[urgency] = (stats.by_urgency[urgency] || 0) + 1;
+    });
+
+    return stats;
   } catch (error) {
     console.error('Error fetching project stats:', error);
-    return null;
+    return { total: 0, by_type: {}, by_urgency: {} };
   }
 }
 

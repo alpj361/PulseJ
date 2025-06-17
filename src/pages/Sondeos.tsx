@@ -23,7 +23,7 @@ import {
   Search as SearchIcon,
   Edit as EditIcon
 } from '@mui/icons-material';
-import { getLatestNews, getCodexItemsByUser, getSondeosByUser } from '../services/supabase';
+import { getLatestNews, getCodexItemsByUser, getSondeosByUser } from '../services/supabase.ts';
 import { sendSondeoToExtractorW, getLatestTrends } from '../services/api';
 import { sondearTema as sondearTemaService } from '../services/sondeos';
 import { useAuth } from '../context/AuthContext';

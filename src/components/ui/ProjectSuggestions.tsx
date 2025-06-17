@@ -27,7 +27,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { Project, ProjectDecision, ProjectSuggestion, SuggestionsResponse } from '../../types/projects';
-import { supabase } from '../../services/supabase';
+import { supabase } from '../../services/supabase.ts';
 import {
   getProjectSuggestions,
   getSuggestionsFromDatabase,
@@ -40,9 +40,10 @@ import {
 interface ProjectSuggestionsProps {
   project: Project;
   decisions: ProjectDecision[];
+  onSuggestionsUpdated?: () => void; // Callback para refrescar el proyecto
 }
 
-const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisions }) => {
+const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisions, onSuggestionsUpdated }) => {
   const { user } = useAuth();
   const [suggestions, setSuggestions] = useState<SuggestionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -51,15 +52,26 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
 
   // Cargar sugerencias desde base de datos al inicializar
   useEffect(() => {
+    console.log('🚀 [ProjectSuggestions] useEffect ejecutado:', {
+      projectId: project.id,
+      projectTitle: project.title,
+      projectSuggestions: project.suggestions
+    });
+
     // Primero intentar cargar desde la base de datos
     const dbSuggestions = getSuggestionsFromDatabase(project);
     if (dbSuggestions) {
+      console.log('✅ [ProjectSuggestions] Sugerencias cargadas desde DB:', dbSuggestions);
       setSuggestions(dbSuggestions);
     } else {
+      console.log('🔄 [ProjectSuggestions] No hay sugerencias en DB, probando localStorage...');
       // Fallback a localStorage si no hay en la base de datos
       const cached = getSuggestionsFromCache(project.id);
       if (cached) {
+        console.log('✅ [ProjectSuggestions] Sugerencias cargadas desde localStorage:', cached);
         setSuggestions(cached);
+      } else {
+        console.log('❌ [ProjectSuggestions] No hay sugerencias en localStorage tampoco');
       }
     }
   }, [project.id, project.suggestions]);
@@ -79,6 +91,12 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
       
       // Guardar en base de datos
       await saveSuggestionsToDatabase(project.id, newSuggestions);
+      console.log('💾 [ProjectSuggestions] Sugerencias guardadas en base de datos');
+      
+      // Notificar al componente padre para que refresque el proyecto
+      if (onSuggestionsUpdated) {
+        onSuggestionsUpdated();
+      }
     } catch (err) {
       console.error('Error getting suggestions:', err);
       setError(err instanceof Error ? err.message : 'Error obteniendo sugerencias');

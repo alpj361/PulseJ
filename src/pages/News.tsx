@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getLatestNews } from '../services/supabase';
+import { getLatestNews } from '../services/supabase.ts';
 import { NewsItem } from '../types';
 import {
   Card,
