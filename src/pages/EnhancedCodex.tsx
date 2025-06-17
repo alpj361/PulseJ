@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import "../types/google.d.ts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -142,6 +143,149 @@ export default function EnhancedCodex() {
   })
   
   const { user } = useAuth()
+  const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null)
+  const [pickerReady, setPickerReady] = useState(false)
+
+  // --------------------------------------------------
+  // GOOGLE DRIVE: load GIS + Picker scripts once
+  // --------------------------------------------------
+  useEffect(() => {
+    // Load Google Identity Services
+    if (!window.google) {
+      const gsiScript = document.createElement('script')
+      gsiScript.src = 'https://accounts.google.com/gsi/client'
+      gsiScript.async = true
+      gsiScript.defer = true
+      document.body.appendChild(gsiScript)
+    }
+
+    // Load GAPI + Picker
+    if (!window.gapi) {
+      const gapiScript = document.createElement('script')
+      gapiScript.src = 'https://apis.google.com/js/api.js'
+      gapiScript.onload = () => {
+        window.gapi.load('picker', {
+          callback: () => {
+            if (window.google?.picker) {
+              setPickerReady(true)
+            }
+          },
+        })
+      }
+      document.body.appendChild(gapiScript)
+    } else {
+      window.gapi.load('picker', {
+        callback: () => {
+          if (window.google?.picker) setPickerReady(true)
+        }
+      })
+    }
+  }, [])
+
+  // --------------------------------------------------
+  // Handler: Connect Google Drive (opens consent + picker)
+  // --------------------------------------------------
+  const handleGoogleDriveAuth = () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+    const apiKey   = import.meta.env.VITE_GOOGLE_API_KEY
+    if (!clientId || !apiKey) {
+      setError('Google Drive no está configurado correctamente.')
+      return
+    }
+
+    // If token already present, solo abrir picker
+    if (googleDriveToken) {
+      if (pickerReady) {
+        openGooglePicker(googleDriveToken)
+      } else {
+        // wait until picker ready then open
+        const interval = setInterval(() => {
+          if (window.gapi?.picker) {
+            clearInterval(interval)
+            setPickerReady(true)
+            openGooglePicker(googleDriveToken)
+          }
+        }, 300)
+      }
+      return
+    }
+
+    // Crear token client (popup)
+    const tokenClient = window.google?.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      prompt: 'consent',
+      callback: (response: any) => {
+        if (response.error) {
+          console.error('Token error:', response.error)
+          setError('Error al obtener token de Google Drive')
+          return
+        }
+        setGoogleDriveToken(response.access_token)
+        setIsDriveConnected(true)
+        if (pickerReady) {
+          openGooglePicker(response.access_token)
+        } else {
+          const waitP = setInterval(() => {
+            if (window.gapi?.picker) {
+              clearInterval(waitP)
+              setPickerReady(true)
+              openGooglePicker(response.access_token)
+            }
+          }, 300)
+        }
+      }
+    })
+
+    if (tokenClient) {
+      tokenClient.requestAccessToken()
+    } else {
+      setError('No se pudo inicializar Google Identity Services')
+    }
+  }
+
+  // --------------------------------------------------
+  // Open Google Picker so user selects file(s)
+  // --------------------------------------------------
+  const openGooglePicker = (accessToken: string) => {
+    if (!window.gapi?.picker) {
+      if (!window.google?.picker) {
+        setError('Google Picker no está disponible aún. Intenta de nuevo.')
+        return
+      }
+    }
+
+    const picker = new window.google.picker.PickerBuilder()
+      .addView(window.google.picker.ViewId.DOCS)
+      .setDeveloperKey(import.meta.env.VITE_GOOGLE_API_KEY)
+      .setOAuthToken(accessToken)
+      .setCallback((data: any) => {
+        if (data.action === window.google.picker.Action.PICKED) {
+          const file = data.docs[0]
+          const pickedFile = {
+            id: file.id,
+            name: file.name,
+            mimeType: file.mimeType,
+            size: file.sizeBytes || 0,
+            webViewLink: file.url,
+            thumbnailLink: file.iconUrl
+          }
+          setSelectedDriveFile(pickedFile)
+          setDriveTitle(file.name)
+          setDriveFiles([pickedFile])
+        }
+      })
+      .build()
+
+    picker.setVisible(true)
+  }
+
+  // --------------------------------------------------
+  // Handle Drive File Selection
+  // --------------------------------------------------
+  const handleDriveFileSelect = (file: any) => {
+    setSelectedDriveFile(file)
+  }
 
   // Cargar datos del Codex cuando el usuario esté disponible
   useEffect(() => {
@@ -497,6 +641,81 @@ export default function EnhancedCodex() {
     }
   }
 
+  // Handle Save Drive File
+  const handleSaveDriveFile = async () => {
+    console.log('💾 Guardando archivo de Drive')
+    
+    if (!selectedDriveFile) {
+      console.error('❌ No hay archivo de Drive seleccionado')
+      setError('Selecciona un archivo de Google Drive')
+      return
+    }
+
+    if (!driveTitle.trim()) {
+      console.error('❌ Falta título')
+      setError('El título es requerido')
+      return
+    }
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      console.log('💾 Preparando datos del archivo de Drive:', selectedDriveFile)
+      
+      // Determine file type based on MIME type
+      let tipo = 'documento'
+      if (selectedDriveFile.mimeType?.startsWith('image/')) tipo = 'imagen'
+      else if (selectedDriveFile.mimeType?.startsWith('video/')) tipo = 'video'
+      else if (selectedDriveFile.mimeType?.startsWith('audio/')) tipo = 'audio'
+
+      // Prepare metadata
+      const tagsArray = driveTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
+      const finalTags = contentType.trim() ? [...tagsArray, contentType.trim()] : tagsArray
+
+      const driveItem = {
+        user_id: user?.id,
+        tipo,
+        titulo: driveTitle.trim(),
+        descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${driveDescription.trim() || `Archivo de Google Drive: ${selectedDriveFile.name}`}`,
+        etiquetas: finalTags,
+        proyecto: driveProject || 'Sin proyecto',
+        url: selectedDriveFile.webViewLink,
+        nombre_archivo: selectedDriveFile.name,
+        tamano: selectedDriveFile.size || 0,
+        fecha: new Date().toISOString(),
+        is_drive: true,
+        drive_file_id: selectedDriveFile.id
+      }
+
+      console.log('💾 Insertando en Supabase:', driveItem)
+
+      const { data, error } = await supabase
+        .from('codex_items')
+        .insert([driveItem])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      console.log('✅ Archivo de Drive guardado exitosamente:', data)
+
+      // Actualizar el estado local
+      const updatedItems = [...codexItems, data]
+      setCodexItems(updatedItems)
+      calculateStats(updatedItems)
+
+      // Limpiar formulario y cerrar modal
+      clearForm()
+
+    } catch (err) {
+      console.error('❌ Error guardando archivo de Drive:', err)
+      setError('Error al guardar el archivo de Google Drive')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // File validation
   const validateFile = (file: File) => {
     const maxSize = 100 * 1024 * 1024 // 100MB
@@ -607,8 +826,6 @@ export default function EnhancedCodex() {
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
         const filePath = `${user?.id}/${fileName}`
 
-
-
         // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('digitalstorage')
@@ -685,189 +902,6 @@ export default function EnhancedCodex() {
       setIsSubmitting(false)
     }
   }
-
-  // Google Drive Integration
-  const initializeGoogleDrive = () => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-    if (!clientId) {
-      // Silently skip Google Drive initialization if not configured
-      return
-    }
-    
-    if (typeof window !== 'undefined' && window.gapi) {
-      window.gapi.load('auth2', () => {
-        window.gapi.auth2.init({
-          client_id: clientId
-        }).then(() => {
-          const authInstance = window.gapi.auth2.getAuthInstance()
-          if (authInstance) {
-            setIsDriveConnected(authInstance.isSignedIn.get())
-          }
-        }).catch((error) => {
-          // Only log error if Google Drive is actually configured
-          console.warn('Google Drive API initialization failed:', error.error)
-        })
-      })
-    }
-  }
-
-  const handleGoogleDriveAuth = async () => {
-    try {
-      if (!window.gapi) {
-        setError('Google Drive API no está disponible. Recargue la página.')
-        return
-      }
-
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
-      if (!clientId) {
-        setError('Google Drive no está configurado. Configure VITE_GOOGLE_CLIENT_ID en las variables de entorno.')
-        return
-      }
-
-      // Asegurarse de que auth2 esté cargado
-      if (!window.gapi.auth2) {
-        await new Promise((resolve) => {
-          window.gapi.load('auth2', resolve)
-        })
-      }
-
-      let authInstance = window.gapi.auth2.getAuthInstance()
-      
-      // Si no hay instancia, inicializar
-      if (!authInstance) {
-        await window.gapi.auth2.init({
-          client_id: clientId
-        })
-        authInstance = window.gapi.auth2.getAuthInstance()
-      }
-
-      if (!authInstance) {
-        setError('No se pudo inicializar Google Auth')
-        return
-      }
-      
-      if (!authInstance.isSignedIn.get()) {
-        await authInstance.signIn({
-          scope: 'https://www.googleapis.com/auth/drive.file'
-        })
-      }
-
-      setIsDriveConnected(true)
-      await loadDriveFiles()
-      
-    } catch (err) {
-      console.error('Error connecting to Google Drive:', err)
-      setError(`Error al conectar con Google Drive: ${err.message || 'Error desconocido'}`)
-    }
-  }
-
-  const loadDriveFiles = async () => {
-    try {
-      if (!window.gapi || !window.gapi.client) {
-        await new Promise((resolve) => {
-          window.gapi.load('client', resolve)
-        })
-        
-        await window.gapi.client.init({
-          apiKey: import.meta.env.VITE_GOOGLE_API_KEY,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        })
-      }
-
-      const response = await window.gapi.client.drive.files.list({
-        pageSize: 20,
-        fields: 'files(id,name,mimeType,size,modifiedTime,webViewLink)',
-        q: "trashed=false"
-      })
-
-      setDriveFiles(response.result.files || [])
-    } catch (err) {
-      console.error('Error loading Drive files:', err)
-      setError('Error al cargar archivos de Google Drive')
-    }
-  }
-
-  const handleDriveFileSelect = (file: any) => {
-    setSelectedDriveFile(file)
-    setDriveTitle(file.name)
-  }
-
-  const handleSaveDriveFile = async () => {
-    if (!selectedDriveFile) {
-      setError('Selecciona un archivo de Google Drive')
-      return
-    }
-
-    setIsSubmitting(true)
-    setError(null)
-
-    try {
-      // Determine file type based on MIME type
-      let tipo = 'documento'
-      if (selectedDriveFile.mimeType.startsWith('image/')) tipo = 'imagen'
-      else if (selectedDriveFile.mimeType.startsWith('video/')) tipo = 'video'
-      else if (selectedDriveFile.mimeType.startsWith('audio/')) tipo = 'audio'
-
-      // Prepare metadata
-      const tagsArray = driveTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
-      const finalTags = contentType.trim() ? [...tagsArray, contentType.trim(), 'google-drive'] : [...tagsArray, 'google-drive']
-
-      const codexItem = {
-        user_id: user?.id,
-        tipo,
-        titulo: driveTitle.trim() || selectedDriveFile.name,
-        descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${driveDescription.trim() || `Archivo de Google Drive: ${selectedDriveFile.name}`}`,
-        etiquetas: finalTags,
-        proyecto: driveProject || 'Sin proyecto',
-        url: selectedDriveFile.webViewLink,
-        nombre_archivo: selectedDriveFile.name,
-        tamano: parseInt(selectedDriveFile.size) || 0,
-        is_drive: true,
-        drive_file_id: selectedDriveFile.id,
-        fecha: new Date().toISOString()
-      }
-
-      const { data, error } = await supabase
-        .from('codex_items')
-        .insert([codexItem])
-        .select()
-        .single()
-
-      if (error) throw error
-
-      // Update local state
-      const updatedItems = [...codexItems, data]
-      setCodexItems(updatedItems)
-      calculateStats(updatedItems)
-
-      // Clear form and close modal
-      clearForm()
-      setSelectedDriveFile(null)
-      setDriveFiles([])
-
-    } catch (err) {
-      console.error('Error saving Drive file:', err)
-      setError(`Error al guardar archivo de Drive: ${err.message}`)
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // Load Google Drive API on component mount
-  useEffect(() => {
-    const loadGoogleAPI = () => {
-      if (typeof window !== 'undefined' && !window.gapi) {
-        const script = document.createElement('script')
-        script.src = 'https://apis.google.com/js/api.js'
-        script.onload = initializeGoogleDrive
-        document.head.appendChild(script)
-      } else if (window.gapi) {
-        initializeGoogleDrive()
-      }
-    }
-
-    loadGoogleAPI()
-  }, [])
 
   const clearForm = () => {
     setNoteTitle("")
