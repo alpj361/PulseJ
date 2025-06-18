@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import {
   Search,
   Plus,
@@ -45,7 +45,7 @@ import {
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "../context/AuthContext"
-import { supabase, getCodexItemsByUser, createCodexBucket } from "../services/supabase.ts"
+import { supabase, getCodexItemsByUser, createCodexBucket, getUserProjects, Project } from "../services/supabase.ts"
 
 interface CodexItem {
   id: string
@@ -84,6 +84,7 @@ export default function EnhancedCodex() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [codexItems, setCodexItems] = useState<CodexItem[]>([])
+  const [userProjects, setUserProjects] = useState<Project[]>([])
   const [stats, setStats] = useState<CodexStats>({
     documentos: 0,
     audios: 0,
@@ -110,6 +111,10 @@ export default function EnhancedCodex() {
   
   // New content type field for all options
   const [contentType, setContentType] = useState("")
+  
+  // Relations for notes
+  const [selectedRelatedItems, setSelectedRelatedItems] = useState<string[]>([])
+  const [showRelationSelector, setShowRelationSelector] = useState(false)
   
   // Additional form states for upload and drive
   const [uploadTitle, setUploadTitle] = useState("")
@@ -291,6 +296,7 @@ export default function EnhancedCodex() {
   useEffect(() => {
     if (user?.id) {
       loadCodexData()
+      loadUserProjects()
       // Initialize Supabase bucket for file storage
       createCodexBucket()
     }
@@ -312,6 +318,28 @@ export default function EnhancedCodex() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const loadUserProjects = async () => {
+    if (!user?.id) return
+    
+    try {
+      const projects = await getUserProjects()
+      setUserProjects(projects)
+    } catch (err) {
+      console.error('Error loading user projects:', err)
+    }
+  }
+
+  // Función auxiliar para obtener el path de almacenamiento basado en el proyecto
+  const getStoragePath = (projectId: string, fileName: string) => {
+    if (!projectId || projectId === 'sin-proyecto') {
+      return `${user?.id}/${fileName}`
+    }
+    
+    const project = userProjects.find(p => p.id === projectId)
+    const projectFolder = project ? project.title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() : 'proyecto_sin_nombre'
+    return `${user?.id}/proyectos/${projectFolder}/${fileName}`
   }
 
   const calculateStats = (items: CodexItem[]) => {
@@ -430,11 +458,22 @@ export default function EnhancedCodex() {
 
   const handleEditItem = (item: CodexItem) => {
     setEditingItem(item)
+    
+    // Si tiene project_id, usar ese; sino buscar por nombre del proyecto; sino usar "sin-proyecto"
+    let projectValue = 'sin-proyecto'
+    if (item.project_id) {
+      projectValue = item.project_id
+    } else if (item.proyecto && item.proyecto !== 'Sin proyecto') {
+      // Buscar el proyecto por nombre para obtener el ID
+      const foundProject = userProjects.find(p => p.title === item.proyecto)
+      projectValue = foundProject ? foundProject.id : 'sin-proyecto'
+    }
+    
     setEditForm({
       titulo: item.titulo,
       descripcion: item.descripcion || '',
       etiquetas: item.etiquetas.join(', '),
-      proyecto: item.proyecto
+      proyecto: projectValue
     })
     setIsEditModalOpen(true)
   }
@@ -444,11 +483,16 @@ export default function EnhancedCodex() {
     
     setIsSubmitting(true)
     try {
+      // Get project information
+      const selectedProjectData = (editForm.proyecto && editForm.proyecto !== 'sin-proyecto') ? 
+        userProjects.find(p => p.id === editForm.proyecto) : null
+      
       const updatedData = {
         titulo: editForm.titulo.trim(),
         descripcion: editForm.descripcion.trim() || null,
         etiquetas: editForm.etiquetas.split(',').map(tag => tag.trim()).filter(tag => tag),
-        proyecto: editForm.proyecto.trim()
+        proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
+        project_id: selectedProjectData ? editForm.proyecto : null
       }
 
       const { data, error } = await supabase
@@ -560,14 +604,19 @@ export default function EnhancedCodex() {
       // Add content type to tags if specified
       const finalTags = contentType.trim() ? [...tagsArray, contentType.trim()] : tagsArray
       
+      // Obtener información del proyecto seleccionado
+      const selectedProjectData = (selectedProject && selectedProject !== 'sin-proyecto') ? userProjects.find(p => p.id === selectedProject) : null
+      
       const newNote = {
         user_id: user?.id,
         tipo: 'nota',
         titulo: noteTitle.trim(),
         descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${noteContent.trim()}`,
         etiquetas: finalTags,
-        proyecto: selectedProject || 'Sin proyecto',
-        fecha: new Date().toISOString()
+        proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
+        project_id: selectedProjectData ? selectedProject : null,
+        fecha: new Date().toISOString(),
+        related_items: selectedRelatedItems.length > 0 ? selectedRelatedItems : null
       }
 
       const { data, error } = await supabase
@@ -606,13 +655,17 @@ export default function EnhancedCodex() {
     try {
       const finalTags = contentType.trim() ? [...tags, contentType.trim()] : tags
       
+      // Get project information
+      const selectedProjectData = (project && project !== 'sin-proyecto') ? userProjects.find(p => p.id === project) : null
+      
       const newLink = {
         user_id: user?.id,
         tipo: 'enlace',
         titulo: title.trim(),
         descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${description.trim()}`,
         etiquetas: finalTags,
-        proyecto: project || 'Sin proyecto',
+        proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
+        project_id: selectedProjectData ? project : null,
         url: url.trim(),
         fecha: new Date().toISOString()
       }
@@ -673,13 +726,17 @@ export default function EnhancedCodex() {
       const tagsArray = driveTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
       const finalTags = contentType.trim() ? [...tagsArray, contentType.trim()] : tagsArray
 
+      // Get project information
+      const selectedProjectData = (driveProject && driveProject !== 'sin-proyecto') ? userProjects.find(p => p.id === driveProject) : null
+
       const driveItem = {
         user_id: user?.id,
         tipo,
         titulo: driveTitle.trim(),
         descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${driveDescription.trim() || `Archivo de Google Drive: ${selectedDriveFile.name}`}`,
         etiquetas: finalTags,
-        proyecto: driveProject || 'Sin proyecto',
+        proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
+        project_id: selectedProjectData ? driveProject : null,
         url: selectedDriveFile.webViewLink,
         nombre_archivo: selectedDriveFile.name,
         tamano: selectedDriveFile.size || 0,
@@ -821,10 +878,10 @@ export default function EnhancedCodex() {
 
     try {
       const uploadPromises = selectedFiles.map(async (file, index) => {
-        // Generate unique filename
+        // Generate unique filename and get storage path based on project
         const fileExt = file.name.split('.').pop()
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
-        const filePath = `${user?.id}/${fileName}`
+        const filePath = getStoragePath(uploadProject, fileName)
 
         // Upload to Supabase Storage
         const { data: uploadData, error: uploadError } = await supabase.storage
@@ -856,6 +913,9 @@ export default function EnhancedCodex() {
         const tagsArray = uploadTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
         const finalTags = contentType.trim() ? [...tagsArray, contentType.trim()] : tagsArray
 
+        // Get project information
+        const selectedProjectData = (uploadProject && uploadProject !== 'sin-proyecto') ? userProjects.find(p => p.id === uploadProject) : null
+
         // Save to codex_items table
         const codexItem = {
           user_id: user?.id,
@@ -863,7 +923,8 @@ export default function EnhancedCodex() {
           titulo: uploadTitle.trim() || file.name,
           descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${uploadDescription.trim() || `Archivo subido: ${file.name}`}`,
           etiquetas: finalTags,
-          proyecto: uploadProject || 'Sin proyecto',
+          proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
+          project_id: selectedProjectData ? uploadProject : null,
           storage_path: filePath,
           url: urlData.publicUrl,
           nombre_archivo: file.name,
@@ -909,6 +970,8 @@ export default function EnhancedCodex() {
     setNoteTags("")
     setSelectedProject("")
     setContentType("")
+    setSelectedRelatedItems([])
+    setShowRelationSelector(false)
     setUploadTitle("")
     setUploadDescription("")
     setUploadTags("")
@@ -960,11 +1023,11 @@ export default function EnhancedCodex() {
   ]
 
   const statsConfig = [
-    { label: "Documentos", count: stats.documentos, icon: FileText, color: "bg-blue-500", type: "documento", trend: "+3" },
-    { label: "Audios", count: stats.audios, icon: Headphones, color: "bg-purple-500", type: "audio", trend: "+1" },
-    { label: "Videos", count: stats.videos, icon: Video, color: "bg-green-500", type: "video", trend: "+2" },
-    { label: "Enlaces", count: stats.enlaces, icon: Link, color: "bg-orange-500", type: "enlace", trend: "+5" },
-    { label: "Notas", count: stats.notas, icon: NoteIcon, color: "bg-pink-500", type: "nota", trend: "+4" },
+    { label: "Documentos", count: stats.documentos, icon: FileText, color: "bg-blue-500", type: "documento" },
+    { label: "Audios", count: stats.audios, icon: Headphones, color: "bg-purple-500", type: "audio" },
+    { label: "Videos", count: stats.videos, icon: Video, color: "bg-green-500", type: "video" },
+    { label: "Enlaces", count: stats.enlaces, icon: Link, color: "bg-orange-500", type: "enlace" },
+    { label: "Notas", count: stats.notas, icon: NoteIcon, color: "bg-pink-500", type: "nota" },
   ]
 
   if (!user) {
@@ -1015,9 +1078,6 @@ export default function EnhancedCodex() {
                         <p className="text-sm font-medium text-slate-600 mb-1">{stat.label}</p>
                         <div className="flex items-center gap-2">
                           <p className="text-3xl font-bold text-slate-900">{stat.count}</p>
-                          <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
-                            {stat.trend}
-                          </Badge>
                         </div>
                       </div>
                       <div className={`${stat.color} p-3 rounded-xl`}>
@@ -1042,15 +1102,15 @@ export default function EnhancedCodex() {
                   Agregar Nueva Fuente
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
+              <DialogContent className="sm:max-w-md p-0">
+                <DialogHeader className="p-6 pb-4">
                   <DialogTitle className="text-xl font-semibold text-slate-900">Agregar Nueva Fuente</DialogTitle>
                   <DialogDescription className="text-slate-600">
                     Selecciona cómo quieres agregar tu nueva fuente al Codex
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="space-y-4 py-4">
+                <div className="px-6 py-4 max-h-[60vh] overflow-y-auto space-y-4">
                   {!selectedSourceType ? (
                     <div className="grid gap-4">
                       {/* Upload from Computer */}
@@ -1254,11 +1314,12 @@ export default function EnhancedCodex() {
                                       <SelectValue placeholder="Seleccionar proyecto" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="investigacion-corrupcion">Investigación Corrupción</SelectItem>
-                                      <SelectItem value="analisis-economico">Análisis Económico</SelectItem>
-                                      <SelectItem value="cobertura-electoral">Cobertura Electoral</SelectItem>
-                                      <SelectItem value="salud-publica">Salud Pública</SelectItem>
-                                      <SelectItem value="seguridad-ciudadana">Seguridad Ciudadana</SelectItem>
+                                      <SelectItem value="sin-proyecto">Sin proyecto</SelectItem>
+                                      {userProjects.map((project) => (
+                                        <SelectItem key={project.id} value={project.id}>
+                                          {project.title}
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -1412,11 +1473,12 @@ export default function EnhancedCodex() {
                                       <SelectValue placeholder="Seleccionar proyecto" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="investigacion-corrupcion">Investigación Corrupción</SelectItem>
-                                      <SelectItem value="analisis-economico">Análisis Económico</SelectItem>
-                                      <SelectItem value="cobertura-electoral">Cobertura Electoral</SelectItem>
-                                      <SelectItem value="salud-publica">Salud Pública</SelectItem>
-                                      <SelectItem value="seguridad-ciudadana">Seguridad Ciudadana</SelectItem>
+                                      <SelectItem value="sin-proyecto">Sin proyecto</SelectItem>
+                                      {userProjects.map((project) => (
+                                        <SelectItem key={project.id} value={project.id}>
+                                          {project.title}
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
                                 </div>
@@ -1502,13 +1564,79 @@ export default function EnhancedCodex() {
                                       <SelectValue placeholder="Seleccionar proyecto" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                      <SelectItem value="investigacion-corrupcion">Investigación Corrupción</SelectItem>
-                                      <SelectItem value="analisis-economico">Análisis Económico</SelectItem>
-                                      <SelectItem value="cobertura-electoral">Cobertura Electoral</SelectItem>
-                                      <SelectItem value="salud-publica">Salud Pública</SelectItem>
-                                      <SelectItem value="seguridad-ciudadana">Seguridad Ciudadana</SelectItem>
+                                      <SelectItem value="sin-proyecto">Sin proyecto</SelectItem>
+                                      {userProjects.map((project) => (
+                                        <SelectItem key={project.id} value={project.id}>
+                                          {project.title}
+                                        </SelectItem>
+                                      ))}
                                     </SelectContent>
                                   </Select>
+                                </div>
+
+                                {/* Relations Section */}
+                                <div className="space-y-2 border-t border-slate-200 pt-4">
+                                  <div className="flex items-center justify-between">
+                                    <Label>Relacionar con archivos</Label>
+                                    <Button 
+                                      type="button"
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => setShowRelationSelector(!showRelationSelector)}
+                                      className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                    >
+                                      <Link className="h-4 w-4 mr-1" />
+                                      Relacionar
+                                    </Button>
+                                  </div>
+                                  
+                                  {showRelationSelector && (
+                                    <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
+                                      <p className="text-sm text-slate-600">
+                                        Selecciona archivos de tu Codex para relacionar con esta nota:
+                                      </p>
+                                      <div className="max-h-40 overflow-y-auto space-y-2">
+                                        {codexItems
+                                          .filter(item => item.tipo !== 'nota' && item.id)
+                                          .slice(0, 10)
+                                          .map((item) => (
+                                            <div key={item.id} className="flex items-center gap-2">
+                                              <input
+                                                type="checkbox"
+                                                id={`relation-${item.id}`}
+                                                checked={selectedRelatedItems.includes(item.id)}
+                                                onChange={(e) => {
+                                                  if (e.target.checked) {
+                                                    setSelectedRelatedItems([...selectedRelatedItems, item.id])
+                                                  } else {
+                                                    setSelectedRelatedItems(selectedRelatedItems.filter(id => id !== item.id))
+                                                  }
+                                                }}
+                                                className="rounded border-slate-300"
+                                              />
+                                                                                             <label 
+                                                 htmlFor={`relation-${item.id}`}
+                                                 className="flex-1 text-sm cursor-pointer flex items-center gap-2"
+                                               >
+                                                 {(() => {
+                                                   const IconComponent = getTypeIcon(item.tipo)
+                                                   return <IconComponent className="h-3 w-3 text-slate-500" />
+                                                 })()}
+                                                 <span className="truncate">{item.titulo}</span>
+                                                 <span className="text-xs text-slate-400 uppercase">
+                                                   {item.tipo}
+                                                 </span>
+                                               </label>
+                                            </div>
+                                          ))}
+                                      </div>
+                                      {selectedRelatedItems.length > 0 && (
+                                        <div className="text-xs text-slate-600">
+                                          {selectedRelatedItems.length} archivo(s) seleccionado(s)
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -1517,7 +1645,7 @@ export default function EnhancedCodex() {
                       )}
 
                       {/* Action Buttons */}
-                      <div className="flex gap-3 pt-4">
+                      <DialogFooter className="p-6 bg-slate-50 border-t -mx-6 -mb-4 mt-4">
                         <Button
                           onClick={clearForm}
                           variant="outline"
@@ -1552,7 +1680,7 @@ export default function EnhancedCodex() {
                           {selectedSourceType === "drive" && (isSubmitting ? "Guardando..." : "Guardar desde Drive")}
                           {selectedSourceType === "note" && (isSubmitting ? "Guardando..." : "Guardar Nota")}
                         </Button>
-                      </div>
+                      </DialogFooter>
                     </div>
                   )}
                 </div>
@@ -1933,16 +2061,12 @@ export default function EnhancedCodex() {
                   <SelectValue placeholder="Selecciona un proyecto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Corrupción Municipal">Corrupción Municipal</SelectItem>
-                  <SelectItem value="Transparencia Presupuestal">Transparencia Presupuestal</SelectItem>
-                  <SelectItem value="Auditoría de Obras">Auditoría de Obras</SelectItem>
-                  <SelectItem value="Contratos Públicos">Contratos Públicos</SelectItem>
-                  <SelectItem value="Salud Pública">Salud Pública</SelectItem>
-                  <SelectItem value="Seguridad Ciudadana">Seguridad Ciudadana</SelectItem>
-                  <SelectItem value="Educación Local">Educación Local</SelectItem>
-                  <SelectItem value="Medio Ambiente">Medio Ambiente</SelectItem>
-                  <SelectItem value="Desarrollo Social">Desarrollo Social</SelectItem>
-                  <SelectItem value="Sin Proyecto">Sin Proyecto</SelectItem>
+                  <SelectItem value="sin-proyecto">Sin proyecto</SelectItem>
+                  {userProjects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.title}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -30,7 +30,7 @@ import { ProjectActivityCard } from './ProjectActivityCard';
 import { DecisionTimeline } from './DecisionTimeline';
 import { LatestDecisions } from './LatestDecisions';
 import { DecisionChronology } from './DecisionChronology';
-import LayersUsageDashboard from './LayersUsageDashboard';
+
 import ProjectSuggestions from './ProjectSuggestions';
 import { cn } from '../../lib/utils';
 import { 
@@ -131,7 +131,7 @@ export function ProjectDashboard({
 }: ProjectDashboardProps) {
   const { t, getPriorityText, getStatusText, getVisibilityText } = useTranslations();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'decisions' | 'timeline' | 'usage' | 'details'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'decisions' | 'timeline' | 'details'>('overview');
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'decisions' | 'timeline' | 'assets' | 'insights'>('decisions');
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -373,7 +373,7 @@ export function ProjectDashboard({
           <div className="flex-1">
             <div className="mb-6">
               <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg w-fit border border-gray-200 dark:border-gray-700">
-                {(['overview', 'projects', 'decisions', 'timeline', 'usage'] as const).map((tab) => (
+                {(['overview', 'projects', 'decisions', 'timeline'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -470,7 +470,7 @@ export function ProjectDashboard({
                             <div
                               key={project.id}
                               className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer transition-colors"
-                              onClick={() => onSelectProject?.(project.id)}
+                              onClick={() => handleViewProjectDetails(project)}
                             >
                               <div className="flex-1">
                                 <p className="font-medium text-sm">{project.title}</p>
@@ -656,7 +656,7 @@ export function ProjectDashboard({
                           </button>
                           <div>
                             <h2 className="text-xl font-semibold">{selectedProject.title}</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Capas Actuales</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Decisiones</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -687,7 +687,7 @@ export function ProjectDashboard({
                       <div className="flex items-center justify-between">
                         <h2 className="text-xl font-semibold">Selecciona un Proyecto</h2>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Elige un proyecto para ver su cronología completa de decisiones
+                          Elige un proyecto para ver sus capas de decisiones
                         </p>
                       </div>
                       
@@ -726,7 +726,7 @@ export function ProjectDashboard({
                           <FiCalendar className="w-12 h-12 mx-auto mb-4 text-gray-400 opacity-50" />
                           <h3 className="text-lg font-semibold mb-2">No hay proyectos aún</h3>
                           <p className="text-gray-500 dark:text-gray-400">
-                            Crea tu primer proyecto para ver la cronología de decisiones
+                            Crea tu primer proyecto para ver las capas de decisiones
                           </p>
                         </div>
                       )}
@@ -744,7 +744,7 @@ export function ProjectDashboard({
                           </button>
                           <div>
                             <h2 className="text-xl font-semibold">{selectedProject.title}</h2>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">Cronología completa de decisiones</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Capas de decisiones</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -762,17 +762,7 @@ export function ProjectDashboard({
                 </motion.div>
               )}
 
-              {activeTab === 'usage' && (
-                <motion.div
-                  key="usage"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="space-y-6"
-                >
-                  <LayersUsageDashboard />
-                </motion.div>
-              )}
+
 
               {activeTab === 'details' && projectForDetails && (
                 <motion.div

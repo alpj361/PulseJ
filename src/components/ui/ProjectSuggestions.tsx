@@ -23,7 +23,9 @@ import {
   Schedule as TimeIcon,
   Build as ToolsIcon,
   ExpandMore as ExpandMoreIcon,
-  Lightbulb as IdeaIcon
+  Lightbulb as IdeaIcon,
+  ExpandLess as ExpandLessIcon,
+  Visibility as ViewIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { Project, ProjectDecision, ProjectSuggestion, SuggestionsResponse } from '../../types/projects';
@@ -49,6 +51,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
+  const [expandedSuggestions, setExpandedSuggestions] = useState<Set<string>>(new Set());
 
   // Cargar sugerencias desde base de datos al inicializar
   useEffect(() => {
@@ -58,22 +61,51 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
       projectSuggestions: project.suggestions
     });
 
-    // Primero intentar cargar desde la base de datos
-    const dbSuggestions = getSuggestionsFromDatabase(project);
-    if (dbSuggestions) {
-      console.log('✅ [ProjectSuggestions] Sugerencias cargadas desde DB:', dbSuggestions);
-      setSuggestions(dbSuggestions);
-    } else {
-      console.log('🔄 [ProjectSuggestions] No hay sugerencias en DB, probando localStorage...');
+    const loadSuggestions = async () => {
+      // Primero intentar cargar desde la base de datos
+      const dbSuggestions = getSuggestionsFromDatabase(project);
+      if (dbSuggestions) {
+        console.log('✅ [ProjectSuggestions] Sugerencias cargadas desde DB:', dbSuggestions);
+        setSuggestions(dbSuggestions);
+        return;
+      }
+      
+      console.log('🔄 [ProjectSuggestions] No hay sugerencias válidas en DB, probando localStorage...');
       // Fallback a localStorage si no hay en la base de datos
       const cached = getSuggestionsFromCache(project.id);
       if (cached) {
         console.log('✅ [ProjectSuggestions] Sugerencias cargadas desde localStorage:', cached);
         setSuggestions(cached);
-      } else {
-        console.log('❌ [ProjectSuggestions] No hay sugerencias en localStorage tampoco');
+        return;
       }
-    }
+      
+      console.log('🔄 [ProjectSuggestions] No hay sugerencias válidas, generando automáticamente...');
+      // Si no hay sugerencias válidas, generarlas automáticamente
+      try {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        const userToken = session?.access_token || 'test-token';
+        
+        const newSuggestions = await getProjectSuggestions(project, decisions, userToken);
+        setSuggestions(newSuggestions);
+        
+        // Guardar en base de datos
+        await saveSuggestionsToDatabase(project.id, newSuggestions);
+        console.log('💾 [ProjectSuggestions] Sugerencias generadas y guardadas automáticamente');
+        
+        // Notificar al componente padre para que refresque el proyecto
+        if (onSuggestionsUpdated) {
+          onSuggestionsUpdated();
+        }
+      } catch (err) {
+        console.error('❌ [ProjectSuggestions] Error generando sugerencias automáticamente:', err);
+        setError(err instanceof Error ? err.message : 'Error generando sugerencias automáticamente');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSuggestions();
   }, [project.id, project.suggestions]);
 
   const handleGetSuggestions = async () => {
@@ -133,6 +165,18 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
       case 'low': return 'Baja';
       default: return 'Media';
     }
+  };
+
+  const toggleSuggestionExpansion = (suggestionId: string) => {
+    setExpandedSuggestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(suggestionId)) {
+        newSet.delete(suggestionId);
+      } else {
+        newSet.add(suggestionId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -288,17 +332,18 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                 '&::-webkit-scrollbar-thumb': { backgroundColor: 'rgba(33, 150, 243, 0.3)', borderRadius: 3 }
               }}>
                 <Box sx={{ display: 'flex', gap: 2, minWidth: 'max-content', pb: 1 }}>
-                  {suggestions.suggestions.map((suggestion, index) => (
+                  {suggestions.suggestions.map((suggestion, index) => {
+                    const isExpanded = expandedSuggestions.has(suggestion.id);
+                    return (
                     <Card 
                       key={suggestion.id}
                       elevation={0}
                       sx={{ 
                         minWidth: 280,
-                        maxWidth: 280,
+                        maxWidth: isExpanded ? 400 : 280,
                         border: '1px solid #e0e0e0',
                         borderRadius: 2,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
+                        transition: 'all 0.3s ease',
                         '&:hover': { 
                           boxShadow: '0 4px 12px rgba(33, 150, 243, 0.15)',
                           transform: 'translateY(-2px)'
@@ -341,8 +386,8 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
 
                         {/* Descripción */}
                         <Typography variant="caption" color="text.secondary" sx={{ 
-                          display: '-webkit-box',
-                          WebkitLineClamp: 3,
+                          display: isExpanded ? 'block' : '-webkit-box',
+                          WebkitLineClamp: isExpanded ? 'none' : 3,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
                           lineHeight: 1.3,
@@ -363,8 +408,8 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                             🎯 ACCIÓN
                           </Typography>
                           <Typography variant="caption" color="text.primary" sx={{ 
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
+                            display: isExpanded ? 'block' : '-webkit-box',
+                            WebkitLineClamp: isExpanded ? 'none' : 2,
                             WebkitBoxOrient: 'vertical',
                             overflow: 'hidden',
                             lineHeight: 1.2
@@ -390,8 +435,8 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                         </Box>
 
                         {/* Herramientas */}
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                          {suggestion.tools.slice(0, 3).map((tool, toolIndex) => (
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mb: isExpanded ? 1.5 : 0 }}>
+                          {(isExpanded ? suggestion.tools : suggestion.tools.slice(0, 3)).map((tool, toolIndex) => (
                             <Chip
                               key={toolIndex}
                               label={tool}
@@ -400,7 +445,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                               sx={{ fontSize: '9px', height: 16 }}
                             />
                           ))}
-                          {suggestion.tools.length > 3 && (
+                          {!isExpanded && suggestion.tools.length > 3 && (
                             <Chip
                               label={`+${suggestion.tools.length - 3}`}
                               size="small"
@@ -409,9 +454,47 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                             />
                           )}
                         </Box>
+
+                        {/* Información adicional cuando está expandido */}
+                        {isExpanded && (
+                          <Box sx={{ 
+                            bgcolor: 'rgba(0, 0, 0, 0.03)', 
+                            p: 1.5, 
+                            borderRadius: 1, 
+                            mb: 1.5,
+                            border: '1px solid rgba(0, 0, 0, 0.05)'
+                          }}>
+                            <Typography variant="caption" color="text.primary" fontWeight="600" display="block" gutterBottom>
+                              💡 DETALLES ADICIONALES
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                              Esta sugerencia se basa en el análisis de las decisiones actuales del proyecto y 
+                              puede ayudar a mejorar la eficiencia y resultados del mismo. 
+                              El tiempo estimado incluye investigación, implementación y validación.
+                            </Typography>
+                          </Box>
+                        )}
+
+                        {/* Botón de expansión */}
+                        <Box sx={{ textAlign: 'center', pt: 1, borderTop: '1px solid rgba(0, 0, 0, 0.05)' }}>
+                          <IconButton
+                            onClick={() => toggleSuggestionExpansion(suggestion.id)}
+                            size="small"
+                            sx={{ 
+                              color: 'primary.main',
+                              '&:hover': { bgcolor: 'rgba(33, 150, 243, 0.08)' }
+                            }}
+                          >
+                            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                          </IconButton>
+                          <Typography variant="caption" color="primary.main" display="block" sx={{ mt: 0.5 }}>
+                            {isExpanded ? 'Ver menos' : 'Ver más'}
+                          </Typography>
+                        </Box>
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </Box>
               </Box>
 

@@ -77,12 +77,7 @@ const DECISION_TYPES: DecisionTypeOption[] = [
   }
 ];
 
-const URGENCY_OPTIONS = [
-  { value: 'low', label: 'Baja', color: 'green', description: 'Puede esperar, no hay prisa' },
-  { value: 'medium', label: 'Media', color: 'yellow', description: 'Importante, pero no urgente' },
-  { value: 'high', label: 'Alta', color: 'orange', description: 'Necesita atención pronta' },
-  { value: 'critical', label: 'Crítica', color: 'red', description: 'Requiere acción inmediata' }
-];
+
 
 export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
   isOpen,
@@ -101,7 +96,7 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
     change_description: '',
     objective: '',
     next_steps: '',
-    urgency: 'medium' as 'low' | 'medium' | 'high' | 'critical',
+
     deadline: '',
     // Campos específicos para Enfoque
     focus_area: '',
@@ -124,6 +119,7 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
   const [errors, setErrors] = useState<string[]>([]);
   const [currentReference, setCurrentReference] = useState('');
   const [layerLimits, setLayerLimits] = useState<Record<string, { canCreate: boolean; currentCount: number; limit: number; remaining: number }>>({});
+  const [customFormat, setCustomFormat] = useState('');
 
   // Reset form when modal opens/closes
   useEffect(() => {
@@ -136,7 +132,7 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
         change_description: '',
         objective: '',
         next_steps: '',
-        urgency: 'medium',
+
         deadline: '',
         // Campos específicos para Enfoque
         focus_area: '',
@@ -157,6 +153,8 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
         tools_required: ''
       });
       setErrors([]);
+      setCurrentReference('');
+      setCustomFormat('');
       // Cargar límites de capas cuando se abre el modal
       loadLayerLimits();
     }
@@ -256,6 +254,23 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
     }));
   };
 
+  const addCustomFormat = () => {
+    if (customFormat.trim() && !formData.output_format.includes(customFormat.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        output_format: [...prev.output_format, customFormat.trim()]
+      }));
+      setCustomFormat('');
+    }
+  };
+
+  const removeFormat = (formatToRemove: string) => {
+    setFormData(prev => ({
+      ...prev,
+      output_format: prev.output_format.filter(format => format !== formatToRemove)
+    }));
+  };
+
   const handleSubmit = async () => {
     if (!selectedType || !validateStep2()) {
       return;
@@ -316,7 +331,7 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
         change_description: specificData.change_description,
         objective: formData.objective,
         next_steps: formData.next_steps,
-        urgency: formData.urgency,
+  
         deadline: formData.deadline || undefined,
         parent_decision_id: parentDecisionId || undefined,
         tags: [
@@ -647,17 +662,19 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-2">
-                            📄 Formatos de Salida (Múltiples)
+                            🎯 Formato Esperado (Múltiples)
                           </label>
-                          <div className="space-y-2">
+                          <div className="space-y-2 mb-3">
                             {[
-                              { value: 'pdf-report', label: 'Reporte PDF detallado' },
-                              { value: 'dashboard-interactive', label: 'Dashboard interactivo' },
-                              { value: 'excel-analysis', label: 'Análisis en Excel' },
-                              { value: 'web-report', label: 'Reporte web publicable' },
-                              { value: 'presentation', label: 'Presentación ejecutiva' }
+                              { value: 'Investigación Completa', label: 'Investigación Completa', icon: '🔬' },
+                              { value: 'Reel/TikTok Informativo', label: 'Reel/TikTok Informativo', icon: '📱' },
+                              { value: 'Artículo', label: 'Artículo', icon: '📰' },
+                              { value: 'Académico', label: 'Académico', icon: '🎓' },
+                              { value: 'Cobertura', label: 'Cobertura', icon: '📺' },
+                              { value: 'Informe Ejecutivo', label: 'Informe Ejecutivo', icon: '📊' },
+                              { value: 'Dashboard Interactivo', label: 'Dashboard Interactivo', icon: '💻' }
                             ].map((format) => (
-                              <label key={format.value} className="flex items-center gap-3 cursor-pointer">
+                              <label key={format.value} className="flex items-center gap-3 cursor-pointer group">
                                 <input
                                   type="checkbox"
                                   checked={formData.output_format.includes(format.value)}
@@ -676,12 +693,65 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
                                   }}
                                   className="w-4 h-4 text-purple-600 border-2 border-gray-300 rounded focus:ring-2 focus:ring-purple-500"
                                 />
-                                <span className="text-sm font-medium text-gray-700">{format.label}</span>
+                                <span className="text-sm">{format.icon}</span>
+                                <span className="text-sm font-medium text-gray-700 group-hover:text-purple-600 transition-colors">
+                                  {format.label}
+                                </span>
                               </label>
                             ))}
                           </div>
-                          <p className="text-xs text-gray-500 mt-1">
-                            Puedes seleccionar múltiples formatos de salida
+                          
+                          {/* Campo para agregar formato personalizado */}
+                          <div className="border-t pt-3">
+                            <label className="block text-xs font-medium text-gray-600 mb-2">
+                              ✨ Agregar formato personalizado
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={customFormat}
+                                onChange={(e) => setCustomFormat(e.target.value)}
+                                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                placeholder="Ej: Podcast, Presentación..."
+                                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomFormat())}
+                              />
+                              <button
+                                type="button"
+                                onClick={addCustomFormat}
+                                disabled={!customFormat.trim()}
+                                className="px-3 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Mostrar formatos seleccionados */}
+                          {formData.output_format.length > 0 && (
+                            <div className="mt-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                              <p className="text-xs font-medium text-purple-700 mb-2">Formatos seleccionados:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {formData.output_format.map((format, index) => (
+                                  <span
+                                    key={index}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-white text-purple-700 text-xs rounded-full border border-purple-300"
+                                  >
+                                    {format}
+                                    <button
+                                      type="button"
+                                      onClick={() => removeFormat(format)}
+                                      className="hover:text-purple-900 ml-1"
+                                    >
+                                      <FiX className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          <p className="text-xs text-gray-500 mt-2">
+                            Selecciona uno o varios formatos que mejor se ajusten a tu objetivo
                           </p>
                         </div>
                         <div>
@@ -806,52 +876,25 @@ export const LayeredDecisionCreator: React.FC<LayeredDecisionCreatorProps> = ({
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Urgencia */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        ⚡ Urgencia
-                      </label>
-                      <div className="space-y-2">
-                        {URGENCY_OPTIONS.map((option) => (
-                          <label key={option.value} className="flex items-center gap-3 cursor-pointer">
-                            <input
-                              type="radio"
-                              name="urgency"
-                              value={option.value}
-                              checked={formData.urgency === option.value}
-                              onChange={(e) => setFormData(prev => ({ ...prev, urgency: e.target.value as any }))}
-                              className="w-4 h-4 text-indigo-600"
-                            />
-                            <div className="flex items-center gap-2">
-                              <span className={`w-3 h-3 rounded-full bg-${option.color}-500`}></span>
-                              <span className="font-medium">{option.label}</span>
-                              <span className="text-sm text-gray-500">- {option.description}</span>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
+                  {/* Fecha límite */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      📅 Fecha Límite (Opcional)
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={formData.deadline}
+                        onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      />
+                      <FiCalendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" />
                     </div>
-
-                    {/* Fecha límite */}
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📅 Fecha Límite (Opcional)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={formData.deadline}
-                          onChange={(e) => setFormData(prev => ({ ...prev, deadline: e.target.value }))}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        />
-                        <FiCalendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400 pointer-events-none" />
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Deja vacío si no hay una fecha específica
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Deja vacío si no hay una fecha específica
+                    </p>
                   </div>
+
                 </div>
               </motion.div>
             )}

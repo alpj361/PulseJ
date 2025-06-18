@@ -6,9 +6,8 @@ const translations = {
     // Tabs principales
     overview: 'Resumen',
     projects: 'Proyectos',
-    decisions: 'Capas Actuales',
-    timeline: 'Cronología Completa',
-    usage: 'Uso',
+    decisions: 'Decisiones',
+    timeline: 'Capas',
     details: 'Detalles',
     info: 'Información',
     
@@ -115,9 +114,8 @@ const translations = {
     // Main tabs
     overview: 'Overview',
     projects: 'Projects',
-    decisions: 'Current Layers',
-    timeline: 'Full Chronology',
-    usage: 'Usage',
+    decisions: 'Decisions',
+    timeline: 'Layers',
     details: 'Details',
     info: 'Information',
     

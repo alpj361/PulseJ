@@ -163,7 +163,7 @@ export const DecisionChronology: React.FC<DecisionChronologyProps> = ({
       {/* Header con filtros */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
         <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 mb-1">Cronología de Decisiones</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-1">Capas</h2>
           <p className="text-gray-600">
             {filteredStats.total} decisión{filteredStats.total !== 1 ? 'es' : ''} 
             • {filteredStats.layers} capa{filteredStats.layers !== 1 ? 's' : ''}
