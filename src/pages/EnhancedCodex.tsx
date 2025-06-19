@@ -42,6 +42,7 @@ import {
   StickyNote as NoteIcon,
   ChevronDown,
   ChevronUp,
+  Mic,
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "../context/AuthContext"
@@ -64,6 +65,7 @@ interface CodexItem {
   created_at: string
   is_drive?: boolean
   drive_file_id?: string
+  audio_transcription?: string // NUEVO: transcripción guardada en la BD
 }
 
 interface CodexStats {
@@ -147,7 +149,11 @@ export default function EnhancedCodex() {
     proyecto: ''
   })
   
-  const { user } = useAuth()
+  // Estados para transcripción
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [transcriptionProgress, setTranscriptionProgress] = useState(0)
+  
+  const { user, session } = useAuth()
   const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null)
   const [pickerReady, setPickerReady] = useState(false)
 
@@ -450,9 +456,23 @@ export default function EnhancedCodex() {
     }
   }
 
+  // ------------------------------
+  // Modal de transcripción
+  // ------------------------------
+  const [transcriptionModalItem, setTranscriptionModalItem] = useState<CodexItem | null>(null)
+
+  const handleShowTranscription = (item: CodexItem) => {
+    if (item.audio_transcription && item.audio_transcription.trim().length > 0) {
+      setTranscriptionModalItem(item)
+    }
+  }
+
   const handleViewItem = (item: CodexItem) => {
+    // Abrir URL o storage preview si existe
     if (item.url) {
       window.open(item.url, '_blank')
+    } else if (item.storage_path) {
+      // Podrías implementar vista previa si es necesario
     }
   }
 
@@ -586,6 +606,156 @@ export default function EnhancedCodex() {
       setError('Error al eliminar el elemento')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  // Función para determinar si un archivo puede ser transcrito
+  const canTranscribe = (item: CodexItem) => {
+    if (!item.storage_path && !item.url) return false
+    
+    // Formatos de audio soportados
+    const audioFormats = ['.mp3', '.wav', '.aac', '.ogg', '.flac', '.m4a']
+    // Formatos de video soportados
+    const videoFormats = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v']
+    
+    if (item.nombre_archivo) {
+      const ext = item.nombre_archivo.toLowerCase()
+      return audioFormats.some(format => ext.endsWith(format)) || 
+             videoFormats.some(format => ext.endsWith(format))
+    }
+    
+    return item.tipo === 'audio' || item.tipo === 'video'
+  }
+
+  const handleTranscribeItem = async (item: CodexItem) => {
+    if (!user?.id) {
+      setError('Usuario no autenticado')
+      return
+    }
+
+    setIsTranscribing(true)
+    setTranscriptionProgress(0)
+    setError(null)
+
+    try {
+      // Simular progreso inicial
+      setTranscriptionProgress(10)
+
+      // Preparar datos para la transcripción
+      const transcriptionData = {
+        codexItemId: item.id,
+        titulo: `Transcripción: ${item.titulo}`,
+        descripcion: `Transcripción automática del archivo: ${item.titulo}`,
+        etiquetas: `${item.etiquetas.join(',')},transcripcion,gemini-ai`,
+        proyecto: item.proyecto,
+        project_id: item.project_id
+      }
+
+      console.log('🎤 Iniciando transcripción para:', item.titulo)
+      console.log('🔗 URL del endpoint:', `${import.meta.env.VITE_EXTRACTORW_API_URL}/api/transcription/from-codex`)
+      console.log('📤 Datos a enviar:', transcriptionData)
+      
+      setTranscriptionProgress(30)
+
+      // Obtener token desde Supabase AuthContext o localStorage como respaldo
+      let accessToken = session?.access_token || localStorage.getItem('token') || ''
+      
+      // Si no hay token, forzar re-autenticación
+      if (!accessToken) {
+        throw new Error('No hay sesión activa. Por favor, inicia sesión nuevamente.')
+      }
+      
+      // Usar siempre el token más fresco de la sesión
+      if (session?.access_token) {
+        accessToken = session.access_token
+      }
+      console.log('🔑 Token usado:', accessToken ? `${accessToken.substring(0, 20)}...` : 'NO TOKEN')
+      console.log('🔑 Session info:', { hasSession: !!session, userEmail: session?.user?.email })
+
+      // Verificar si el token está próximo a expirar y refrescarlo si es necesario
+      if (session?.expires_at) {
+        const expiresAt = new Date(session.expires_at * 1000)
+        const now = new Date()
+        const timeToExpiry = expiresAt.getTime() - now.getTime()
+        const fiveMinutes = 5 * 60 * 1000
+
+        console.log('🕐 Token expira en:', Math.round(timeToExpiry / 1000 / 60), 'minutos')
+
+        // Si expira en menos de 5 minutos, intentar refrescar
+        if (timeToExpiry < fiveMinutes) {
+          console.log('🔄 Token próximo a expirar, refrescando...')
+          try {
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+            if (refreshError) {
+              console.error('❌ Error refrescando sesión:', refreshError)
+              throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.')
+            }
+            console.log('✅ Sesión refrescada exitosamente')
+          } catch (refreshErr) {
+            console.error('❌ Error durante el refresh:', refreshErr)
+            throw new Error('No se pudo refrescar la sesión. Inicia sesión nuevamente.')
+          }
+        }
+      }
+
+      const response = await fetch(`${import.meta.env.VITE_EXTRACTORW_API_URL}/api/transcription/from-codex`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { 'Authorization': `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify(transcriptionData)
+      })
+
+      setTranscriptionProgress(70)
+
+      if (!response.ok) {
+        console.log(`❌ Response Status: ${response.status} ${response.statusText}`)
+        console.log(`❌ Response Headers:`, Object.fromEntries(response.headers.entries()))
+        
+        let errorMessage = `Error ${response.status}: ${response.statusText}`
+        
+        try {
+          const responseText = await response.text()
+          console.log(`❌ Response Body:`, responseText)
+          
+          if (responseText.trim().startsWith('{')) {
+            const errorData = JSON.parse(responseText)
+            errorMessage = errorData.error || errorData.message || errorMessage
+          } else {
+            errorMessage = `${errorMessage} - Response: ${responseText.substring(0, 100)}`
+          }
+        } catch (parseError) {
+          console.warn('❌ No se pudo parsear respuesta:', parseError)
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      const result = await response.json()
+      
+      setTranscriptionProgress(90)
+
+      if (result.success) {
+        console.log('✅ Transcripción completada:', result.data.codexItem.id)
+        
+        // Actualizar lista de items del codex
+        await loadCodexData()
+        
+        setTranscriptionProgress(100)
+        
+        // Mostrar mensaje de éxito
+        alert(`¡Transcripción completada! ${result.data.metadata.wordsCount} palabras procesadas. Créditos usados: ${result.data.creditsUsed}`)
+      } else {
+        throw new Error(result.error || 'Error durante la transcripción')
+      }
+
+    } catch (err: any) {
+      console.error('❌ Error en transcripción:', err)
+      setError(`Error al transcribir: ${err.message}`)
+    } finally {
+      setIsTranscribing(false)
+      setTranscriptionProgress(0)
     }
   }
 
@@ -1714,6 +1884,28 @@ export default function EnhancedCodex() {
               </Card>
             </div>
           )}
+
+          {isTranscribing && (
+            <div className="mt-4 max-w-2xl mx-auto">
+              <Card className="border-blue-200 bg-blue-50">
+                <CardContent className="p-4">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <Mic className="h-5 w-5 text-blue-500 animate-pulse" />
+                      <p className="text-blue-600 font-medium">Transcribiendo archivo con Gemini AI...</p>
+                    </div>
+                    <div className="w-full bg-blue-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${transcriptionProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-sm text-blue-600">{transcriptionProgress}% completado</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1870,6 +2062,21 @@ export default function EnhancedCodex() {
                                 <DropdownMenuItem onClick={() => handleDownloadItem(item)}>
                                   <Download className="h-4 w-4 mr-2" />
                                   Descargar
+                                </DropdownMenuItem>
+                              )}
+                              {canTranscribe(item) && !item.audio_transcription && (
+                                <DropdownMenuItem 
+                                  onClick={() => handleTranscribeItem(item)}
+                                  disabled={isTranscribing}
+                                >
+                                  <Mic className="h-4 w-4 mr-2" />
+                                  {isTranscribing ? 'Transcribiendo...' : 'Transcribir'}
+                                </DropdownMenuItem>
+                              )}
+                              {item.audio_transcription && (
+                                <DropdownMenuItem onClick={() => handleShowTranscription(item)}>
+                                  <Mic className="h-4 w-4 mr-2" />
+                                  Transcripción
                                 </DropdownMenuItem>
                               )}
                               <DropdownMenuItem>
@@ -2112,6 +2319,31 @@ export default function EnhancedCodex() {
             </Button>
           </div>
         </DialogContent>
+      </Dialog>
+
+      {/* Modal de Transcripción */}
+      <Dialog open={!!transcriptionModalItem} onOpenChange={() => setTranscriptionModalItem(null)}>
+        {transcriptionModalItem && (
+          <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Mic className="w-5 h-5 text-purple-600" />
+                Transcripción de "{transcriptionModalItem.titulo}"
+              </DialogTitle>
+              <DialogDescription>Vista de solo lectura</DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 max-h-[60vh] overflow-y-auto prose">
+              {transcriptionModalItem.audio_transcription?.split('\n').map((p, idx) => (
+                <p key={idx}>{p}</p>
+              ))}
+            </div>
+
+            <DialogFooter>
+              <Button onClick={() => setTranscriptionModalItem(null)}>Cerrar</Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
       </Dialog>
     </div>
   )

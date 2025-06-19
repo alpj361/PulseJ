@@ -96,14 +96,14 @@ export function getSuggestionsFromDatabase(project: Project): SuggestionsRespons
     });
 
     if (project.suggestions) {
-      // Verificar si las sugerencias no son muy viejas (menos de 24 horas para debugging)
+      // Verificar si las sugerencias no son muy viejas (7 días - actualización manual)
       const cacheAge = Date.now() - new Date(project.suggestions.generatedAt).getTime();
-      const maxAge = 24 * 60 * 60 * 1000; // 24 horas para debugging
+      const maxAge = 7 * 24 * 60 * 60 * 1000; // 7 días
       
       console.log('⏰ [getSuggestionsFromDatabase] Verificando edad:', {
         generatedAt: project.suggestions.generatedAt,
-        cacheAge: Math.round(cacheAge / (60 * 60 * 1000)) + ' horas',
-        maxAge: Math.round(maxAge / (60 * 60 * 1000)) + ' horas',
+        cacheAge: Math.round(cacheAge / (24 * 60 * 60 * 1000)) + ' días',
+        maxAge: Math.round(maxAge / (24 * 60 * 60 * 1000)) + ' días',
         isValid: cacheAge < maxAge
       });
       
@@ -111,7 +111,7 @@ export function getSuggestionsFromDatabase(project: Project): SuggestionsRespons
         console.log('✅ [getSuggestionsFromDatabase] Usando sugerencias desde base de datos');
         return project.suggestions;
       } else {
-        console.log('⏰ [getSuggestionsFromDatabase] Sugerencias en base de datos están viejas');
+        console.log('⏰ [getSuggestionsFromDatabase] Sugerencias en base de datos están viejas (más de 7 días)');
       }
     } else {
       console.log('❌ [getSuggestionsFromDatabase] No hay sugerencias en el proyecto');
@@ -134,9 +134,9 @@ export function getSuggestionsFromCache(projectId: string): SuggestionsResponse 
     
     if (cached) {
       const suggestions = JSON.parse(cached);
-      // Verificar si el cache no es muy viejo (menos de 1 hora)
+      // Verificar si el cache no es muy viejo (7 días)
       const cacheAge = Date.now() - new Date(suggestions.generatedAt).getTime();
-      if (cacheAge < 60 * 60 * 1000) { // 1 hora
+      if (cacheAge < 7 * 24 * 60 * 60 * 1000) { // 7 días
         console.log('📱 Usando sugerencias desde localStorage (fallback)');
         return suggestions;
       }

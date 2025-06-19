@@ -44,6 +44,8 @@ import SondeoProgressIndicator from '../components/ui/SondeoProgressIndicator';
 import { useSondeoConfig } from '../hooks/useSondeoConfig';
 import { useSondeoForm } from '../hooks/useSondeoForm';
 import { useI18n } from '../hooks/useI18n';
+import CardSondeo from '../components/sondeos/CardSondeo';
+import AnalisisGenerado from '../components/sondeos/AnalisisGenerado';
 
 // Tipo para el historial de sondeos
 interface SondeoHistorial {
@@ -343,29 +345,16 @@ const Sondeos: React.FC = () => {
     }
     
     return (
-      <Box>
-        {/* Gráfico */}
+      <CardSondeo title={question.titulo || question.label || `Pregunta ${question.id}`}>
         {chartComponent}
-        
-        {/* Respuesta conclusiva */}
         {insights && (
-          <Box sx={{ mt: 3, p: 2, backgroundColor: 'rgba(59, 130, 246, 0.05)', borderRadius: 2, border: '1px solid rgba(59, 130, 246, 0.1)' }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, color: '#1976d2', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>💡</span> Conclusión
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 2, lineHeight: 1.6, color: 'text.primary' }}>
-              {insights.conclusion}
-            </Typography>
-            
-            <Typography variant="caption" sx={{ fontWeight: 500, mb: 0.5, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <span>🔍</span> Metodología
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary', lineHeight: 1.4, fontStyle: 'italic' }}>
-              {insights.methodology}
-            </Typography>
-          </Box>
+          <AnalisisGenerado
+            resumen={insights.conclusion}
+            conclusion={insights.conclusion}
+            methodology={insights.methodology}
+          />
         )}
-      </Box>
+      </CardSondeo>
     );
   };
 

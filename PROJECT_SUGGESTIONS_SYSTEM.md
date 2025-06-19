@@ -94,11 +94,17 @@ El Sistema de Sugerencias Inteligentes utiliza **Gemini 1.5 Flash** de Google pa
 - `error` - Mensajes de error
 
 **Funcionalidades:**
-- Cache automático de sugerencias
-- Botón de regeneración
+- **Cache manual de sugerencias (7 días)**
+- **Generación solo manual** - NO se generan automáticamente
+- Botón de generación/regeneración manual
 - Interfaz con acordeones
 - Chips de categoría y prioridad
 - Información de herramientas y tiempo
+
+**Comportamiento de Cache:**
+- Las sugerencias se guardan por 7 días
+- Solo se actualizan cuando el usuario presiona "Generar/Regenerar"
+- Carga automática solo de sugerencias existentes válidas
 
 ## 🧠 Prompt de Gemini
 

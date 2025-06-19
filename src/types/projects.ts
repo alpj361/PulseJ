@@ -18,6 +18,20 @@ export interface SuggestionsResponse {
   generatedAt: string;
 }
 
+// Interfaz para las tareas del proyecto
+export interface ProjectTask {
+  id: string;
+  title: string;
+  completed: boolean;
+  created_at: string;
+  project_id: string;
+}
+
+export interface TasksResponse {
+  tasks: ProjectTask[];
+  updatedAt: string;
+}
+
 // Tipos básicos para el sistema de proyectos
 export interface Actor {
   name: string;
@@ -59,6 +73,7 @@ export interface Project {
   visibility: 'private' | 'team' | 'public';
   collaborators?: string[]; // Array de UUIDs de usuarios
   suggestions?: SuggestionsResponse | null; // Sugerencias de IA persistentes
+  tasks?: TasksResponse | null; // Tareas del proyecto persistentes
   created_at: string;
   updated_at: string;
 }

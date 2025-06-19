@@ -22,7 +22,10 @@ import {
   FiMusic,
   FiVideo,
   FiLink,
-  FiImage
+  FiImage,
+  FiCheck,
+  FiSquare,
+  FiCheckSquare
 } from 'react-icons/fi';
 
 import { Card, CardContent, CardHeader, CardTitle } from './card';
@@ -46,6 +49,15 @@ import {
   unassignCodexItemFromProject,
   getProjectDecisions
 } from '../../services/supabase.ts';
+import {
+  getTasksFromDatabase,
+  saveTasksToDatabase,
+  createNewTask,
+  updateTask,
+  deleteTask,
+  generateExampleTasks
+} from '../../services/projectTasks';
+import { TasksResponse, ProjectTask } from '../../types/projects';
 import AddAssetsModal from './AddAssetsModal';
 
 // ===================================================================
@@ -58,6 +70,10 @@ interface ProjectDashboardProps {
   onSelectProject?: (projectId: string) => void;
   onSelectDecision?: (decisionId: string) => void;
   onDeleteProject?: (projectId: string) => void;
+  projects?: Project[];
+  projectsLoading?: boolean;
+  refreshProjects?: () => Promise<void>;
+  updateProject?: (id: string, data: Partial<Project>) => Promise<Project>;
 }
 
 interface Goal {
@@ -128,10 +144,14 @@ export function ProjectDashboard({
   onSelectProject,
   onSelectDecision,
   onDeleteProject,
+  projects,
+  projectsLoading,
+  refreshProjects,
+  updateProject,
 }: ProjectDashboardProps) {
   const { t, getPriorityText, getStatusText, getVisibilityText } = useTranslations();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'decisions' | 'timeline' | 'details'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'projects' | 'decisions' | 'timeline' | 'details' | 'captured'>('overview');
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'decisions' | 'timeline' | 'assets' | 'insights'>('decisions');
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
@@ -142,6 +162,11 @@ export function ProjectDashboard({
   const [showAddAssetsModal, setShowAddAssetsModal] = useState(false);
   
   const [projectDecisions, setProjectDecisions] = useState<any[]>([]);
+  
+  // Estado para las tareas del proyecto
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
+  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [showAddTask, setShowAddTask] = useState(false);
   
   const [isEditing, setIsEditing] = useState(false);
   const [editingData, setEditingData] = useState({
@@ -159,7 +184,6 @@ export function ProjectDashboard({
   const [isSaving, setIsSaving] = useState(false);
   const [newTag, setNewTag] = useState('');
 
-  const { projects, loading: projectsLoading, updateProject } = useProjects();
   const { recentProjects } = useRecentProjects(5);
 
   const [goals, setGoals] = useState<Goal[]>([
@@ -168,9 +192,9 @@ export function ProjectDashboard({
     { id: "3", title: "Process pending decisions", isCompleted: true },
   ]);
 
-  const activeProjects = projects.filter(p => p.status === 'active');
-  const completedProjects = projects.filter(p => p.status === 'completed');
-  const pausedProjects = projects.filter(p => p.status === 'paused');
+  const activeProjects = projects?.filter(p => p.status === 'active') || [];
+  const completedProjects = projects?.filter(p => p.status === 'completed') || [];
+  const pausedProjects = projects?.filter(p => p.status === 'paused') || [];
   
   const metrics: Metric[] = [
     { label: "Active", value: activeProjects.length.toString(), trend: activeProjects.length > 0 ? Math.min(85, activeProjects.length * 20) : 0 },
@@ -183,6 +207,89 @@ export function ProjectDashboard({
       goal.id === goalId ? { ...goal, isCompleted: !goal.isCompleted } : goal
     ));
   }, []);
+
+  // Funciones para manejar las tareas del proyecto
+  const handleAddTask = useCallback(async () => {
+    if (newTaskTitle.trim() && projectForDetails) {
+      try {
+        const newTask = createNewTask(newTaskTitle, projectForDetails.id);
+        const updatedTasks = [...projectTasks, newTask];
+        
+        // Actualizar estado local inmediatamente
+        setProjectTasks(updatedTasks);
+        setNewTaskTitle('');
+        setShowAddTask(false);
+        
+        // Guardar en base de datos
+        const tasksResponse: TasksResponse = {
+          tasks: updatedTasks,
+          updatedAt: new Date().toISOString()
+        };
+        await saveTasksToDatabase(projectForDetails.id, tasksResponse);
+        
+        console.log('✅ Tarea agregada y guardada exitosamente');
+      } catch (error) {
+        console.error('❌ Error agregando tarea:', error);
+        // Revertir cambio local si hay error
+        setProjectTasks(prev => prev.filter(task => task.title !== newTaskTitle));
+      }
+    }
+  }, [newTaskTitle, projectForDetails, projectTasks]);
+
+  const handleToggleTask = useCallback(async (taskId: string) => {
+    if (!projectForDetails) return;
+    
+    try {
+      const updatedTasks = updateTask(projectTasks, taskId, { 
+        completed: !projectTasks.find(t => t.id === taskId)?.completed 
+      });
+      
+      // Actualizar estado local inmediatamente
+      setProjectTasks(updatedTasks);
+      
+      // Guardar en base de datos
+      const tasksResponse: TasksResponse = {
+        tasks: updatedTasks,
+        updatedAt: new Date().toISOString()
+      };
+      await saveTasksToDatabase(projectForDetails.id, tasksResponse);
+      
+      console.log('✅ Estado de tarea actualizado exitosamente');
+    } catch (error) {
+      console.error('❌ Error actualizando tarea:', error);
+      // Revertir cambio local si hay error
+      setProjectTasks(prev => prev.map(task => 
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      ));
+    }
+  }, [projectTasks, projectForDetails]);
+
+  const handleDeleteTask = useCallback(async (taskId: string) => {
+    if (!projectForDetails) return;
+    
+    try {
+      const updatedTasks = deleteTask(projectTasks, taskId);
+      
+      // Actualizar estado local inmediatamente
+      setProjectTasks(updatedTasks);
+      
+      // Guardar en base de datos
+      const tasksResponse: TasksResponse = {
+        tasks: updatedTasks,
+        updatedAt: new Date().toISOString()
+      };
+      await saveTasksToDatabase(projectForDetails.id, tasksResponse);
+      
+      console.log('✅ Tarea eliminada exitosamente');
+    } catch (error) {
+      console.error('❌ Error eliminando tarea:', error);
+      // Revertir cambio local si hay error
+      const deletedTask = projectTasks.find(t => t.id === taskId);
+      if (deletedTask) {
+        setProjectTasks(prev => [...prev, deletedTask]);
+      }
+    }
+  }, [projectTasks, projectForDetails]);
 
   const handleCreateProject = useCallback(async () => {
     try {
@@ -219,6 +326,36 @@ export function ProjectDashboard({
     }
   }, []);
 
+  const loadProjectTasks = useCallback(async (project: Project) => {
+    try {
+      console.log('🔄 Cargando tareas para proyecto:', project.id);
+      
+      // Intentar cargar desde la base de datos
+      const dbTasks = getTasksFromDatabase(project);
+      
+      if (dbTasks && dbTasks.tasks.length > 0) {
+        console.log('✅ Tareas cargadas desde base de datos:', dbTasks.tasks.length);
+        setProjectTasks(dbTasks.tasks);
+      } else {
+        console.log('🔄 No hay tareas en base de datos, generando tareas de ejemplo...');
+        // Si no hay tareas, generar ejemplos y guardarlas
+        const exampleTasks = generateExampleTasks(project.id);
+        setProjectTasks(exampleTasks.tasks);
+        
+        // Guardar las tareas de ejemplo en la base de datos
+        try {
+          await saveTasksToDatabase(project.id, exampleTasks);
+          console.log('💾 Tareas de ejemplo guardadas en base de datos');
+        } catch (error) {
+          console.warn('⚠️ Error guardando tareas de ejemplo:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error cargando tareas:', error);
+      setProjectTasks([]);
+    }
+  }, []);
+
   const handleSelectProjectForDecisions = useCallback((project: Project) => {
     setSelectedProject(project);
     onSelectProject?.(project.id);
@@ -244,7 +381,8 @@ export function ProjectDashboard({
     setNewTag('');
     loadProjectAssets(project.id);
     loadProjectDecisions(project.id);
-  }, [loadProjectAssets, loadProjectDecisions]);
+    loadProjectTasks(project);
+  }, [loadProjectAssets, loadProjectDecisions, loadProjectTasks]);
 
   const handleAssetsAdded = useCallback((addedAssets: any[]) => {
     setProjectAssets(prev => [...addedAssets, ...prev]);
@@ -278,8 +416,8 @@ export function ProjectDashboard({
     }
   }, [projectForDetails]);
 
-  const handleSaveChanges = useCallback(async () => {
-    if (!projectForDetails) return;
+  const handleSaveProject = useCallback(async () => {
+    if (!projectForDetails || !updateProject) return;
     try {
       setIsSaving(true);
       const updatedProject = await updateProject(projectForDetails.id, {
@@ -373,7 +511,7 @@ export function ProjectDashboard({
           <div className="flex-1">
             <div className="mb-6">
               <div className="flex items-center gap-1 p-1 bg-white dark:bg-gray-800 rounded-lg w-fit border border-gray-200 dark:border-gray-700">
-                {(['overview', 'projects', 'decisions', 'timeline'] as const).map((tab) => (
+                {(['overview', 'projects', 'decisions', 'timeline', 'captured'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -384,7 +522,7 @@ export function ProjectDashboard({
                         : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
                     )}
                   >
-                    {t[tab]}
+                    {tab === 'captured' ? 'Capturado' : t[tab]}
                   </button>
                 ))}
                 {projectForDetails && (
@@ -432,7 +570,7 @@ export function ProjectDashboard({
                           </div>
                           <div>
                             <h3 className="font-semibold">{t.totalProjects}</h3>
-                            <p className="text-2xl font-bold text-blue-600">{projects.length}</p>
+                            <p className="text-2xl font-bold text-blue-600">{projects?.length || 0}</p>
                           </div>
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -539,7 +677,7 @@ export function ProjectDashboard({
                     </div>
                   </div>
 
-                  {projects.length > 0 ? (
+                  {(projects && projects.length > 0) ? (
                     <div className="grid gap-4">
                       {projects.map((project) => (
                         <Card key={project.id} className="hover:shadow-md transition-shadow cursor-pointer">
@@ -575,7 +713,7 @@ export function ProjectDashboard({
                             </div>
                           </CardContent>
                         </Card>
-                      ))}
+                      )) || []}
                     </div>
                   ) : (
                     <div className="text-center py-12">
@@ -606,7 +744,7 @@ export function ProjectDashboard({
                         </p>
                       </div>
                       
-                      {projects.length > 0 ? (
+                      {(projects && projects.length > 0) ? (
                         <div className="grid gap-4">
                           {projects.map((project) => (
                             <Card 
@@ -634,7 +772,7 @@ export function ProjectDashboard({
                                 </div>
                               </CardContent>
                             </Card>
-                          ))}
+                          )) || []}
                         </div>
                       ) : (
                         <div className="text-center py-12">
@@ -691,7 +829,7 @@ export function ProjectDashboard({
                         </p>
                       </div>
                       
-                      {projects.length > 0 ? (
+                      {(projects && projects.length > 0) ? (
                         <div className="grid gap-4">
                           {projects.map((project) => (
                             <Card 
@@ -719,7 +857,7 @@ export function ProjectDashboard({
                                 </div>
                               </CardContent>
                             </Card>
-                          ))}
+                          )) || []}
                         </div>
                       ) : (
                         <div className="text-center py-12">
@@ -762,7 +900,73 @@ export function ProjectDashboard({
                 </motion.div>
               )}
 
-
+              {activeTab === 'captured' && (
+                <motion.div
+                  key="captured"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-xl font-semibold">Capturado</h2>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Tu progreso y capturas consolidadas
+                      </p>
+                    </div>
+                    
+                    <Card>
+                      <CardContent className="p-12 text-center">
+                        <div className="max-w-md mx-auto">
+                          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/20 dark:to-purple-900/20 flex items-center justify-center">
+                            <FiDatabase className="w-10 h-10 text-blue-600 dark:text-blue-400" />
+                          </div>
+                          
+                          <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+                            Próximamente
+                          </h3>
+                          
+                          <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                            Podrás ver qué has capturado hasta el momento basado en tus{' '}
+                            <span className="font-semibold text-blue-600 dark:text-blue-400">activos</span>,{' '}
+                            <span className="font-semibold text-green-600 dark:text-green-400">decisiones</span>,{' '}
+                            <span className="font-semibold text-purple-600 dark:text-purple-400">tareas</span>{' '}
+                            y <span className="font-semibold text-orange-600 dark:text-orange-400">notas</span>{' '}
+                            que has hecho.
+                          </p>
+                          
+                          <div className="mt-8 grid grid-cols-2 gap-4 text-sm">
+                            <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+                              <FiFile className="w-6 h-6 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
+                              <p className="font-medium text-blue-900 dark:text-blue-300">Activos</p>
+                              <p className="text-blue-700 dark:text-blue-400">Archivos y documentos</p>
+                            </div>
+                            
+                            <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/10 border border-green-200 dark:border-green-800">
+                              <FiTarget className="w-6 h-6 text-green-600 dark:text-green-400 mx-auto mb-2" />
+                              <p className="font-medium text-green-900 dark:text-green-300">Decisiones</p>
+                              <p className="text-green-700 dark:text-green-400">Capas de análisis</p>
+                            </div>
+                            
+                            <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800">
+                              <FiCheckSquare className="w-6 h-6 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
+                              <p className="font-medium text-purple-900 dark:text-purple-300">Tareas</p>
+                              <p className="text-purple-700 dark:text-purple-400">Progreso y completadas</p>
+                            </div>
+                            
+                            <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800">
+                              <FiFileText className="w-6 h-6 text-orange-600 dark:text-orange-400 mx-auto mb-2" />
+                              <p className="font-medium text-orange-900 dark:text-orange-300">Notas</p>
+                              <p className="text-orange-700 dark:text-orange-400">Anotaciones y reflexiones</p>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </motion.div>
+              )}
 
               {activeTab === 'details' && projectForDetails && (
                 <motion.div
@@ -794,7 +998,7 @@ export function ProjectDashboard({
                   {isEditing && (
                     <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-lg">
                       <button
-                        onClick={handleSaveChanges}
+                        onClick={handleSaveProject}
                         disabled={!editingData.title.trim() || isSaving}
                         className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -1019,6 +1223,132 @@ export function ProjectDashboard({
                         project={projectForDetails} 
                         decisions={projectDecisions}
                       />
+
+                      {/* Tareas del Proyecto */}
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FiCheckSquare className="w-5 h-5" />
+                              Tareas del Proyecto
+                              {projectTasks.length > 0 && (
+                                <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                                  {projectTasks.filter(task => task.completed).length}/{projectTasks.length}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setShowAddTask(true)}
+                              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                              title="Agregar nueva tarea"
+                            >
+                              <FiPlus className="w-4 h-4" />
+                              Agregar
+                            </button>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-3">
+                            {/* Formulario para agregar nueva tarea */}
+                            {showAddTask && (
+                              <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="text"
+                                    value={newTaskTitle}
+                                    onChange={(e) => setNewTaskTitle(e.target.value)}
+                                    placeholder="Descripción de la tarea..."
+                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={handleAddTask}
+                                    disabled={!newTaskTitle.trim()}
+                                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
+                                  >
+                                    <FiCheck className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setShowAddTask(false);
+                                      setNewTaskTitle('');
+                                    }}
+                                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"
+                                  >
+                                    <FiX className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Lista de tareas */}
+                            {projectTasks.length > 0 ? (
+                              <div className="space-y-2">
+                                {projectTasks.map((task) => (
+                                  <div
+                                    key={task.id}
+                                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors"
+                                  >
+                                    <button
+                                      onClick={() => handleToggleTask(task.id)}
+                                      className={cn(
+                                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
+                                        task.completed
+                                          ? "bg-green-600 border-green-600 text-white"
+                                          : "border-gray-300 dark:border-gray-600 hover:border-green-500"
+                                      )}
+                                    >
+                                      {task.completed && <FiCheck className="w-3 h-3" />}
+                                    </button>
+                                    
+                                    <div className="flex-1 min-w-0">
+                                      <p className={cn(
+                                        "text-sm",
+                                        task.completed
+                                          ? "text-gray-500 dark:text-gray-400 line-through"
+                                          : "text-gray-900 dark:text-white"
+                                      )}>
+                                        {task.title}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                        {format(new Date(task.created_at), 'dd MMM yyyy')}
+                                      </p>
+                                    </div>
+
+                                    <button
+                                      onClick={() => handleDeleteTask(task.id)}
+                                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
+                                      title="Eliminar tarea"
+                                    >
+                                      <FiTrash2 className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-4">
+                                  <FiCheckSquare className="w-8 h-8 text-gray-400" />
+                                </div>
+                                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
+                                  No hay tareas creadas
+                                </h3>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                                  Organiza el trabajo del proyecto con tareas específicas
+                                </p>
+                                <button
+                                  onClick={() => setShowAddTask(true)}
+                                  className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                                >
+                                  <FiPlus className="w-4 h-4" />
+                                  Crear primera tarea
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
 
                       {/* Activos del Proyecto */}
                       <Card>

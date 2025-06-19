@@ -9,7 +9,7 @@ export default function Projects() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
-  const { createProject, deleteProject } = useProjects();
+  const { projects, loading: projectsLoading, createProject, deleteProject, updateProject, refreshProjects } = useProjects();
   const { createDecision } = useProjectDecisions(selectedProjectId || '');
 
   const handleCreateProject = async (projectData: CreateProjectData) => {
@@ -22,6 +22,9 @@ export default function Projects() {
       
       // Optionally select the new project
       setSelectedProjectId(project.id);
+      
+      // Close the modal
+      setIsCreateModalOpen(false);
       
       // Show success message
       alert(`✅ Project "${project.title}" created successfully!`);
@@ -48,7 +51,7 @@ export default function Projects() {
       const newDecisionData: CreateProjectDecisionData = {
         title: 'Strategic Decision from Trending Context',
         description: 'A decision based on current trending topics and project context',
-        decision_type: 'strategic',
+        decision_type: 'enfoque',
         rationale: 'Based on trending analysis and project objectives',
         risks_identified: ['Implementation complexity', 'Resource constraints'],
         urgency: 'medium',
@@ -102,6 +105,10 @@ export default function Projects() {
         onSelectProject={handleSelectProject}
         onSelectDecision={handleSelectDecision}
         onDeleteProject={handleDeleteProject}
+        projects={projects}
+        projectsLoading={projectsLoading}
+        refreshProjects={refreshProjects}
+        updateProject={updateProject}
       />
       
       <CreateProjectModal

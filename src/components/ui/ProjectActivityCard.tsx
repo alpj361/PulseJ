@@ -150,24 +150,8 @@ export function ProjectActivityCard({
           ))}
         </div>
 
-        {/* Divider */}
-        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 dark:via-gray-700 to-transparent mb-6" />
-
-        {/* Quick Actions Section */}
-                  <div className="space-y-4">
-          <div className="flex items-center justify-end">
-            <button
-              type="button"
-              onClick={onAddGoal}
-              className="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <FiPlus className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            </button>
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-800 mt-6 space-y-3">
+        <div className="space-y-3">
           <button
             onClick={onCreateProject}
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"

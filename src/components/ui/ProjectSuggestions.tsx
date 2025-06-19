@@ -53,7 +53,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
   const [expanded, setExpanded] = useState(true);
   const [expandedSuggestions, setExpandedSuggestions] = useState<Set<string>>(new Set());
 
-  // Cargar sugerencias desde base de datos al inicializar
+  // Cargar sugerencias desde base de datos al inicializar (SIN generación automática)
   useEffect(() => {
     console.log('🚀 [ProjectSuggestions] useEffect ejecutado:', {
       projectId: project.id,
@@ -61,7 +61,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
       projectSuggestions: project.suggestions
     });
 
-    const loadSuggestions = async () => {
+    const loadExistingSuggestions = async () => {
       // Primero intentar cargar desde la base de datos
       const dbSuggestions = getSuggestionsFromDatabase(project);
       if (dbSuggestions) {
@@ -70,7 +70,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
         return;
       }
       
-      console.log('🔄 [ProjectSuggestions] No hay sugerencias válidas en DB, probando localStorage...');
+      console.log('🔄 [ProjectSuggestions] No hay sugerencias en DB, probando localStorage...');
       // Fallback a localStorage si no hay en la base de datos
       const cached = getSuggestionsFromCache(project.id);
       if (cached) {
@@ -79,33 +79,12 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
         return;
       }
       
-      console.log('🔄 [ProjectSuggestions] No hay sugerencias válidas, generando automáticamente...');
-      // Si no hay sugerencias válidas, generarlas automáticamente
-      try {
-        setLoading(true);
-        const { data: { session } } = await supabase.auth.getSession();
-        const userToken = session?.access_token || 'test-token';
-        
-        const newSuggestions = await getProjectSuggestions(project, decisions, userToken);
-        setSuggestions(newSuggestions);
-        
-        // Guardar en base de datos
-        await saveSuggestionsToDatabase(project.id, newSuggestions);
-        console.log('💾 [ProjectSuggestions] Sugerencias generadas y guardadas automáticamente');
-        
-        // Notificar al componente padre para que refresque el proyecto
-        if (onSuggestionsUpdated) {
-          onSuggestionsUpdated();
-        }
-      } catch (err) {
-        console.error('❌ [ProjectSuggestions] Error generando sugerencias automáticamente:', err);
-        setError(err instanceof Error ? err.message : 'Error generando sugerencias automáticamente');
-      } finally {
-        setLoading(false);
-      }
+      console.log('📝 [ProjectSuggestions] No hay sugerencias existentes. Usuario debe solicitar manualmente.');
+      // NO generar automáticamente - el usuario debe presionar el botón
+      setSuggestions(null);
     };
 
-    loadSuggestions();
+    loadExistingSuggestions();
   }, [project.id, project.suggestions]);
 
   const handleGetSuggestions = async () => {
@@ -239,25 +218,31 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
 
         {/* Botón principal si no hay sugerencias */}
         {!suggestions && !loading && (
-          <Box sx={{ textAlign: 'center', py: 2 }}>
-            <IdeaIcon sx={{ fontSize: 32, color: 'text.secondary', mb: 1 }} />
-            <Typography variant="body2" gutterBottom color="text.secondary">
-              Obtén sugerencias personalizadas
+          <Box sx={{ textAlign: 'center', py: 3 }}>
+            <IdeaIcon sx={{ fontSize: 40, color: 'text.secondary', mb: 1.5 }} />
+            <Typography variant="body2" gutterBottom color="text.primary" fontWeight="600">
+              Sugerencias Inteligentes Disponibles
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block', lineHeight: 1.4 }}>
+              Presiona el botón para generar sugerencias personalizadas basadas en tu proyecto y decisiones actuales
             </Typography>
             <Button
               variant="contained"
               onClick={handleGetSuggestions}
               disabled={loading}
               startIcon={loading ? <CircularProgress size={16} /> : <SuggestionsIcon />}
-              size="small"
+              size="medium"
               sx={{
                 background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
                 borderRadius: 2,
-                px: 3,
-                mt: 1
+                px: 4,
+                py: 1,
+                mt: 1,
+                fontWeight: 600,
+                textTransform: 'none'
               }}
             >
-              {loading ? 'Generando...' : 'Recibir Sugerencias'}
+              {loading ? 'Generando sugerencias...' : 'Generar Sugerencias'}
             </Button>
           </Box>
         )}
@@ -518,7 +503,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
                     }
                   }}
                 >
-                  {loading ? 'Generando...' : 'Actualizar Sugerencias'}
+                  {loading ? 'Regenerando...' : 'Regenerar Sugerencias'}
                 </Button>
               </Box>
             </AccordionDetails>
