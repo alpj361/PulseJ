@@ -4,6 +4,7 @@ export const GOOGLE_DEVELOPER_KEY = 'AIzaSyA0oumyL3f8EaXraPvdYOVE2IYLbcO6lEo';
 
 // Scopes para Google Drive
 export const GOOGLE_DRIVE_SCOPES = [
+  // Permisos de creación/lectura sobre archivos creados o abiertos con la app
   'https://www.googleapis.com/auth/drive.file',
   'openid',
   'email',

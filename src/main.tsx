@@ -2,8 +2,12 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { ThemeProvider, CssBaseline, createTheme } from '@mui/material';
+import LogRocket from 'logrocket';
 import App from "./App";
 import "./index.css";
+
+// Inicializar LogRocket
+LogRocket.init('yxc4k4/pulse-jornal');
 
 // Crear un tema personalizado con colores y tipografía similares al diseño original
 const theme = createTheme({

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { ProjectDecision, DecisionTimelineItem } from '../../types/projects';
 import { useDecisionTimeline, useParentChildDecisions, useProjectDecisions } from '../../hooks/useProjectDecisions';
 import { LayeredDecisionCreator } from './LayeredDecisionCreator';
+import { EditDecisionModal } from './EditDecisionModal';
 import { DecisionCard } from './DecisionCard';
 
 interface LatestDecisionsProps {
@@ -15,11 +16,13 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
 }) => {
   const { timelineData, loading, error, refreshTimeline } = useDecisionTimeline(projectId);
   const { createChildDecision } = useParentChildDecisions(projectId);
-  const { createDecision, refreshDecisions, deleteDecision } = useProjectDecisions(projectId);
+  const { createDecision, refreshDecisions, deleteDecision, updateDecision } = useProjectDecisions(projectId);
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isDerivedModalOpen, setIsDerivedModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedParentDecisionId, setSelectedParentDecisionId] = useState<string | null>(null);
+  const [selectedDecisionForEdit, setSelectedDecisionForEdit] = useState<DecisionTimelineItem | null>(null);
 
   // Obtener solo la capa más reciente de cada tipo
   const getLatestDecisions = useCallback((decisions: DecisionTimelineItem[]) => {
@@ -80,12 +83,28 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
     setSelectedParentDecisionId(null);
   }, []);
 
+  const handleOpenEditModal = useCallback((decision: DecisionTimelineItem) => {
+    setSelectedDecisionForEdit(decision);
+    setIsEditModalOpen(true);
+  }, []);
+
+  const handleCloseEditModal = useCallback(() => {
+    setIsEditModalOpen(false);
+    setSelectedDecisionForEdit(null);
+  }, []);
+
   const handleDecisionCreated = useCallback(async () => {
     handleCloseCreateModal();
     handleCloseDerivedModal();
     await refreshTimeline();
     await refreshDecisions();
   }, [refreshTimeline, refreshDecisions, handleCloseCreateModal, handleCloseDerivedModal]);
+
+  const handleDecisionUpdated = useCallback(async () => {
+    handleCloseEditModal();
+    await refreshTimeline();
+    await refreshDecisions();
+  }, [refreshTimeline, refreshDecisions, handleCloseEditModal]);
 
   // Handler para eliminar decisión
   const handleDeleteDecision = useCallback(async (decisionId: string) => {
@@ -103,6 +122,17 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
   const handleCreateChildDecision = useCallback((parentDecisionId: string) => {
     handleOpenDerivedModal(parentDecisionId);
   }, [handleOpenDerivedModal]);
+
+  // Handler para actualizar decisión
+  const handleUpdateDecision = useCallback(async (decisionId: string, updates: Partial<ProjectDecision>) => {
+    try {
+      await updateDecision(decisionId, updates);
+      await handleDecisionUpdated();
+    } catch (error) {
+      console.error('Error actualizando decisión:', error);
+      throw error;
+    }
+  }, [updateDecision, handleDecisionUpdated]);
 
   if (loading) {
     return (
@@ -187,6 +217,7 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
                     decision={decision}
                     onCreateChild={() => handleCreateChildDecision(decision.id)}
                     onDelete={handleDeleteDecision}
+                    onEdit={handleOpenEditModal}
                   />
 
                   {/* Decisiones derivadas */}
@@ -201,6 +232,7 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
                             decision={childDecision}
                             onCreateChild={() => handleCreateChildDecision(childDecision.id)}
                             onDelete={handleDeleteDecision}
+                            onEdit={handleOpenEditModal}
                           />
                         </div>
                       ))}
@@ -238,6 +270,15 @@ export const LatestDecisions: React.FC<LatestDecisionsProps> = ({
           await createDecision(derivedData);
         }}
         onSuccess={handleDecisionCreated}
+        loading={loading}
+      />
+
+      {/* Modal de Edición de Decisiones */}
+      <EditDecisionModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseEditModal}
+        decision={selectedDecisionForEdit}
+        onSubmit={handleUpdateDecision}
         loading={loading}
       />
     </div>

@@ -15,6 +15,7 @@ import AuthVerification from './pages/AuthVerification';
 import Terms from './pages/Terms';
 import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { useUserProfile } from './hooks/useUserProfile';
 import { Box, CircularProgress } from '@mui/material';
 import EnhancedCodex from './pages/EnhancedCodex';
 import News from './pages/News';
@@ -23,6 +24,20 @@ import Projects from './pages/Projects';
 import { DecisionTimelineDemo } from './pages/DecisionTimelineDemo';
 import SidebarDemoPage from './pages/SidebarDemo';
 import DesignSettingsDemo from './pages/DesignSettingsDemo';
+
+// Componente para configurar LogRocket automáticamente
+const LogRocketConfig = () => {
+  const { profile, loading, error } = useUserProfile();
+  
+  // Este componente no renderiza nada, solo configura LogRocket
+  // El hook useUserProfile se encarga de configurar LogRocket cuando obtiene los datos
+  
+  if (error) {
+    console.warn('⚠️ Error obteniendo perfil de usuario para LogRocket:', error);
+  }
+  
+  return null;
+};
 
 // Componente para proteger rutas
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {

@@ -8,6 +8,7 @@ interface DecisionCardProps {
   decision: DecisionTimelineItem;
   onCreateChild: () => void;
   onDelete?: (decisionId: string) => void;
+  onEdit?: (decision: DecisionTimelineItem) => void;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({
   decision, 
   onCreateChild, 
   onDelete,
+  onEdit,
   className = "" 
 }) => {
   const [showDetails, setShowDetails] = useState(false);
@@ -159,6 +161,15 @@ export const DecisionCard: React.FC<DecisionCardProps> = ({
           >
             {showDetails ? 'Ocultar detalles' : 'Ver detalles'}
           </button>
+          
+          {onEdit && (
+            <button
+              onClick={() => onEdit(decision)}
+              className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+            >
+              ✏️ Editar
+            </button>
+          )}
           
           <button
             onClick={onCreateChild}

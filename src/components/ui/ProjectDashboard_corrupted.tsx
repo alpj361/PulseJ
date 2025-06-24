@@ -28,7 +28,9 @@ import {
   FiCheckSquare,
   FiAlertTriangle,
   FiDownload,
-  FiLayers
+  FiLayers,
+  FiGlobe,
+  FiLock
 } from 'react-icons/fi';
 
 import { Card, CardContent, CardHeader, CardTitle } from './card';
@@ -186,7 +188,8 @@ export function ProjectDashboard({
     target_date: '',
     completed_date: '',
     visibility: 'private' as Project['visibility'],
-    tags: [] as string[]
+    tags: [] as string[],
+    country: '' as Project['country']
   });
   const [isSaving, setIsSaving] = useState(false);
   const [newTag, setNewTag] = useState('');
@@ -383,7 +386,8 @@ export function ProjectDashboard({
       target_date: project.target_date || '',
       completed_date: project.completed_date || '',
       visibility: project.visibility,
-      tags: project.tags || []
+      tags: project.tags || [],
+      country: project.country || ''
     });
     setNewTag('');
     loadProjectAssets(project.id);
@@ -418,7 +422,8 @@ export function ProjectDashboard({
         target_date: projectForDetails.target_date || '',
         completed_date: projectForDetails.completed_date || '',
         visibility: projectForDetails.visibility,
-        tags: projectForDetails.tags || []
+        tags: projectForDetails.tags || [],
+        country: projectForDetails.country || ''
       });
     }
   }, [projectForDetails]);
@@ -437,7 +442,8 @@ export function ProjectDashboard({
         target_date: editingData.target_date || undefined,
         completed_date: editingData.completed_date || undefined,
         visibility: editingData.visibility,
-        tags: editingData.tags.length > 0 ? editingData.tags : undefined
+        tags: editingData.tags.length > 0 ? editingData.tags : undefined,
+        country: editingData.country || undefined
       });
       setProjectForDetails(updatedProject);
       setIsEditing(false);
@@ -1231,606 +1237,295 @@ export function ProjectDashboard({
                               {isEditing ? (
                                 <select
                                   value={editingData.visibility}
-                                  onChange={(e) => handleEditingChange('visibility', e.target.value)}
-                                  className="w-full mt-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                  onChange={(e) => handleEditingChange('visibility', e.target.value as Project['visibility'])}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
                                 >
                                   <option value="private">Privado</option>
-                                  <option value="team">Equipo</option>
                                   <option value="public">Público</option>
                                 </select>
                               ) : (
-                                <p className="text-gray-600 dark:text-gray-400 mt-1 capitalize">
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.visibility === 'private' ? 'Privado' : 'Público'}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">País</label>
+                              {isEditing ? (
+                                <select
+                                  value={editingData.country}
+                                  onChange={(e) => handleEditingChange('country', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="">Seleccionar país</option>
+                                  <option value="GT">Guatemala</option>
+                                  <option value="MX">México</option>
+                                  <option value="US">Estados Unidos</option>
+                                  <option value="CO">Colombia</option>
+                                  <option value="AR">Argentina</option>
+                                  <option value="ES">España</option>
+                                </select>
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {editingData.country || 'No especificado'}
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</label>
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editingData.start_date}
+                                  onChange={(e) => handleEditingChange('start_date', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.start_date ? 
+                                    format(new Date(projectForDetails.start_date), 'dd MMM yyyy') : 
+                                    'No definida'
+                                  }
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha Objetivo</label>
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editingData.target_date}
+                                  onChange={(e) => handleEditingChange('target_date', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.target_date ? 
+                                    format(new Date(projectForDetails.target_date), 'dd MMM yyyy') : 
+                                    'No definida'
+                                  }
+                                </p>
+                              )}
+                            </div>
+
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Completado</label>
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editingData.completed_date}
+                                  onChange={(e) => handleEditingChange('completed_date', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.completed_date ? 
+                                    format(new Date(projectForDetails.completed_date), 'dd MMM yyyy') : 
+                                    'No completado'
+                                  }
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3">
+                            <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Etiquetas</label>
+                            <div className="flex items-center gap-2 mt-1">
+                              <input
+                                type="text"
+                                value={newTag}
+                                onChange={(e) => setNewTag(e.target.value)}
+                                onKeyPress={handleTagKeyPress}
+                                placeholder="Añadir etiqueta y presionar Enter"
+                                className="flex-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-1 mt-2">
+                              {editingData.tags.map((tag) => (
+                                <div key={tag} className="flex items-center gap-1 px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900/20 dark:text-blue-300">
+                                  {tag}
+                                  <button onClick={() => handleRemoveTag(tag)} className="ml-1 text-blue-600 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-100">
+                                    <FiX className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 mt-3">
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Visibilidad</label>
+                              {isEditing ? (
+                                <select
+                                  value={editingData.visibility}
+                                  onChange={(e) => handleEditingChange('visibility', e.target.value as Project['visibility'])}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="private">Privado</option>
+                                  <option value="public">Público</option>
+                                </select>
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1">
+                                  {projectForDetails.visibility === 'public' ? <FiGlobe className="w-3 h-3" /> : <FiLock className="w-3 h-3" />}
                                   {getVisibilityText(projectForDetails.visibility)}
                                 </p>
                               )}
                             </div>
-                          </div>
-                          
-                          {/* Sección de Tags */}
-                          <div>
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Tags</label>
-                            {isEditing ? (
-                              <div className="mt-1 space-y-3">
-                                <div className="flex gap-2">
-                                  <input
-                                    type="text"
-                                    value={newTag}
-                                    onChange={(e) => setNewTag(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    placeholder="Agregar tag..."
-                                    maxLength={30}
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={handleAddTag}
-                                    disabled={!newTag.trim() || editingData.tags.includes(newTag.trim())}
-                                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    <FiPlus className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                {editingData.tags.length > 0 && (
-                                  <div className="flex flex-wrap gap-2">
-                                    {editingData.tags.map((tag) => (
-                                      <span
-                                        key={tag}
-                                        className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 rounded-full text-xs font-medium"
-                                      >
-                                        {tag}
-                                        <button
-                                          type="button"
-                                          onClick={() => handleRemoveTag(tag)}
-                                          className="hover:bg-blue-200 dark:hover:bg-blue-800/30 rounded-full p-0.5 transition-colors"
-                                        >
-                                          <FiX className="w-3 h-3" />
-                                        </button>
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap gap-2 mt-2">
-                                {projectForDetails.tags && projectForDetails.tags.length > 0 ? (
-                                  projectForDetails.tags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="px-3 py-1 bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 rounded-full text-xs font-medium"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))
-                                ) : (
-                                  <p className="text-gray-500 dark:text-gray-400 text-sm italic">Sin tags</p>
-                                )}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Métricas del Proyecto */}
-                          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Estadísticas del Proyecto</label>
-                            <div className="grid grid-cols-3 gap-4">
-                              <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg">
-                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                  {projectDecisions.length}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Decisiones</div>
-                              </div>
-                              <div className="text-center p-3 bg-green-50 dark:bg-green-900/10 rounded-lg">
-                                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                  {projectTasks.filter(task => task.completed).length}/{projectTasks.length}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Tareas</div>
-                              </div>
-                              <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/10 rounded-lg">
-                                <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                                  {projectAssets.length}
-                                </div>
-                                <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">Activos</div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Progreso del Proyecto */}
-                          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Progreso General</label>
-                            <div className="space-y-3">
-                              <div>
-                                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                  <span>Tareas Completadas</span>
-                                  <span>{projectTasks.length > 0 ? Math.round((projectTasks.filter(task => task.completed).length / projectTasks.length) * 100) : 0}%</span>
-                                </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                  <div 
-                                    className="bg-green-500 h-2 rounded-full transition-all duration-300" 
-                                    style={{ 
-                                      width: `${projectTasks.length > 0 ? (projectTasks.filter(task => task.completed).length / projectTasks.length) * 100 : 0}%` 
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                              
-                              <div>
-                                <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-                                  <span>Tiempo Transcurrido</span>
-                                  <span>
-                                    {projectForDetails.start_date && projectForDetails.target_date ? 
-                                      Math.round(((new Date().getTime() - new Date(projectForDetails.start_date).getTime()) / 
-                                      (new Date(projectForDetails.target_date).getTime() - new Date(projectForDetails.start_date).getTime())) * 100) : 0}%
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                                  <div 
-                                    className="bg-blue-500 h-2 rounded-full transition-all duration-300" 
-                                    style={{ 
-                                      width: `${projectForDetails.start_date && projectForDetails.target_date ? 
-                                        Math.min(100, Math.max(0, ((new Date().getTime() - new Date(projectForDetails.start_date).getTime()) / 
-                                        (new Date(projectForDetails.target_date).getTime() - new Date(projectForDetails.start_date).getTime())) * 100)) : 0}%` 
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      {/* Sugerencias Inteligentes */}
-                      <ProjectSuggestions 
-                        project={projectForDetails} 
-                        decisions={projectDecisions}
-                      />
-
-                      {/* Tareas del Proyecto */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FiCheckSquare className="w-5 h-5" />
-                              Tareas del Proyecto
-                              {projectTasks.length > 0 && (
-                                <span className="text-xs bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
-                                  {projectTasks.filter(task => task.completed).length}/{projectTasks.length}
-                                </span>
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">País</label>
+                              {isEditing ? (
+                                <select
+                                  value={editingData.country}
+                                  onChange={(e) => handleEditingChange('country', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                >
+                                  <option value="">Seleccionar país</option>
+                                  <option value="GT">Guatemala</option>
+                                  <option value="MX">México</option>
+                                  <option value="US">Estados Unidos</option>
+                                  <option value="CO">Colombia</option>
+                                  <option value="AR">Argentina</option>
+                                  <option value="ES">España</option>
+                                </select>
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.country || 'No especificado'}
+                                </p>
                               )}
                             </div>
-                            <button
-                              onClick={() => setShowAddTask(true)}
-                              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                              title="Agregar nueva tarea"
-                            >
-                              <FiPlus className="w-4 h-4" />
-                              Agregar
-                            </button>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {/* Formulario para agregar nueva tarea */}
-                            {showAddTask && (
-                              <div className="p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
-                                <div className="flex items-center gap-3">
-                                  <input
-                                    type="text"
-                                    value={newTaskTitle}
-                                    onChange={(e) => setNewTaskTitle(e.target.value)}
-                                    placeholder="Descripción de la tarea..."
-                                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddTask()}
-                                    autoFocus
-                                  />
-                                  <button
-                                    onClick={handleAddTask}
-                                    disabled={!newTaskTitle.trim()}
-                                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm"
-                                  >
-                                    <FiCheck className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setShowAddTask(false);
-                                      setNewTaskTitle('');
-                                    }}
-                                    className="px-3 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"
-                                  >
-                                    <FiX className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Lista de tareas */}
-                            {projectTasks.length > 0 ? (
-                              <div className="space-y-2">
-                                {projectTasks.map((task) => (
-                                  <div
-                                    key={task.id}
-                                    className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors"
-                                  >
-                                    <button
-                                      onClick={() => handleToggleTask(task.id)}
-                                      className={cn(
-                                        "w-5 h-5 rounded border-2 flex items-center justify-center transition-colors",
-                                        task.completed
-                                          ? "bg-green-600 border-green-600 text-white"
-                                          : "border-gray-300 dark:border-gray-600 hover:border-green-500"
-                                      )}
-                                    >
-                                      {task.completed && <FiCheck className="w-3 h-3" />}
-                                    </button>
-                                    
-                                    <div className="flex-1 min-w-0">
-                                      <p className={cn(
-                                        "text-sm",
-                                        task.completed
-                                          ? "text-gray-500 dark:text-gray-400 line-through"
-                                          : "text-gray-900 dark:text-white"
-                                      )}>
-                                        {task.title}
-                                      </p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                                        {format(new Date(task.created_at), 'dd MMM yyyy')}
-                                      </p>
-                                    </div>
-
-                                    <button
-                                      onClick={() => handleExtractCapturados(task.id)}
-                                      className="p-1 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-colors text-orange-600 dark:text-orange-400"
-                                      title="Extraer Capturados"
-                                    >
-                                      <FiAlertTriangle className="w-4 h-4" />
-                                    </button>
-
-                                    <button
-                                      onClick={() => handleDeleteTask(task.id)}
-                                      className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                      title="Eliminar tarea"
-                                    >
-                                      <FiTrash2 className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-8">
-                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                  <FiCheckSquare className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                                  No hay tareas creadas
-                                </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                                  Organiza el trabajo del proyecto con tareas específicas
-                                </p>
-                                <button
-                                  onClick={() => setShowAddTask(true)}
-                                  className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                                >
-                                  <FiPlus className="w-4 h-4" />
-                                  Crear primera tarea
-                                </button>
-                              </div>
-                            )}
                           </div>
-                        </CardContent>
-                      </Card>
 
-                      {/* Activos del Proyecto */}
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FiDatabase className="w-5 h-5" />
-                              Activos del Proyecto
-                              {projectAssets.length > 0 && (
-                                <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
-                                  {projectAssets.length}
-                                </span>
+                          <div className="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</label>
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editingData.start_date}
+                                  onChange={(e) => handleEditingChange('start_date', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.start_date ? 
+                                    format(new Date(projectForDetails.start_date), 'dd MMM yyyy') : 
+                                    'No definida'
+                                  }
+                                </p>
                               )}
                             </div>
-                            <button
-                              onClick={() => setShowAddAssetsModal(true)}
-                              className="flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                              title="Agregar activos desde el Codex"
-                            >
-                              <FiPlus className="w-4 h-4" />
-                              Agregar
-                            </button>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {loadingAssets ? (
-                              <div className="flex items-center justify-center py-8">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                              </div>
-                            ) : projectAssets.length > 0 ? (
-                              <div className="space-y-3">
-                                {projectAssets.map((asset) => (
-                                  <div key={asset.id} className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800/70 transition-colors">
-                                    <div className="flex items-center justify-between">
-                                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                                          {getAssetTypeIcon(asset.tipo, asset.is_drive)}
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                                            {asset.titulo}
-                                          </p>
-                                          <div className="flex items-center gap-2 mt-1">
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                                              {new Date(asset.fecha).toLocaleDateString()}
-                                            </p>
-                                            <span className="text-xs bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-0.5 rounded-full capitalize">
-                                              {asset.tipo}
-                                            </span>
-                                            {asset.is_drive && (
-                                              <span className="text-xs bg-blue-100 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 px-2 py-0.5 rounded-full">
-                                                Drive
-                                              </span>
-                                            )}
-                                          </div>
-                                          {asset.descripcion && (
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                              {asset.descripcion}
-                                            </p>
-                                          )}
-                                          {asset.etiquetas && asset.etiquetas.length > 0 && (
-                                            <div className="flex gap-1 mt-2">
-                                              {asset.etiquetas.slice(0, 3).map((tag: string, idx: number) => (
-                                                <span key={idx} className="text-xs bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
-                                                  {tag}
-                                                </span>
-                                              ))}
-                                              {asset.etiquetas.length > 3 && (
-                                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                                  +{asset.etiquetas.length - 3}
-                                                </span>
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </div>
-                                      <div className="flex items-center gap-2 ml-3">
-                                        {asset.url && (
-                                          <a
-                                            href={asset.url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
-                                            title="Ver archivo"
-                                          >
-                                            <FiEye className="w-4 h-4" />
-                                          </a>
-                                        )}
-                                        <button
-                                          onClick={() => handleExtractCapturados(asset.id)}
-                                          className="p-1 rounded-lg hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-colors text-orange-600 dark:text-orange-400"
-                                          title="Extraer Capturados"
-                                        >
-                                          <FiAlertTriangle className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                          onClick={() => handleRemoveAsset(asset.id)}
-                                          className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                          title="Remover del proyecto"
-                                        >
-                                          <FiX className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            ) : (
-                              <div className="text-center py-8">
-                                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-lg flex items-center justify-center mx-auto mb-4">
-                                  <FiDatabase className="w-8 h-8 text-gray-400" />
-                                </div>
-                                <h3 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                                  No hay activos agregados
-                                </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-                                  Conecta documentos, audios, videos y enlaces desde tu Codex
+
+                            <div>
+                              <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha Objetivo</label>
+                              {isEditing ? (
+                                <input
+                                  type="date"
+                                  value={editingData.target_date}
+                                  onChange={(e) => handleEditingChange('target_date', e.target.value)}
+                                  className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                                />
+                              ) : (
+                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                                  {projectForDetails.target_date ? 
+                                    format(new Date(projectForDetails.target_date), 'dd MMM yyyy') : 
+                                    'No definida'
+                                  }
                                 </p>
-                                <button
-                                  onClick={() => setShowAddAssetsModal(true)}
-                                  className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
-                                >
-                                  <FiPlus className="w-4 h-4" />
-                                  Agregar primer activo
-                                </button>
-                              </div>
-                            )}
+                              )}
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
-                  </div>
-                </motion.div>
+
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">Opciones del Proyecto</CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="space-y-1">
+                            <button
+                              onClick={() => {
+                                handleSelectProjectForDecisions(projectForDetails);
+                                setActiveTab('decisions');
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                activeTab === 'decisions'
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                  : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              )}
+                            >
+                              <FiBarChart className="w-4 h-4" />
+                              Decisiones
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedProject(projectForDetails);
+                                setActiveTab('timeline');
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                activeTab === 'timeline'
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                  : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              )}
+                            >
+                              <FiLayers className="w-4 h-4" />
+                              Capas
+                            </button>
+
+                            <button
+                              onClick={() => setActiveTab('captured')}
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                activeTab === 'captured'
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                  : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              )}
+                            >
+                              <FiFileText className="w-4 h-4" />
+                              Capturado
+                            </button>
+
+                            <button
+                              onClick={() => setActiveTab('coverages')}
+                              className={cn(
+                                "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
+                                activeTab === 'coverages'
+                                  ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                  : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                              )}
+                            >
+                              <FiTarget className="w-4 h-4" />
+                              Coberturas
+                            </button>
+                            
+                            <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2">
+                              <button
+                                onClick={() => onCreateDecision?.(projectForDetails.id)}
+                                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
+                              >
+                                <FiPlus className="w-4 h-4" />
+                                Nueva Decisión
+                              </button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+                </div>
               )}
-            </AnimatePresence>
+            </div>
           </div>
-
-          {/* Panel lateral con información adicional */}
-          {projectForDetails && (
-          <div className="w-80 space-y-4 flex-shrink-0">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FiCalendar className="w-4 h-4" />
-                  Información del Proyecto
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div>
-                    <label className="font-medium text-gray-700 dark:text-gray-300">Creado</label>
-                    <p className="text-gray-600 dark:text-gray-400 mt-0.5">
-                      {format(new Date(projectForDetails.created_at), 'dd MMM yyyy')}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="font-medium text-gray-700 dark:text-gray-300">Actualizado</label>
-                    <p className="text-gray-600 dark:text-gray-400 mt-0.5">
-                      {format(new Date(projectForDetails.updated_at), 'dd MMM yyyy')}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha de Inicio</label>
-                      {isEditing ? (
-                        <input
-                          type="date"
-                          value={editingData.start_date}
-                          onChange={(e) => handleEditingChange('start_date', e.target.value)}
-                          className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      ) : (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                          {projectForDetails.start_date ? 
-                            format(new Date(projectForDetails.start_date), 'dd MMM yyyy') : 
-                            'No definida'
-                          }
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Fecha Objetivo</label>
-                      {isEditing ? (
-                        <input
-                          type="date"
-                          value={editingData.target_date}
-                          onChange={(e) => handleEditingChange('target_date', e.target.value)}
-                          className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                        />
-                      ) : (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                          {projectForDetails.target_date ? 
-                            format(new Date(projectForDetails.target_date), 'dd MMM yyyy') : 
-                            'No definida'
-                          }
-                        </p>
-                      )}
-                    </div>
-
-                    {(projectForDetails.completed_date || isEditing) && (
-                      <div>
-                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Completado</label>
-                        {isEditing ? (
-                          <input
-                            type="date"
-                            value={editingData.completed_date}
-                            onChange={(e) => handleEditingChange('completed_date', e.target.value)}
-                            className="w-full mt-1 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        ) : (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
-                            {projectForDetails.completed_date ? 
-                              format(new Date(projectForDetails.completed_date), 'dd MMM yyyy') : 
-                              'No completado'
-                            }
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                  <div>
-                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300">ID del Proyecto</label>
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 font-mono">
-                      {projectForDetails.id.slice(0, 8)}...
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Opciones del Proyecto</CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="space-y-1">
-                  <button
-                    onClick={() => {
-                      handleSelectProjectForDecisions(projectForDetails);
-                      setActiveTab('decisions');
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
-                      activeTab === 'decisions'
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                  >
-                    <FiBarChart className="w-4 h-4" />
-                    Decisiones
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setSelectedProject(projectForDetails);
-                      setActiveTab('timeline');
-                    }}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
-                      activeTab === 'timeline'
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                  >
-                    <FiLayers className="w-4 h-4" />
-                    Capas
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('captured')}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
-                      activeTab === 'captured'
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                  >
-                    <FiFileText className="w-4 h-4" />
-                    Capturado
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab('coverages')}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors",
-                      activeTab === 'coverages'
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
-                        : "bg-gray-50 dark:bg-gray-800/50 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
-                    )}
-                  >
-                    <FiTarget className="w-4 h-4" />
-                    Coberturas
-                  </button>
-                  
-                  <div className="border-t border-gray-200 dark:border-gray-700 my-2 pt-2">
-                    <button
-                      onClick={() => onCreateDecision?.(projectForDetails.id)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-100 dark:hover:bg-green-900/30 transition-colors"
-                    >
-                      <FiPlus className="w-4 h-4" />
-                      Nueva Decisión
-                    </button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          )}
         </div>
       </div>
 

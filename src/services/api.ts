@@ -47,7 +47,7 @@ export interface Statistics {
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
 // ExtractorW Backend URL - ACTUALIZADO PARA USAR VPS PROPIO
-const EXTRACTORW_API_URL = 'https://server.standatpd.com/api';
+export const EXTRACTORW_API_URL = 'https://server.standatpd.com/api';
 
 console.log('🔧 Configuración de APIs:');
 console.log(`   ExtractorW: ${EXTRACTORW_API_URL}`);

@@ -228,6 +228,27 @@ export const getAvailableCodexItems = async (userId) => {
   }
 }
 
+// Get project assets (codex items assigned to a specific project)
+export const getProjectAssets = async (projectId) => {
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false })
+
+    if (error) {
+      console.error('Error fetching project assets:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error in getProjectAssets:', error)
+    throw error
+  }
+}
+
 // Assign codex item to project
 export const assignCodexItemToProject = async (itemId, projectId) => {
   try {

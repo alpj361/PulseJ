@@ -518,12 +518,7 @@ Responde SOLO con el HTML generado, sin explicaciones adicionales.`;
           <Typography variant="h6" fontWeight="bold">
             Creación de Documento
           </Typography>
-          <Chip 
-            label="GPT-4 Turbo" 
-            size="small" 
-            color="primary" 
-            sx={{ ml: 2 }}
-          />
+          
         </Box>
 
         {/* Tipo de documento */}
@@ -735,7 +730,7 @@ Responde SOLO con el HTML generado, sin explicaciones adicionales.`;
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <PreviewIcon color="primary" />
                 <Typography variant="h6">Preview del Prompt</Typography>
-                <Chip label="GPT-4 Turbo" size="small" color="primary" />
+                
               </Box>
             </DialogTitle>
             <DialogContent dividers sx={{ p: 0 }}>
@@ -760,7 +755,7 @@ Responde SOLO con el HTML generado, sin explicaciones adicionales.`;
                 {promptPreviewTab === 0 && (
                   <Box>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
-                      📝 Prompt que se enviará a GPT-4 Turbo:
+                      📝 Prompt que se enviará a IA:
                     </Typography>
                     <Box sx={{ 
                       bgcolor: 'grey.50', 
@@ -802,7 +797,7 @@ Responde SOLO con el HTML generado, sin explicaciones adicionales.`;
                 {promptPreviewTab === 1 && (
                   <Box>
                     <Typography variant="subtitle2" color="primary" gutterBottom>
-                      🤖 Instrucciones del Sistema para GPT-4 Turbo:
+                      🤖 Instrucciones del Sistema para IA:
                     </Typography>
                     <Box sx={{ 
                       bgcolor: 'grey.100', 
@@ -829,7 +824,7 @@ Responde SOLO con el HTML generado, sin explicaciones adicionales.`;
                 <Box sx={{ mt: 3, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
                   <Typography variant="caption" color="info.dark">
                     💡 <strong>Información:</strong> Este preview te permite revisar exactamente qué información 
-                    se enviará a GPT-4 Turbo antes de generar el documento. Asegúrate de que toda la información 
+                    se enviará a IA antes de generar el documento. Asegúrate de que toda la información 
                     necesaria esté incluida.
                   </Typography>
                 </Box>

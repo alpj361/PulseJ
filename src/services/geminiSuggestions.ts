@@ -31,7 +31,29 @@ export async function getProjectSuggestions(
         description: d.description,
         decision_type: d.decision_type,
         sequence_number: d.sequence_number,
-        created_at: d.created_at
+        created_at: d.created_at,
+        // Campos generales del sistema de capas
+        change_description: d.change_description,
+        objective: d.objective,
+        next_steps: d.next_steps,
+        deadline: d.deadline,
+        // Campos específicos de enfoque
+        focus_area: d.focus_area,
+        focus_context: d.focus_context,
+        // Campos específicos de alcance
+        geographic_scope: d.geographic_scope,
+        monetary_scope: d.monetary_scope,
+        time_period_start: d.time_period_start,
+        time_period_end: d.time_period_end,
+        target_entities: d.target_entities,
+        scope_limitations: d.scope_limitations,
+        // Campos específicos de configuración
+        output_format: d.output_format,
+        methodology: d.methodology,
+        data_sources: d.data_sources,
+        search_locations: d.search_locations,
+        tools_required: d.tools_required,
+        references: d.references
       }))
     };
 

@@ -44,6 +44,7 @@ import SondeoProgressIndicator from '../components/ui/SondeoProgressIndicator';
 import { useSondeoConfig } from '../hooks/useSondeoConfig';
 import { useSondeoForm } from '../hooks/useSondeoForm';
 import { useI18n } from '../hooks/useI18n';
+import { useLogRocketEvents } from '../hooks/useLogRocketEvents';
 import CardSondeo from '../components/sondeos/CardSondeo';
 import AnalisisGenerado from '../components/sondeos/AnalisisGenerado';
 
@@ -91,6 +92,7 @@ const Sondeos: React.FC = () => {
     getValues 
   } = useSondeoForm();
   const { t, getErrorMessage } = useI18n();
+  const { trackSondeoAction, trackError } = useLogRocketEvents();
   
   const [news, setNews] = useState<NewsItem[]>([]);
   const [codex, setCodex] = useState<any[]>([]);
@@ -393,8 +395,15 @@ const Sondeos: React.FC = () => {
     const validationMessage = getValidationMessage();
     if (validationMessage || !currentInput || currentInput.trim().length < 3 || currentContexts.length === 0) {
       setError(validationMessage || 'Complete todos los campos requeridos');
+      trackError('Validation Error', validationMessage || 'Complete todos los campos requeridos', 'sondeos');
       return;
     }
+    
+    // Track inicio de sondeo
+    trackSondeoAction('sondeo_started', currentContexts, currentInput, {
+      questionLength: currentInput.length,
+      contextsCount: currentContexts.length
+    });
     
     setLlmResponse(null);
     setLlmSources(null);
@@ -433,10 +442,23 @@ const Sondeos: React.FC = () => {
       setLlmSources(result.llmSources);
       setDatosAnalisis(result.datosAnalisis);
       
+      // Track sondeo exitoso
+      trackSondeoAction('sondeo_completed', currentContexts, currentInput, {
+        hasResponse: !!result.llmResponse,
+        hasAnalysis: !!result.datosAnalisis,
+        responseDuration: Date.now() - Date.now() // Esto se podría mejorar con timestamp real
+      });
+      
     } catch (e: any) {
       console.error('❌ Error en sondearTema:', e);
       const errorMessage = e.message || e.toString() || getErrorMessage('sondeo');
       setError(errorMessage);
+      
+      // Track error en sondeo
+      trackError('Sondeo Error', errorMessage, 'sondeos', {
+        contexts: currentContexts,
+        questionLength: currentInput.length
+      });
     } finally {
       setLoadingSondeo(false);
       setProgress(0);

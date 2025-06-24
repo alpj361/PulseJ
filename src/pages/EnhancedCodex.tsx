@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import "../types/google.d.ts"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,6 +46,7 @@ import {
 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "../context/AuthContext"
+import { useGoogleDrive } from "../hooks/useGoogleDrive"
 import { supabase, getCodexItemsByUser, createCodexBucket, getUserProjects, Project } from "../services/supabase.ts"
 
 interface CodexItem {
@@ -156,6 +157,63 @@ export default function EnhancedCodex() {
   const { user, session } = useAuth()
   const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null)
   const [pickerReady, setPickerReady] = useState(false)
+  
+  // Import del hook useGoogleDrive para mejorar UX
+  const { 
+    isGoogleUser, 
+    token: driveToken, 
+    loading: driveLoading, 
+    error: driveError, 
+    openPicker, 
+    autoOpenPickerIfTokenExists,
+    hasValidToken,
+    canUseDrive 
+  } = useGoogleDrive()
+
+  // ------------------------------
+  // Feature flags
+  // ------------------------------
+  const DRIVE_ENABLED = false; // 🚫 Deshabilitado temporalmente subir desde Google Drive
+  const NOTE_ENABLED = true; // función notas activada
+  const RELATIONS_ENABLED = false; // 🚫 deshabilitar relacionar notas con archivos
+
+  /**
+   * Asegura que tenemos un token válido de Google Drive.
+   * Si ya lo tenemos, lo devuelve inmediatamente.
+   * En caso contrario lanza el flujo de consentimiento y resuelve
+   * la promesa cuando el usuario concede acceso y se recibe el token.
+   */
+  const ensureDriveToken = useCallback(async (): Promise<string> => {
+    if (googleDriveToken) return googleDriveToken
+
+    return new Promise((resolve, reject) => {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+      if (!clientId) {
+        reject(new Error('Google Drive no está configurado correctamente. Falta CLIENT_ID'))
+        return
+      }
+
+      const tokenClient = window.google?.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file',
+        prompt: 'consent', // Siempre mostrar popup
+        callback: (resp: any) => {
+          if (resp.error || !resp.access_token) {
+            reject(new Error(resp.error || 'No se pudo obtener token de Google Drive'))
+            return
+          }
+          setGoogleDriveToken(resp.access_token)
+          resolve(resp.access_token)
+        }
+      })
+
+      if (tokenClient) {
+        tokenClient.requestAccessToken()
+      } else {
+        reject(new Error('No se pudo inicializar Google Identity Services'))
+      }
+    })
+  }, [googleDriveToken])
 
   // --------------------------------------------------
   // GOOGLE DRIVE: load GIS + Picker scripts once
@@ -273,6 +331,14 @@ export default function EnhancedCodex() {
       .setCallback((data: any) => {
         if (data.action === window.google.picker.Action.PICKED) {
           const file = data.docs[0]
+          const consent = window.confirm(
+            'Para procesar este archivo necesitamos crear una copia temporal en tu Google Drive que pertenecerá a la aplicación. ¿Deseas continuar?'
+          )
+          if (!consent) {
+            console.log('Usuario canceló la copia del archivo');
+            return
+          }
+
           const pickedFile = {
             id: file.id,
             name: file.name,
@@ -284,6 +350,11 @@ export default function EnhancedCodex() {
           setSelectedDriveFile(pickedFile)
           setDriveTitle(file.name)
           setDriveFiles([pickedFile])
+
+          // Guardar automáticamente el archivo en el Codex tras el consentimiento
+          setTimeout(() => {
+            handleSaveDriveFile(pickedFile);
+          }, 0);
         }
       })
       .build()
@@ -611,6 +682,7 @@ export default function EnhancedCodex() {
 
   // Función para determinar si un archivo puede ser transcrito
   const canTranscribe = (item: CodexItem) => {
+    // Verificar que el archivo tenga una fuente válida (storage o URL)
     if (!item.storage_path && !item.url) return false
     
     // Formatos de audio soportados
@@ -618,12 +690,20 @@ export default function EnhancedCodex() {
     // Formatos de video soportados
     const videoFormats = ['.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v']
     
+    // Verificar por extensión de archivo si está disponible
     if (item.nombre_archivo) {
       const ext = item.nombre_archivo.toLowerCase()
-      return audioFormats.some(format => ext.endsWith(format)) || 
-             videoFormats.some(format => ext.endsWith(format))
+      const isAudioVideo = audioFormats.some(format => ext.endsWith(format)) || 
+                          videoFormats.some(format => ext.endsWith(format))
+      if (isAudioVideo) return true
     }
     
+    // Verificar por tipo MIME para archivos de Drive
+    if (item.is_drive && item.url) {
+      return item.tipo === 'audio' || item.tipo === 'video'
+    }
+    
+    // Fallback: verificar por tipo
     return item.tipo === 'audio' || item.tipo === 'video'
   }
 
@@ -638,6 +718,21 @@ export default function EnhancedCodex() {
     setError(null)
 
     try {
+      // Validar datos necesarios para Drive files
+      if (item.is_drive && (!item.drive_file_id || !item.url)) {
+        throw new Error('Archivo de Google Drive incompleto: falta ID o URL del archivo')
+      }
+
+      // Obtener token de Google Drive si el archivo proviene de Drive
+      let driveToken: string | null = googleDriveToken
+      if (item.is_drive) {
+        try {
+          driveToken = await ensureDriveToken()
+        } catch (tokenErr: any) {
+          throw new Error(tokenErr.message || 'No fue posible obtener permisos de Google Drive')
+        }
+      }
+
       // Simular progreso inicial
       setTranscriptionProgress(10)
 
@@ -648,12 +743,41 @@ export default function EnhancedCodex() {
         descripcion: `Transcripción automática del archivo: ${item.titulo}`,
         etiquetas: `${item.etiquetas.join(',')},transcripcion,gemini-ai`,
         proyecto: item.proyecto,
-        project_id: item.project_id
+        project_id: item.project_id,
+        // Información específica para archivos de Drive
+        is_drive: item.is_drive || false,
+        drive_file_id: item.drive_file_id || null,
+        file_url: item.url || null,
+        // Google Drive API access token para acceder al archivo
+        drive_access_token: item.is_drive ? driveToken : null,
+        // Generar URL de descarga directa para Drive files (fallback)
+        download_url: item.is_drive && item.drive_file_id 
+          ? `https://drive.google.com/uc?export=download&id=${item.drive_file_id}`
+          : null,
+        file_name: item.nombre_archivo || null,
+        file_type: item.tipo || null,
+        file_size: item.tamano || null,
+        // Para archivos de Supabase (compatibilidad hacia atrás)
+        storage_path: item.storage_path || null
       }
 
       console.log('🎤 Iniciando transcripción para:', item.titulo)
-      console.log('🔗 URL del endpoint:', `${import.meta.env.VITE_EXTRACTORW_API_URL}/api/transcription/from-codex`)
+      console.log('📁 Es archivo de Drive:', item.is_drive)
+      console.log('🆔 Drive File ID:', item.drive_file_id)
+      console.log('🔗 URL del archivo (view):', item.url)
+      console.log('📥 URL de descarga directa:', transcriptionData.download_url)
+      console.log('🔑 Token de Drive disponible:', !!googleDriveToken)
+      console.log('🔑 Token de Drive (primeros 20 chars):', googleDriveToken ? googleDriveToken.substring(0, 20) + '...' : 'No disponible')
+      console.log('📂 Storage path:', item.storage_path)
+      console.log('📄 Nombre archivo:', item.nombre_archivo)
+      console.log('📊 Tipo archivo:', item.tipo)
+      
+      // Usar el endpoint existente, pero el backend detectará si es Drive por is_drive flag
+      const endpoint = '/api/transcription/from-codex'
+      
+      console.log('🔗 URL del endpoint:', `${import.meta.env.VITE_EXTRACTORW_API_URL}${endpoint}`)
       console.log('📤 Datos a enviar:', transcriptionData)
+      console.log('🗂️ Tipo de archivo:', item.is_drive ? 'Google Drive' : 'Supabase Storage')
       
       setTranscriptionProgress(30)
 
@@ -698,7 +822,7 @@ export default function EnhancedCodex() {
         }
       }
 
-      const response = await fetch(`${import.meta.env.VITE_EXTRACTORW_API_URL}/api/transcription/from-codex`, {
+      const response = await fetch(`${import.meta.env.VITE_EXTRACTORW_API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -713,7 +837,7 @@ export default function EnhancedCodex() {
         console.log(`❌ Response Status: ${response.status} ${response.statusText}`)
         console.log(`❌ Response Headers:`, Object.fromEntries(response.headers.entries()))
         
-        let errorMessage = `Error ${response.status}: ${response.statusText}`
+        let errorMessage = `Error ${response.status}: ${response.statusText}${item.is_drive ? ' (archivo de Google Drive)' : ''}`
         
         try {
           const responseText = await response.text()
@@ -745,14 +869,40 @@ export default function EnhancedCodex() {
         setTranscriptionProgress(100)
         
         // Mostrar mensaje de éxito
-        alert(`¡Transcripción completada! ${result.data.metadata.wordsCount} palabras procesadas. Créditos usados: ${result.data.creditsUsed}`)
+        const sourceType = item.is_drive ? ' (Google Drive)' : ' (Archivo subido)'
+        alert(`¡Transcripción completada${sourceType}! ${result.data.metadata.wordsCount} palabras procesadas. Créditos usados: ${result.data.creditsUsed}`)
       } else {
         throw new Error(result.error || 'Error durante la transcripción')
       }
 
     } catch (err: any) {
       console.error('❌ Error en transcripción:', err)
-      setError(`Error al transcribir: ${err.message}`)
+      console.log('🔍 Datos del item que falló:', {
+        id: item.id,
+        titulo: item.titulo,
+        is_drive: item.is_drive,
+        drive_file_id: item.drive_file_id,
+        url: item.url,
+        storage_path: item.storage_path,
+        nombre_archivo: item.nombre_archivo,
+        tipo: item.tipo,
+        has_drive_token: !!googleDriveToken,
+        drive_token_length: googleDriveToken?.length || 0
+      })
+      
+      const sourceType = item.is_drive ? ' archivo de Google Drive' : ' archivo subido'
+      let errorMessage = `Error al transcribir${sourceType}: ${err.message}`
+      
+      // Agregar sugerencias específicas para archivos de Drive
+      if (item.is_drive) {
+        if (!googleDriveToken) {
+          errorMessage += '\n\nSugerencia: Reconecta tu cuenta de Google Drive para obtener acceso a los archivos.'
+        } else {
+          errorMessage += '\n\nSugerencia: El backend ahora tiene acceso al token de Google Drive para descargar el archivo.'
+        }
+      }
+      
+      setError(errorMessage)
     } finally {
       setIsTranscribing(false)
       setTranscriptionProgress(0)
@@ -777,21 +927,21 @@ export default function EnhancedCodex() {
       // Obtener información del proyecto seleccionado
       const selectedProjectData = (selectedProject && selectedProject !== 'sin-proyecto') ? userProjects.find(p => p.id === selectedProject) : null
       
-      const newNote = {
+      const noteItem = {
         user_id: user?.id,
         tipo: 'nota',
         titulo: noteTitle.trim(),
-        descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${noteContent.trim()}`,
+        descripcion: noteContent.trim(),
         etiquetas: finalTags,
         proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
         project_id: selectedProjectData ? selectedProject : null,
-        fecha: new Date().toISOString(),
-        related_items: selectedRelatedItems.length > 0 ? selectedRelatedItems : null
+        ...(RELATIONS_ENABLED && selectedRelatedItems.length > 0 ? { related_items: selectedRelatedItems } : {}),
+        fecha: new Date().toISOString()
       }
 
       const { data, error } = await supabase
         .from('codex_items')
-        .insert([newNote])
+        .insert([noteItem])
         .select()
         .single()
 
@@ -865,79 +1015,132 @@ export default function EnhancedCodex() {
   }
 
   // Handle Save Drive File
-  const handleSaveDriveFile = async () => {
+  const handleSaveDriveFile = async (fileParam?: any) => {
     console.log('💾 Guardando archivo de Drive')
     
-    if (!selectedDriveFile) {
+    const driveFile = fileParam || selectedDriveFile
+
+    if (!driveFile) {
       console.error('❌ No hay archivo de Drive seleccionado')
       setError('Selecciona un archivo de Google Drive')
       return
     }
 
-    if (!driveTitle.trim()) {
-      console.error('❌ Falta título')
-      setError('El título es requerido')
-      return
-    }
+    // Tomar título por defecto si no se ingresó manualmente
+    const effectiveTitle = driveTitle.trim() || driveFile.name
 
     setIsSubmitting(true)
     setError(null)
 
     try {
-      console.log('💾 Preparando datos del archivo de Drive:', selectedDriveFile)
-      
-      // Determine file type based on MIME type
-      let tipo = 'documento'
-      if (selectedDriveFile.mimeType?.startsWith('image/')) tipo = 'imagen'
-      else if (selectedDriveFile.mimeType?.startsWith('video/')) tipo = 'video'
-      else if (selectedDriveFile.mimeType?.startsWith('audio/')) tipo = 'audio'
+      // --------------------------------------------------
+      // 1) Obtener token válido (desde hook)
+      // --------------------------------------------------
+      let accessToken = driveToken
+      if (!accessToken) {
+        throw new Error('Necesitas conectar Google Drive antes de guardar el archivo')
+      }
 
-      // Prepare metadata
+      console.log('🔑 Token de Drive obtenido (primeros 20 chars):', accessToken.substring(0, 20) + '...')
+
+      // --------------------------------------------------
+      // 2) Descargar archivo de Drive como blob
+      // --------------------------------------------------
+      const downloadUrl = `https://www.googleapis.com/drive/v3/files/${driveFile.id}?alt=media&supportsAllDrives=true`
+      console.log('⬇️ Descargando archivo Drive desde:', downloadUrl)
+
+      const downloadResp = await fetch(downloadUrl, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+
+      if (!downloadResp.ok) {
+        throw new Error(`Error descargando archivo de Drive (${downloadResp.status})`)
+      }
+
+      const fileBlob = await downloadResp.blob()
+      console.log('✅ Archivo Drive descargado, tamaño:', fileBlob.size)
+
+      // --------------------------------------------------
+      // 3) Subir archivo a Supabase Storage
+      // --------------------------------------------------
+      const fileExt = driveFile.name.split('.').pop() || 'bin'
+      const uniqueName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`
+      const filePath = getStoragePath(driveProject || 'sin-proyecto', uniqueName)
+
+      console.log('⬆️ Subiendo a Supabase Storage en path:', filePath)
+
+      const { error: uploadError } = await supabase.storage
+        .from('digitalstorage')
+        .upload(filePath, fileBlob, {
+          contentType: driveFile.mimeType || 'application/octet-stream'
+        })
+
+      if (uploadError) throw uploadError
+
+      const { data: urlData } = supabase.storage
+        .from('digitalstorage')
+        .getPublicUrl(filePath)
+
+      console.log('✅ Archivo subido. URL pública:', urlData.publicUrl)
+
+      // --------------------------------------------------
+      // 4) Determinar tipo (audio, video, documento)
+      // --------------------------------------------------
+      let tipo = 'documento'
+      if (driveFile.mimeType?.startsWith('image/')) tipo = 'imagen'
+      else if (driveFile.mimeType?.startsWith('video/')) tipo = 'video'
+      else if (driveFile.mimeType?.startsWith('audio/')) tipo = 'audio'
+
+      // --------------------------------------------------
+      // 5) Preparar metadata y guardar en codex_items
+      // --------------------------------------------------
       const tagsArray = driveTags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0)
       const finalTags = contentType.trim() ? [...tagsArray, contentType.trim()] : tagsArray
 
-      // Get project information
-      const selectedProjectData = (driveProject && driveProject !== 'sin-proyecto') ? userProjects.find(p => p.id === driveProject) : null
+      const selectedProjectData = (driveProject && driveProject !== 'sin-proyecto') ? 
+        userProjects.find(p => p.id === driveProject) : null
 
-      const driveItem = {
+      const codexItem = {
         user_id: user?.id,
         tipo,
-        titulo: driveTitle.trim(),
-        descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${driveDescription.trim() || `Archivo de Google Drive: ${selectedDriveFile.name}`}`,
+        titulo: effectiveTitle,
+        descripcion: `${contentType.trim() ? `[${contentType.trim()}] ` : ''}${driveDescription.trim() || `Archivo importado de Google Drive: ${driveFile.name}`}`,
         etiquetas: finalTags,
         proyecto: selectedProjectData ? selectedProjectData.title : 'Sin proyecto',
         project_id: selectedProjectData ? driveProject : null,
-        url: selectedDriveFile.webViewLink,
-        nombre_archivo: selectedDriveFile.name,
-        tamano: selectedDriveFile.size || 0,
+        storage_path: filePath, // Ya está en Supabase
+        url: urlData.publicUrl,
+        nombre_archivo: driveFile.name,
+        tamano: fileBlob.size,
         fecha: new Date().toISOString(),
-        is_drive: true,
-        drive_file_id: selectedDriveFile.id
+        is_drive: false, // Ya no necesitamos tratarlo como Drive para transcripción
+        drive_file_id: driveFile.id // Guardamos referencia por si acaso
       }
 
-      console.log('💾 Insertando en Supabase:', driveItem)
+      console.log('💾 Insertando item en codex_items:', codexItem)
 
       const { data, error } = await supabase
         .from('codex_items')
-        .insert([driveItem])
+        .insert([codexItem])
         .select()
         .single()
 
       if (error) throw error
 
-      console.log('✅ Archivo de Drive guardado exitosamente:', data)
+      console.log('✅ Archivo de Drive guardado en Codex:', data)
 
-      // Actualizar el estado local
+      // Actualizar estado local
       const updatedItems = [...codexItems, data]
       setCodexItems(updatedItems)
       calculateStats(updatedItems)
 
-      // Limpiar formulario y cerrar modal
       clearForm()
 
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ Error guardando archivo de Drive:', err)
-      setError('Error al guardar el archivo de Google Drive')
+      setError(err.message || 'Error al guardar el archivo de Google Drive')
     } finally {
       setIsSubmitting(false)
     }
@@ -1162,6 +1365,7 @@ export default function EnhancedCodex() {
     setIsUploading(false)
     setSelectedDriveFile(null)
     setDriveFiles([])
+    setIsDriveConnected(false)
     // Reset edit states
     setIsEditModalOpen(false)
     setEditingItem(null)
@@ -1171,6 +1375,8 @@ export default function EnhancedCodex() {
       etiquetas: '',
       proyecto: ''
     })
+    // No limpiamos el token del hook useGoogleDrive para mantener la sesión activa
+    // El hook maneja su propio estado y limpieza cuando es necesario
   }
 
   // Predefined content types for suggestions
@@ -1302,36 +1508,39 @@ export default function EnhancedCodex() {
                       </Card>
 
                       {/* Connect Google Drive */}
-                      <Card
-                        className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-green-200"
-                        onClick={() => setSelectedSourceType("drive")}
-                      >
-                        <CardContent className="flex items-center gap-4 p-6">
-                          <div className="bg-green-100 p-3 rounded-lg">
-                            <Cloud className="h-6 w-6 text-green-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-slate-900">Conectar Google Drive</h3>
-                            <p className="text-sm text-slate-600">Vincula archivos directamente desde tu Drive</p>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      {DRIVE_ENABLED && (
+                        <Card
+                          className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-green-200"
+                          onClick={() => alert('Función Google Drive deshabilitada temporalmente')}
+                        >
+                          <CardContent className="flex items-center gap-4 p-6">
+                            <div className="bg-green-100 p-3 rounded-lg">
+                              <Cloud className="h-6 w-6 text-green-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-slate-900">Conectar Google Drive</h3>
+                              <p className="text-sm text-slate-600">Función deshabilitada temporalmente</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                      {/* Add Note/Term */}
-                      <Card
-                        className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-purple-200"
-                        onClick={() => setSelectedSourceType("note")}
-                      >
-                        <CardContent className="flex items-center gap-4 p-6">
-                          <div className="bg-purple-100 p-3 rounded-lg">
-                            <NoteIcon className="h-6 w-6 text-purple-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-slate-900">Agregar Nota o Término</h3>
-                            <p className="text-sm text-slate-600">Crea una nota de texto o define un término clave</p>
-                          </div>
-                        </CardContent>
-                      </Card>
+                      {NOTE_ENABLED && (
+                        <Card
+                          className="cursor-pointer hover:shadow-md transition-all duration-200 border-2 hover:border-purple-200"
+                          onClick={() => setSelectedSourceType("note")}
+                        >
+                          <CardContent className="flex items-center gap-4 p-6">
+                            <div className="bg-purple-100 p-3 rounded-lg">
+                              <NoteIcon className="h-6 w-6 text-purple-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-slate-900">Agregar Nota o Término</h3>
+                              <p className="text-sm text-slate-600">Crea una nota de texto o define un término clave</p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
                   ) : (
                     <div className="space-y-4">
@@ -1503,68 +1712,127 @@ export default function EnhancedCodex() {
                       {selectedSourceType === "drive" && (
                         <div className="space-y-4">
                           {/* Main Drive Connection */}
-                          {!isDriveConnected ? (
+                          {!hasValidToken ? (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
                               <Cloud className="h-12 w-12 text-green-600 mx-auto mb-4" />
                               <h3 className="font-semibold text-green-900 mb-2">Conectar con Google Drive</h3>
                               <p className="text-green-700 mb-4">
                                 Autoriza el acceso para vincular archivos desde tu Drive
                               </p>
+                              {driveError && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                                  <p className="text-red-700 text-sm">{driveError}</p>
+                                </div>
+                              )}
                               <Button 
                                 className="bg-green-600 hover:bg-green-700 text-white"
-                                onClick={handleGoogleDriveAuth}
-                                disabled={isSubmitting}
+                                onClick={() => {
+                                  openPicker((file) => {
+                                    const pickedFile = {
+                                      id: file.id,
+                                      name: file.name,
+                                      mimeType: file.mimeType,
+                                      size: 0,
+                                      webViewLink: file.url,
+                                      thumbnailLink: ''
+                                    };
+                                    setSelectedDriveFile(pickedFile);
+                                    setDriveTitle(file.name);
+                                    setDriveFiles([pickedFile]);
+                                    setIsDriveConnected(true);
+                                    
+                                    // Guardar automáticamente el archivo en el Codex tras la selección
+                                    setTimeout(() => {
+                                      handleSaveDriveFile(pickedFile);
+                                    }, 0);
+                                  });
+                                }}
+                                disabled={driveLoading || !canUseDrive}
                               >
-                                {isSubmitting ? (
+                                {driveLoading ? (
                                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                                 ) : (
                                   <Cloud className="h-4 w-4 mr-2" />
                                 )}
-                                Conectar Google Drive
+                                {driveLoading ? 'Conectando...' : 'Conectar Google Drive'}
                               </Button>
+                              {!canUseDrive && (
+                                <p className="text-orange-600 text-sm mt-2">
+                                  Necesitas iniciar sesión con Google para usar esta función
+                                </p>
+                              )}
                             </div>
                           ) : (
                             <div className="space-y-4">
                               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                <div className="flex items-center gap-2 text-green-700">
-                                  <Cloud className="h-5 w-5" />
-                                  <span className="font-medium">Google Drive conectado</span>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2 text-green-700">
+                                    <Cloud className="h-5 w-5" />
+                                    <span className="font-medium">Google Drive conectado</span>
+                                  </div>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      openPicker((file) => {
+                                        const pickedFile = {
+                                          id: file.id,
+                                          name: file.name,
+                                          mimeType: file.mimeType,
+                                          size: 0,
+                                          webViewLink: file.url,
+                                          thumbnailLink: ''
+                                        };
+                                        setSelectedDriveFile(pickedFile);
+                                        setDriveTitle(file.name);
+                                        setDriveFiles([pickedFile]);
+                                        
+                                        // Guardar automáticamente el archivo en el Codex tras la selección
+                                        setTimeout(() => {
+                                          handleSaveDriveFile(pickedFile);
+                                        }, 0);
+                                      });
+                                    }}
+                                    disabled={driveLoading}
+                                  >
+                                    {driveLoading ? (
+                                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                    ) : (
+                                      <Plus className="h-4 w-4 mr-2" />
+                                    )}
+                                    Seleccionar otro archivo
+                                  </Button>
                                 </div>
                               </div>
 
                               {/* Drive Files List */}
-                              <div className="border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
-                                <div className="p-3 border-b border-slate-100 bg-slate-50">
-                                  <h4 className="font-medium text-slate-700">Selecciona un archivo:</h4>
-                                </div>
-                                {driveFiles.length === 0 ? (
-                                  <div className="p-4 text-center text-slate-500">
-                                    <RefreshCw className="h-6 w-6 mx-auto mb-2 animate-spin" />
-                                    Cargando archivos...
+                              {driveFiles.length > 0 && (
+                                <div className="border border-slate-200 rounded-lg max-h-60 overflow-y-auto">
+                                  <div className="p-3 border-b border-slate-100 bg-slate-50">
+                                    <h4 className="font-medium text-slate-700">Archivo seleccionado:</h4>
                                   </div>
-                                ) : (
                                   <div className="p-2">
                                     {driveFiles.map((file) => (
-                                      <button
+                                      <div
                                         key={file.id}
-                                        onClick={() => handleDriveFileSelect(file)}
-                                        className={`w-full flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 transition-colors ${
-                                          selectedDriveFile?.id === file.id ? 'bg-blue-50 border border-blue-200' : ''
-                                        }`}
+                                        className="w-full flex items-center gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200"
                                       >
                                         <FileText className="h-4 w-4 text-slate-500" />
                                         <div className="flex-1 text-left">
                                           <p className="text-sm font-medium text-slate-700">{file.name}</p>
                                           <p className="text-xs text-slate-500">
                                             {file.size ? `${(file.size / 1024 / 1024).toFixed(2)} MB` : 'Tamaño desconocido'} • 
-                                            {new Date(file.modifiedTime).toLocaleDateString()}
+                                            {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Fecha desconocida'}
                                           </p>
                                         </div>
-                                      </button>
+                                        <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                                          ✓ Seleccionado
+                                        </Badge>
+                                      </div>
                                     ))}
                                   </div>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           )}
                           
@@ -1745,69 +2013,71 @@ export default function EnhancedCodex() {
                                 </div>
 
                                 {/* Relations Section */}
-                                <div className="space-y-2 border-t border-slate-200 pt-4">
-                                  <div className="flex items-center justify-between">
-                                    <Label>Relacionar con archivos</Label>
-                                    <Button 
-                                      type="button"
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => setShowRelationSelector(!showRelationSelector)}
-                                      className="text-purple-600 border-purple-200 hover:bg-purple-50"
-                                    >
-                                      <Link className="h-4 w-4 mr-1" />
-                                      Relacionar
-                                    </Button>
-                                  </div>
-                                  
-                                  {showRelationSelector && (
-                                    <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
-                                      <p className="text-sm text-slate-600">
-                                        Selecciona archivos de tu Codex para relacionar con esta nota:
-                                      </p>
-                                      <div className="max-h-40 overflow-y-auto space-y-2">
-                                        {codexItems
-                                          .filter(item => item.tipo !== 'nota' && item.id)
-                                          .slice(0, 10)
-                                          .map((item) => (
-                                            <div key={item.id} className="flex items-center gap-2">
-                                              <input
-                                                type="checkbox"
-                                                id={`relation-${item.id}`}
-                                                checked={selectedRelatedItems.includes(item.id)}
-                                                onChange={(e) => {
-                                                  if (e.target.checked) {
-                                                    setSelectedRelatedItems([...selectedRelatedItems, item.id])
-                                                  } else {
-                                                    setSelectedRelatedItems(selectedRelatedItems.filter(id => id !== item.id))
-                                                  }
-                                                }}
-                                                className="rounded border-slate-300"
-                                              />
-                                                                                             <label 
-                                                 htmlFor={`relation-${item.id}`}
-                                                 className="flex-1 text-sm cursor-pointer flex items-center gap-2"
-                                               >
-                                                 {(() => {
-                                                   const IconComponent = getTypeIcon(item.tipo)
-                                                   return <IconComponent className="h-3 w-3 text-slate-500" />
-                                                 })()}
-                                                 <span className="truncate">{item.titulo}</span>
-                                                 <span className="text-xs text-slate-400 uppercase">
-                                                   {item.tipo}
-                                                 </span>
-                                               </label>
-                                            </div>
-                                          ))}
-                                      </div>
-                                      {selectedRelatedItems.length > 0 && (
-                                        <div className="text-xs text-slate-600">
-                                          {selectedRelatedItems.length} archivo(s) seleccionado(s)
-                                        </div>
-                                      )}
+                                {RELATIONS_ENABLED && (
+                                  <div className="space-y-2 border-t border-slate-200 pt-4">
+                                    <div className="flex items-center justify-between">
+                                      <Label>Relacionar con archivos</Label>
+                                      <Button 
+                                        type="button"
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => setShowRelationSelector(!showRelationSelector)}
+                                        className="text-purple-600 border-purple-200 hover:bg-purple-50"
+                                      >
+                                        <Link className="h-4 w-4 mr-1" />
+                                        Relacionar
+                                      </Button>
                                     </div>
-                                  )}
-                                </div>
+                                    
+                                    {showRelationSelector && (
+                                      <div className="space-y-3 bg-slate-50 p-3 rounded-lg">
+                                        <p className="text-sm text-slate-600">
+                                          Selecciona archivos de tu Codex para relacionar con esta nota:
+                                        </p>
+                                        <div className="max-h-40 overflow-y-auto space-y-2">
+                                          {codexItems
+                                            .filter(item => item.tipo !== 'nota' && item.id)
+                                            .slice(0, 10)
+                                            .map((item) => (
+                                              <div key={item.id} className="flex items-center gap-2">
+                                                <input
+                                                  type="checkbox"
+                                                  id={`relation-${item.id}`}
+                                                  checked={selectedRelatedItems.includes(item.id)}
+                                                  onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                      setSelectedRelatedItems([...selectedRelatedItems, item.id])
+                                                    } else {
+                                                      setSelectedRelatedItems(selectedRelatedItems.filter(id => id !== item.id))
+                                                    }
+                                                  }}
+                                                  className="rounded border-slate-300"
+                                                />
+                                                <label 
+                                                  htmlFor={`relation-${item.id}`}
+                                                  className="flex-1 text-sm cursor-pointer flex items-center gap-2"
+                                                >
+                                                  {(() => {
+                                                    const IconComponent = getTypeIcon(item.tipo)
+                                                    return <IconComponent className="h-3 w-3 text-slate-500" />
+                                                  })()}
+                                                  <span className="truncate">{item.titulo}</span>
+                                                  <span className="text-xs text-slate-400 uppercase">
+                                                    {item.tipo}
+                                                  </span>
+                                                </label>
+                                              </div>
+                                            ))}
+                                        </div>
+                                        {selectedRelatedItems.length > 0 && (
+                                          <div className="text-xs text-slate-600">
+                                            {selectedRelatedItems.length} archivo(s) seleccionado(s)
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>

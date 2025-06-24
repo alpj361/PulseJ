@@ -7,6 +7,9 @@ interface GoogleDrivePickerButtonProps {
   onError?: (error: string) => void;
   buttonText?: string;
   disabled?: boolean;
+  variant?: 'contained' | 'outlined' | 'text';
+  size?: 'small' | 'medium' | 'large';
+  autoOpenIfTokenExists?: boolean;
 }
 
 export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = ({
@@ -14,6 +17,9 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
   onError,
   buttonText = 'Importar desde Google Drive',
   disabled = false,
+  variant = 'contained',
+  size = 'medium',
+  autoOpenIfTokenExists = false,
 }) => {
   const { 
     isGoogleUser, 
@@ -21,10 +27,12 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
     error, 
     email, 
     canUseDrive,
-    openPicker 
+    hasValidToken,
+    openPicker,
+    autoOpenPickerIfTokenExists
   } = useGoogleDrive();
 
-  const handleClick = () => {
+  const handleClick = async () => {
     console.log('🟦 [GoogleDrivePickerButton] Botón clicado');
     
     if (!canUseDrive) {
@@ -34,30 +42,63 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
       return;
     }
 
+    if (autoOpenIfTokenExists && hasValidToken) {
+      console.log('🟦 [GoogleDrivePickerButton] Intentando auto-abrir picker...');
+      const opened = await autoOpenPickerIfTokenExists((file) => {
+        console.log('🟩 [GoogleDrivePickerButton] Archivo seleccionado (auto-abrir):', file);
+        onFilePicked(file);
+      });
+      
+      if (opened) {
+        return;
+      }
+    }
+
     openPicker((file) => {
-      console.log('🟩 [GoogleDrivePickerButton] Archivo seleccionado:', file);
+      console.log('🟩 [GoogleDrivePickerButton] Archivo seleccionado (flujo normal):', file);
       onFilePicked(file);
     });
   };
 
-  // Llamar onError cuando hay errores del hook
   React.useEffect(() => {
     if (error && onError) {
       onError(error);
     }
   }, [error, onError]);
 
+  const getButtonText = () => {
+    if (loading) return 'Conectando...';
+    if (hasValidToken && autoOpenIfTokenExists) return 'Seleccionar archivo de Drive';
+    return buttonText;
+  };
+
+  const getButtonColor = () => {
+    if (hasValidToken) return 'success';
+    return 'primary';
+  };
+
   return (
     <Box>
       <Button
-        variant="contained"
-        color="primary"
+        variant={variant}
+        color={getButtonColor() as any}
         onClick={handleClick}
         disabled={loading || disabled || !canUseDrive}
         startIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
-        sx={{ fontWeight: 600, fontSize: '1rem', borderRadius: 2 }}
+        size={size}
+        sx={{ 
+          fontWeight: 600, 
+          fontSize: size === 'large' ? '1.1rem' : '1rem', 
+          borderRadius: 2,
+          ...(hasValidToken && {
+            backgroundColor: 'success.main',
+            '&:hover': {
+              backgroundColor: 'success.dark',
+            }
+          })
+        }}
       >
-        {buttonText}
+        {getButtonText()}
       </Button>
       
       {!isGoogleUser && (
@@ -66,9 +107,9 @@ export const GoogleDrivePickerButton: React.FC<GoogleDrivePickerButtonProps> = (
         </Typography>
       )}
       
-      {email && (
+      {hasValidToken && email && (
         <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-          Conectado como: {email}
+          ✓ Conectado como: {email}
         </Typography>
       )}
       

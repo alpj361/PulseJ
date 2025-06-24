@@ -24,34 +24,17 @@ const GOOGLE_DRIVE_EMAIL_KEY = 'google_drive_email';
 export function useGoogleDrive() {
   const { user } = useAuth();
   
-  // Inicializar estado con valores de localStorage
-  const [token, setToken] = useState<string | null>(() => {
-    try {
-      const storedToken = localStorage.getItem(GOOGLE_DRIVE_TOKEN_KEY);
-      console.log('🔍 [useGoogleDrive] Inicializando token desde localStorage:', storedToken ? 'EXISTE' : 'NO EXISTE');
-      return storedToken;
-    } catch (e) {
-      console.error('🟥 [useGoogleDrive] Error leyendo token de localStorage:', e);
-      return null;
-    }
-  });
+  // Token de Google Drive vive únicamente en memoria. Siempre se pedirá uno nuevo cuando sea necesario.
+  const [token, setToken] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const [email, setEmail] = useState<string | null>(() => {
-    try {
-      const storedEmail = localStorage.getItem(GOOGLE_DRIVE_EMAIL_KEY);
-      console.log('🔍 [useGoogleDrive] Inicializando email desde localStorage:', storedEmail || 'NO EXISTE');
-      return storedEmail;
-    } catch (e) {
-      console.error('🟥 [useGoogleDrive] Error leyendo email de localStorage:', e);
-      return null;
-    }
-  });
+  const [email, setEmail] = useState<string | null>(null);
   
   const tokenClientRef = useRef<any>(null);
   const pendingPickerCallbackRef = useRef<((file: GoogleDriveFile) => void) | null>(null);
+  const autoOpenPickerRef = useRef<boolean>(false); // Para controlar auto-apertura del picker
 
   // Verificar si el usuario está autenticado con Google (usar useMemo para estabilizar)
   const isGoogleUser = useMemo(() => {
@@ -62,47 +45,44 @@ export function useGoogleDrive() {
   console.log('🟦 [useGoogleDrive] Usuario de Google:', isGoogleUser);
   console.log('🟦 [useGoogleDrive] Token actual:', !!token, token ? `(${token.substring(0, 20)}...)` : '(null)');
 
-  // Debug localStorage en cada render
-  useEffect(() => {
-    const storedToken = localStorage.getItem(GOOGLE_DRIVE_TOKEN_KEY);
-    const storedEmail = localStorage.getItem(GOOGLE_DRIVE_EMAIL_KEY);
-    console.log('🔍 [useGoogleDrive] Estado localStorage - Token:', storedToken ? 'EXISTE' : 'NO EXISTE', 'Email:', storedEmail || 'NO EXISTE');
-    console.log('🔍 [useGoogleDrive] Estado React - Token:', !!token, 'Email:', email || 'NO EXISTE');
-    
-    // Si hay token en localStorage pero no en estado, sincronizar
-    if (storedToken && !token) {
-      console.log('🟧 [useGoogleDrive] Sincronizando token desde localStorage...');
-      setToken(storedToken);
-    }
-    if (storedEmail && !email) {
-      console.log('🟧 [useGoogleDrive] Sincronizando email desde localStorage...');
-      setEmail(storedEmail);
-    }
-  }, [token, email]);
+  // Ya no se usa localStorage, así que no hay necesidad de sincronizar nada en cada render.
 
-  // Función para guardar token en localStorage
+  // Función para guardar token en memoria
   const saveToken = useCallback((newToken: string) => {
-    try {
-      localStorage.setItem(GOOGLE_DRIVE_TOKEN_KEY, newToken);
-      setToken(newToken);
-      console.log('🟩 [useGoogleDrive] Token guardado en localStorage:', newToken.substring(0, 20) + '...');
-    } catch (e) {
-      console.warn('🟧 [useGoogleDrive] No se pudo guardar token en localStorage:', e);
-      setToken(newToken);
-    }
+    setToken(newToken);
+    console.log('🟩 [useGoogleDrive] Token actualizado (memoria):', newToken.substring(0, 20) + '...');
   }, []);
 
-  // Función para guardar email en localStorage
+  // Función para guardar email en memoria
   const saveEmail = useCallback((newEmail: string) => {
-    try {
-      localStorage.setItem(GOOGLE_DRIVE_EMAIL_KEY, newEmail);
-      setEmail(newEmail);
-      console.log('🟩 [useGoogleDrive] Email guardado en localStorage:', newEmail);
-    } catch (e) {
-      console.warn('🟧 [useGoogleDrive] No se pudo guardar email en localStorage:', e);
-      setEmail(newEmail);
-    }
+    setEmail(newEmail);
+    console.log('🟩 [useGoogleDrive] Email en memoria:', newEmail);
   }, []);
+
+  // Verificar si el token actual es válido sin solicitar uno nuevo
+  const isTokenValid = useCallback(async (): Promise<boolean> => {
+    if (!token) {
+      console.log('🟧 [useGoogleDrive] No hay token para validar');
+      return false;
+    }
+
+    try {
+      // Hacer una llamada simple a la API de Google Drive para verificar el token
+      const response = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const isValid = response.ok;
+      console.log(`🟦 [useGoogleDrive] Token válido: ${isValid}`);
+      return isValid;
+    } catch (e) {
+      console.warn('🟧 [useGoogleDrive] Error verificando token:', e);
+      return false;
+    }
+  }, [token]);
 
   // Función interna para abrir picker con token existente (sin dependencias de token)
   const openPickerWithToken = useCallback(async (onFilePicked: (file: GoogleDriveFile) => void, accessToken: string) => {
@@ -206,14 +186,18 @@ export function useGoogleDrive() {
           setError(null);
           setLoading(false);
           
-          // Abrir picker si hay callback pendiente
-          if (pendingPickerCallbackRef.current) {
+          // Abrir picker si hay callback pendiente o si se marcó para auto-abrir
+          if (pendingPickerCallbackRef.current || autoOpenPickerRef.current) {
             console.log('🟩 [useGoogleDrive] Abriendo picker con token recién obtenido...');
             const callback = pendingPickerCallbackRef.current;
             pendingPickerCallbackRef.current = null;
+            autoOpenPickerRef.current = false;
+            
             // Usar setTimeout para evitar problemas de timing
             setTimeout(() => {
-              openPickerWithToken(callback, response.access_token);
+              if (callback) {
+                openPickerWithToken(callback, response.access_token);
+              }
             }, 100);
           }
         },
@@ -247,8 +231,9 @@ export function useGoogleDrive() {
 
     try {
       const client = await initTokenClient();
-      console.log('🟦 [useGoogleDrive] Solicitando access token...');
-      client.requestAccessToken();
+      console.log('🟦 [useGoogleDrive] Solicitando access token (consent)...');
+      // Forzamos consent para que el usuario revalide permisos cada vez que lo necesitemos.
+      client.requestAccessToken({ prompt: 'consent' });
     } catch (e: any) {
       console.error('🟥 [useGoogleDrive] Error solicitando token:', e);
       setError(e.message || 'Error solicitando acceso a Google Drive');
@@ -268,25 +253,53 @@ export function useGoogleDrive() {
       return; // El picker se abrirá automáticamente cuando se obtenga el token
     }
 
-    // Si ya tenemos token, abrir picker inmediatamente
-    console.log('🟩 [useGoogleDrive] Token existe, abriendo picker inmediatamente...');
-    await openPickerWithToken(onFilePicked, token);
-  }, [token, requestToken, openPickerWithToken]);
-
-  // Limpiar token y estado
-  const clearToken = useCallback(() => {
-    console.log('🟦 [useGoogleDrive] Limpiando token y estado');
-    try {
-      localStorage.removeItem(GOOGLE_DRIVE_TOKEN_KEY);
-      localStorage.removeItem(GOOGLE_DRIVE_EMAIL_KEY);
-    } catch (e) {
-      console.warn('🟧 [useGoogleDrive] Error limpiando localStorage:', e);
+    // Verificar si el token actual es válido
+    const tokenIsValid = await isTokenValid();
+    if (!tokenIsValid) {
+      console.log('🟧 [useGoogleDrive] Token inválido, solicitando nuevo token...');
+      pendingPickerCallbackRef.current = onFilePicked;
+      setToken(null); // Limpiar token inválido
+      await requestToken();
+      return;
     }
+
+    // Si ya tenemos token válido, abrir picker inmediatamente
+    console.log('🟩 [useGoogleDrive] Token válido existe, abriendo picker inmediatamente...');
+    await openPickerWithToken(onFilePicked, token);
+  }, [token, requestToken, openPickerWithToken, isTokenValid]);
+
+  // Auto-abrir picker si existe token válido (para mejorar UX del modal)
+  const autoOpenPickerIfTokenExists = useCallback(async (onFilePicked: (file: GoogleDriveFile) => void) => {
+    console.log('🟦 [useGoogleDrive] autoOpenPickerIfTokenExists() llamado');
+    
+    if (!token) {
+      console.log('🟧 [useGoogleDrive] No hay token para auto-abrir picker');
+      return false;
+    }
+
+    // Verificar si el token es válido
+    const tokenIsValid = await isTokenValid();
+    if (!tokenIsValid) {
+      console.log('🟧 [useGoogleDrive] Token inválido, no se puede auto-abrir picker');
+      setToken(null); // Limpiar token inválido
+      return false;
+    }
+
+    // Auto-abrir picker con token válido
+    console.log('🟩 [useGoogleDrive] Auto-abriendo picker con token existente...');
+    await openPickerWithToken(onFilePicked, token);
+    return true;
+  }, [token, isTokenValid, openPickerWithToken]);
+
+  // Limpiar token y estado en memoria
+  const clearToken = useCallback(() => {
+    console.log('🟦 [useGoogleDrive] Limpiando token (memoria)');
     setToken(null);
     setEmail(null);
     setError(null);
     setLoading(false);
     pendingPickerCallbackRef.current = null;
+    autoOpenPickerRef.current = false;
   }, []);
 
   return {
@@ -301,9 +314,11 @@ export function useGoogleDrive() {
     requestToken,
     openPicker,
     clearToken,
+    autoOpenPickerIfTokenExists,
     
     // Utilidades
     hasValidToken: !!token,
-    canUseDrive: isGoogleUser && !!user?.email
+    canUseDrive: isGoogleUser && !!user?.email,
+    isTokenValid
   };
 } 

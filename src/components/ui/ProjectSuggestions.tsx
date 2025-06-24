@@ -52,6 +52,7 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(true);
   const [expandedSuggestions, setExpandedSuggestions] = useState<Set<string>>(new Set());
+  const [analysisExpanded, setAnalysisExpanded] = useState(false);
 
   // Cargar sugerencias desde base de datos al inicializar (SIN generación automática)
   useEffect(() => {
@@ -296,16 +297,48 @@ const ProjectSuggestions: React.FC<ProjectSuggestionsProps> = ({ project, decisi
             </AccordionSummary>
             
             <AccordionDetails sx={{ p: 0, mt: 1 }}>
-              {/* Análisis general compacto */}
+              {/* Análisis general expandible */}
               {suggestions.analysis && (
-                <Box sx={{ mb: 2, p: 2, bgcolor: 'rgba(33, 150, 243, 0.08)', borderRadius: 1, borderLeft: '3px solid #2196F3' }}>
-                  <Typography variant="caption" color="primary.main" fontWeight="600" display="block" gutterBottom>
+                <Accordion 
+                  expanded={analysisExpanded}
+                  onChange={() => setAnalysisExpanded(!analysisExpanded)}
+                  elevation={0}
+                  sx={{ 
+                    mb: 2,
+                    background: 'rgba(33, 150, 243, 0.08)',
+                    borderRadius: 1,
+                    borderLeft: '3px solid #2196F3',
+                    '&:before': { display: 'none' },
+                    '& .MuiAccordionSummary-root': {
+                      minHeight: 'auto',
+                      padding: '12px 16px',
+                      '&.Mui-expanded': { minHeight: 'auto' }
+                    },
+                    '& .MuiAccordionSummary-content': {
+                      margin: '0',
+                      '&.Mui-expanded': { margin: '0' }
+                    }
+                  }}
+                >
+                  <AccordionSummary 
+                    expandIcon={<ExpandMoreIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                      <Typography variant="caption" color="primary.main" fontWeight="600">
                     📊 ANÁLISIS DEL PROYECTO
                   </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
-                    {suggestions.analysis.length > 300 ? suggestions.analysis.substring(0, 300) + '...' : suggestions.analysis}
+                      <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                        {analysisExpanded ? 'Contraer' : 'Expandir'}
                   </Typography>
                 </Box>
+                  </AccordionSummary>
+                  
+                  <AccordionDetails sx={{ pt: 0, pb: 1, px: 2 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.4 }}>
+                      {suggestions.analysis}
+                    </Typography>
+                  </AccordionDetails>
+                </Accordion>
               )}
 
               {/* Scroll horizontal de sugerencias */}
