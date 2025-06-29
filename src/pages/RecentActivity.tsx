@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { LanguageContext } from '../context/LanguageContext';
 import ActivityCard from '../components/ui/ActivityCard';
 import DocumentGeneratorCard from '../components/ui/DocumentGeneratorCard';
+import RecentScrapesSection from '../components/ui/RecentScrapesSection';
 import { 
   Grid, 
   Box, 
@@ -25,12 +26,14 @@ import {
   Tag as TagIcon,
   Person as PersonIcon,
   Newspaper as NewspaperIcon,
-  TrendingUp as TrendingUpIcon
+  TrendingUp as TrendingUpIcon,
+  DataUsage as DataUsageIcon
 } from '@mui/icons-material';
 
 const translations = {
   es: {
     title: 'Actividad Reciente',
+    scrapesTitle: 'Scrapes Recientes con Vizta Chat',
     loading: 'Cargando actividad...',
     noActivity: 'No tienes actividad reciente.',
     whatsappBot: 'WhatsApp Bot',
@@ -45,10 +48,14 @@ const translations = {
     users: 'Usuarios',
     news: 'Noticias',
     commonThemes: 'Temas Comunes',
-    noThemes: 'No hay temas comunes aún'
+    noThemes: 'No hay temas comunes aún',
+    legacyActivity: 'Actividad Anterior (WhatsApp)',
+    viztaChatActivity: 'Actividad de Vizta Chat',
+    pageDescription: 'Aquí puedes ver tu actividad reciente con Vizta Chat.'
   },
   en: {
     title: 'Recent Activity',
+    scrapesTitle: 'Recent Scrapes with Vizta Chat',
     loading: 'Loading activity...',
     noActivity: 'You have no recent activity.',
     whatsappBot: 'WhatsApp Bot',
@@ -63,7 +70,10 @@ const translations = {
     users: 'Users',
     news: 'News',
     commonThemes: 'Common Themes',
-    noThemes: 'No common themes yet'
+    noThemes: 'No common themes yet',
+    legacyActivity: 'Legacy Activity (WhatsApp)',
+    viztaChatActivity: 'Vizta Chat Activity',
+    pageDescription: 'Here you can see your recent activity with Vizta Chat.'
   },
 };
 
@@ -319,528 +329,27 @@ export default function RecentActivity() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* WhatsApp Bot Section */}
-      <Paper 
-        elevation={0} 
-        sx={{ 
-          p: 2.5, 
-          mb: 3, 
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          justifyContent: 'space-between',
-          alignItems: { xs: 'flex-start', md: 'center' },
-          backgroundColor: alpha(theme.palette.success.main, 0.05),
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: alpha(theme.palette.success.main, 0.2),
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-            borderColor: alpha(theme.palette.success.main, 0.3),
-          }
-        }}
-      >
-        <Box sx={{ display: 'flex', alignItems: 'center', mb: { xs: 2, md: 0 } }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              mr: 2,
-              backgroundColor: theme.palette.success.main,
-              color: '#fff',
-              borderRadius: '50%',
-              width: 38,
-              height: 38,
-              justifyContent: 'center',
-              transition: 'all 0.3s ease',
-              boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)',
-              '&:hover': {
-                transform: 'scale(1.05)',
-                boxShadow: '0 3px 8px rgba(0, 0, 0, 0.15)',
-              }
-            }}
-          >
-            <WhatsAppIcon sx={{ fontSize: 22 }} />
-          </Box>
-          <Typography
-            variant="subtitle1"
-            sx={{
-              fontWeight: 'medium',
-              mr: 2,
-              color: theme.palette.success.dark
-            }}
-          >
-            {t.whatsappBot}
-          </Typography>
-          <Chip
-            label="WhatsApp Bot Coming Soon"
-            color="success"
-            variant="outlined"
-            sx={{ fontWeight: 'medium', fontSize: '0.95em', ml: 1 }}
-          />
-        </Box>
-        <Typography 
-          variant="body2" 
-          sx={{ 
-            color: theme.palette.success.dark,
-            bgcolor: alpha(theme.palette.success.main, 0.1),
-            py: 0.75,
-            px: 2,
-            borderRadius: 2,
-            fontWeight: 'medium'
-          }}
-        >
-          {userPhone && (
-            <>
-              {t.yourNumber} <strong>{userPhone}</strong>
-            </>
-          )}
-        </Typography>
-      </Paper>
+      {/* Recent Tweets Extraction Section */}
+      <RecentScrapesSection />
 
-      {/* Main Card */}
-      <Paper 
-        elevation={0}
-        sx={{
-          p: 3,
-          mb: 4,
-          borderRadius: 3,
-          border: '1px solid',
-          borderColor: 'divider',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Decorative top border */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 5,
-            background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+      <Box mt={6}>
+        <DocumentGeneratorCard 
+          onDocumentGenerated={(document) => {
+            // Opcional: hacer algo cuando se genera un documento
+            console.log('Documento generado:', document);
           }}
         />
-        
-        <Box 
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            mb: 3,
-            mt: 0.5
-          }}
-        >
-          <TimelineIcon 
-            sx={{ 
-              color: theme.palette.primary.main,
-              fontSize: 28
-            }} 
-          />
-          <Typography 
-            variant="h5" 
-            component="h2" 
-            sx={{
-              fontWeight: 'medium',
-              background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              textShadow: '0 2px 4px rgba(0,0,0,0.05)'
-            }}
-          >
-            {t.title}
-          </Typography>
-        </Box>
-        
-        {loading ? (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 2, 
-              my: 4,
-              p: 3,
-              justifyContent: 'center',
-              bgcolor: alpha(theme.palette.primary.main, 0.05),
-              borderRadius: 2
-            }}
-          >
-            <CircularProgress size={24} color="primary" />
-            <Typography>{t.loading}</Typography>
-          </Box>
-        ) : error ? (
-          <Typography 
-            variant="body2" 
-            color="error.main" 
-            sx={{ 
-              my: 4, 
-              p: 3, 
-              textAlign: 'center',
-              bgcolor: alpha(theme.palette.error.main, 0.05),
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: alpha(theme.palette.error.main, 0.1)
-            }}
-          >
-            {error}
-          </Typography>
-        ) : activities.length === 0 ? (
-          <Box 
-            sx={{ 
-              my: 4, 
-              p: 3, 
-              textAlign: 'center',
-              bgcolor: alpha(theme.palette.grey[500], 0.05),
-              borderRadius: 2,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 1.5
-            }}
-          >
-            <HistoryIcon sx={{ fontSize: 40, color: 'text.secondary', opacity: 0.6 }} />
-            <Typography variant="body1" color="text.secondary">
-              {t.noActivity}
-            </Typography>
-          </Box>
-        ) : (
-          <>
-            <Grid 
-              container 
-              spacing={3} 
-              sx={{ 
-                mt: 1,
-                '& .MuiGrid-item': {
-                  display: 'flex',
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    transform: 'scale(1.01)'
-                  }
-                }
-              }}
-            >
-              {activities.map((activity, index) => (
-                <Grid 
-                  item 
-                  xs={12} 
-                  sm={6} 
-                  md={4} 
-                  key={activity.id}
-                  sx={{
-                    animation: 'fadeInUp 0.5s ease forwards',
-                    opacity: 0,
-                    animationDelay: `${index * 0.1}s`,
-                    '@keyframes fadeInUp': {
-                      '0%': {
-                        opacity: 0,
-                        transform: 'translateY(20px)'
-                      },
-                      '100%': {
-                        opacity: 1,
-                        transform: 'translateY(0)'
-                      }
-                    }
-                  }}
-                >
-                  <ActivityCard
-                    value={activity.value}
-                    type={activity.type}
-                    created_at={activity.created_at}
-                    sentimiento={activity.sentimiento}
-                  />
-                </Grid>
-              ))}
-            </Grid>
+      </Box>
 
-            {/* Statistics Section */}
-            <Box sx={{ mt: 4 }}>
-              <Divider sx={{ mb: 3 }} />
-              <Typography 
-                variant="h6" 
-                component="h3" 
-                sx={{ 
-                  mb: 3,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                  color: 'text.primary',
-                  fontWeight: 'medium' 
-                }}
-              >
-                <TrendingUpIcon 
-                  sx={{ 
-                    color: theme.palette.primary.main,
-                    fontSize: 24
-                  }} 
-                />
-                {t.statistics}
-              </Typography>
-
-              <Grid container spacing={3}>
-                {/* Activity Type Counts */}
-                <Grid item xs={12} md={6}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 3,
-                      borderRadius: 3,
-                      border: '1px solid',
-                      borderColor: alpha(theme.palette.primary.main, 0.1),
-                      backgroundColor: alpha(theme.palette.primary.main, 0.02),
-                    }}
-                  >
-                    <Grid container spacing={2}>
-                      <Grid item xs={4}>
-                        <Box sx={{ 
-                          textAlign: 'center', 
-                          p: 1.5,
-                          borderRadius: 2,
-                          backgroundColor: alpha(theme.palette.info.main, 0.1),
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <TagIcon color="info" />
-                          <Typography variant="h6" color="info.main" fontWeight="bold">
-                            {statistics.hashtagCount}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t.hashtags}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ 
-                          textAlign: 'center', 
-                          p: 1.5,
-                          borderRadius: 2,
-                          backgroundColor: alpha(theme.palette.success.main, 0.1),
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <PersonIcon color="success" />
-                          <Typography variant="h6" color="success.main" fontWeight="bold">
-                            {statistics.userCount}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t.users}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Box sx={{ 
-                          textAlign: 'center', 
-                          p: 1.5,
-                          borderRadius: 2,
-                          backgroundColor: alpha(theme.palette.warning.main, 0.1),
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: 1
-                        }}>
-                          <NewspaperIcon color="warning" />
-                          <Typography variant="h6" color="warning.main" fontWeight="bold">
-                            {statistics.newsCount}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {t.news}
-                          </Typography>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </Paper>
-                </Grid>
-
-                {/* Common Themes */}
-                <Grid item xs={12} md={6}>
-                  <Paper
-                    elevation={0}
-                    sx={{
-                      p: 3,
-                      borderRadius: 3,
-                      border: '1px solid',
-                      borderColor: alpha(theme.palette.secondary.main, 0.1),
-                      backgroundColor: alpha(theme.palette.secondary.main, 0.02),
-                      height: '100%',
-                      display: 'flex',
-                      flexDirection: 'column'
-                    }}
-                  >
-                    <Typography 
-                      variant="subtitle1" 
-                      fontWeight="medium" 
-                      color="secondary.main" 
-                      sx={{ mb: 2 }}
-                    >
-                      {t.commonThemes}
-                    </Typography>
-                    
-                    {statistics.commonThemes.length > 0 ? (
-                      <Box sx={{ 
-                        display: 'flex', 
-                        flexWrap: 'wrap', 
-                        gap: 1,
-                        '& > *': {
-                          flexGrow: 0
-                        }
-                      }}>
-                        {statistics.commonThemes.map((item, index) => {
-                          // Format the theme name - capitalize first letter of each word
-                          const formattedTheme = item.theme
-                            .split(' ')
-                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(' ');
-                            
-                          return (
-                            <Chip 
-                              key={index}
-                              label={`${formattedTheme} (${item.count})`}
-                              color="secondary"
-                              variant="outlined"
-                              size="small"
-                              sx={{ 
-                                fontWeight: 'medium',
-                                transition: 'all 0.2s ease',
-                                '&:hover': {
-                                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                                  transform: 'translateY(-2px)'
-                                }
-                              }}
-                            />
-                          );
-                        })}
-                      </Box>
-                    ) : (
-                      <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                        {t.noThemes}
-                      </Typography>
-                    )}
-                  </Paper>
-                </Grid>
-              </Grid>
-            </Box>
-          </>
-        )}
+      {/* WhatsApp Bot Section - ELIMINADO */}
+      {/*
+      <Paper ...>
+        ...
       </Paper>
+      */}
 
-      {/* Document Generator Section */}
-      <DocumentGeneratorCard 
-        onDocumentGenerated={(document) => {
-          // Opcional: hacer algo cuando se genera un documento
-          console.log('Documento generado:', document);
-        }}
-      />
-
-      {/* Opciones futuras */}
-      <Typography 
-        variant="h6" 
-        component="h3" 
-        sx={{ 
-          mb: 2, 
-          mt: 4,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          color: 'text.primary',
-          fontWeight: 'medium'
-        }}
-      >
-        Funcionalidades próximas
-      </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper 
-            elevation={0}
-            sx={{
-              p: 3,
-              textAlign: 'center',
-              backgroundColor: alpha(theme.palette.primary.main, 0.02),
-              border: '1px solid',
-              borderColor: alpha(theme.palette.primary.main, 0.1),
-              borderRadius: 3,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.primary.main, 0.04),
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-              }
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 2, 
-                color: theme.palette.primary.main,
-                fontWeight: 'medium'
-              }}
-            >
-              {t.presentations}
-            </Typography>
-            <Chip 
-              label={t.comingSoon} 
-              color="primary" 
-              variant="outlined" 
-              sx={{ 
-                fontWeight: 'medium',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
-              }} 
-            />
-          </Paper>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Paper 
-            elevation={0}
-            sx={{
-              p: 3,
-              textAlign: 'center',
-              backgroundColor: alpha(theme.palette.secondary.main, 0.02),
-              border: '1px solid',
-              borderColor: alpha(theme.palette.secondary.main, 0.1),
-              borderRadius: 3,
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              alignItems: 'center',
-              transition: 'all 0.3s ease',
-              '&:hover': {
-                backgroundColor: alpha(theme.palette.secondary.main, 0.04),
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)',
-              }
-            }}
-          >
-            <Typography 
-              variant="h6" 
-              sx={{ 
-                mb: 2, 
-                color: theme.palette.secondary.main,
-                fontWeight: 'medium'
-              }}
-            >
-              {t.comparisons}
-            </Typography>
-            <Chip 
-              label={t.comingSoon} 
-              color="secondary" 
-              variant="outlined" 
-              sx={{ 
-                fontWeight: 'medium',
-                boxShadow: '0 2px 6px rgba(0, 0, 0, 0.06)'
-              }} 
-            />
-          </Paper>
-        </Grid>
-      </Grid>
-
+      {/* Opciones futuras - ELIMINADO */}
+      {/* ... */}
     </Container>
   );
 }

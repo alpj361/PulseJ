@@ -90,9 +90,32 @@ export interface CapturadoCard {
   entity: string | null;
   city: string | null;
   department: string | null;
+  pais: string | null;
+  topic: string | null;
   description: string | null;
   discovery: string | null;
   created_at: string;
+}
+
+export interface CoverageGroup {
+  topic: string;
+  countries: string[];
+  departments: string[];
+  cities: string[];
+  total_cards: number;
+  coverages_created: Coverage[];
+}
+
+export interface AutoDetectResponse {
+  success: boolean;
+  coverage_groups: CoverageGroup[];
+  created_count: number;
+  updated_count?: number;
+  total_processed?: number;
+  themes_count: number;
+  cards_processed: number;
+  errors?: string[];
+  message: string;
 }
 
 // ===================================================================
@@ -408,7 +431,68 @@ export function filterCoveragesBySearch(coverages: Coverage[], searchText: strin
 }
 
 /**
- * Devuelve las cards capturadas que coincidan con la cobertura (ciudad o departamento)
+ * Detecta coberturas automáticamente desde hallazgos agrupadas por tema
+ */
+export async function autoDetectCoverages(projectId: string): Promise<AutoDetectResponse> {
+  try {
+    const response = await fetch(`https://server.standatpd.com/api/coverages/auto-detect`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({ project_id: projectId })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Error al detectar coberturas automáticamente');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('Error auto-detecting coverages:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene hallazgos agrupados por tema con información geográfica
+ */
+export async function getFindingsByTheme(projectId: string): Promise<Record<string, CapturadoCard[]>> {
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) throw new Error('No autenticado');
+
+    const { data, error } = await supabase
+      .from('capturado_cards')
+      .select('id, entity, city, department, pais, topic, description, discovery, created_at')
+      .eq('project_id', projectId)
+      .or('pais.not.is.null,city.not.is.null,department.not.is.null')
+      .order('topic', { ascending: true })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Agrupar por tema
+    const grouped: Record<string, CapturadoCard[]> = {};
+    data.forEach(card => {
+      const theme = card.topic || 'General';
+      if (!grouped[theme]) {
+        grouped[theme] = [];
+      }
+      grouped[theme].push(card as CapturadoCard);
+    });
+
+    return grouped;
+  } catch (error) {
+    console.error('Error fetching findings by theme:', error);
+    return {};
+  }
+}
+
+/**
+ * Devuelve las cards capturadas que coincidan con la cobertura (ciudad, departamento o país)
  */
 export async function getFindingsForCoverage(projectId: string, coverage: Coverage): Promise<CapturadoCard[]> {
   try {
@@ -416,11 +500,24 @@ export async function getFindingsForCoverage(projectId: string, coverage: Covera
     const { data: sessionData } = await supabase.auth.getSession();
     if (!sessionData.session) throw new Error('No autenticado');
 
-    const matchField = coverage.coverage_type === 'ciudad' ? 'city' : 'department';
+    let matchField: string;
+    switch (coverage.coverage_type) {
+      case 'pais':
+        matchField = 'pais';
+        break;
+      case 'ciudad':
+        matchField = 'city';
+        break;
+      case 'departamento':
+        matchField = 'department';
+        break;
+      default:
+        return [];
+    }
 
     const { data, error } = await supabase
       .from('capturado_cards')
-      .select('id, entity, city, department, description, discovery, created_at')
+      .select('id, entity, city, department, pais, topic, description, discovery, created_at')
       .eq('project_id', projectId)
       .eq(matchField, coverage.name)
       .limit(50);

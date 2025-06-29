@@ -299,6 +299,330 @@ export async function unassignCodexItemFromProject(itemId: string) {
   }
 }
 
+// ===================================================================
+// SISTEMA DE AGRUPAMIENTO CODEX
+// ===================================================================
+
+/**
+ * Crear un nuevo grupo de videos/audios relacionados
+ */
+export async function createCodexGroup(
+  userId: string,
+  groupData: {
+    group_name: string;
+    group_description: string;
+    parent_item_id?: string; // Si se crea a partir de un item existente
+  }
+) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const groupId = crypto.randomUUID();
+
+    // Si se especifica un parent_item_id, actualizar ese item como parent
+    if (groupData.parent_item_id) {
+      const { error: updateError } = await supabase
+        .from('codex_items')
+        .update({
+          group_id: groupId,
+          is_group_parent: true,
+          group_name: groupData.group_name,
+          group_description: groupData.group_description,
+          part_number: null, // El parent no tiene número de parte
+          total_parts: 1 // Inicialmente 1, se incrementará al agregar partes
+        })
+        .eq('id', groupData.parent_item_id)
+        .eq('user_id', userId); // Verificar que el usuario es el dueño
+
+      if (updateError) throw updateError;
+
+      // Obtener el item actualizado
+      const { data: parentItem, error: fetchError } = await supabase
+        .from('codex_items')
+        .select('*')
+        .eq('id', groupData.parent_item_id)
+        .single();
+
+      if (fetchError) throw fetchError;
+      return parentItem;
+    } else {
+      throw new Error('Se requiere parent_item_id para crear un grupo');
+    }
+  } catch (error) {
+    console.error('Error creating codex group:', error);
+    throw error;
+  }
+}
+
+/**
+ * Agregar item a un grupo existente
+ */
+export async function addItemToGroup(
+  itemId: string,
+  groupId: string,
+  partNumber: number,
+  userId: string
+) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    // Actualizar el item para que sea parte del grupo
+    const { data: updatedItem, error: updateError } = await supabase
+      .from('codex_items')
+      .update({
+        group_id: groupId,
+        is_group_parent: false,
+        part_number: partNumber
+      })
+      .eq('id', itemId)
+      .eq('user_id', userId) // Verificar que el usuario es el dueño
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Actualizar el total_parts en el parent
+    await updateGroupTotalParts(groupId);
+
+    return updatedItem;
+  } catch (error) {
+    console.error('Error adding item to group:', error);
+    throw error;
+  }
+}
+
+/**
+ * Remover item de un grupo
+ */
+export async function removeItemFromGroup(itemId: string, userId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    // Obtener el item antes de actualizarlo para saber el group_id
+    const { data: currentItem, error: fetchError } = await supabase
+      .from('codex_items')
+      .select('group_id, is_group_parent')
+      .eq('id', itemId)
+      .eq('user_id', userId)
+      .single();
+
+    if (fetchError) throw fetchError;
+
+    if (currentItem.is_group_parent) {
+      throw new Error('No se puede remover el item principal del grupo. Elimina todo el grupo si necesitas hacerlo.');
+    }
+
+    const groupId = currentItem.group_id;
+
+    // Remover del grupo
+    const { data: updatedItem, error: updateError } = await supabase
+      .from('codex_items')
+      .update({
+        group_id: null,
+        is_group_parent: false,
+        part_number: null
+      })
+      .eq('id', itemId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    // Actualizar el total_parts en el parent si había groupId
+    if (groupId) {
+      await updateGroupTotalParts(groupId);
+    }
+
+    return updatedItem;
+  } catch (error) {
+    console.error('Error removing item from group:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener todos los items de un grupo
+ */
+export async function getGroupItems(groupId: string, userId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .select('*')
+      .eq('group_id', groupId)
+      .eq('user_id', userId) // Solo items del usuario
+      .order('is_group_parent', { ascending: false }) // Parent primero
+      .order('part_number', { ascending: true }); // Luego por número de parte
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching group items:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtener estadísticas de un grupo
+ */
+export async function getGroupStats(groupId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .rpc('get_group_stats', { group_uuid: groupId });
+
+    if (error) {
+      // Si la función no existe en la BD, hacemos un fallback manual
+      if (error.code === 'PGRST202') {
+        // Contar elementos y sumar tamaños manualmente
+        const { data: items, count, error: queryError } = await supabase
+          .from('codex_items')
+          .select('tamano', { count: 'exact' })
+          .eq('group_id', groupId);
+
+        if (queryError) throw queryError;
+
+        const totalSize = (items || []).reduce((acc: number, curr: any) => acc + (curr.tamano || 0), 0);
+
+        return { item_count: count || 0, total_size: totalSize };
+      }
+      throw error;
+    }
+    return data?.[0] || null;
+  } catch (error) {
+    console.error('Error fetching group stats:', error);
+    throw error;
+  }
+}
+
+/**
+ * Eliminar un grupo completo (parent + todas las partes)
+ */
+export async function deleteGroup(groupId: string, userId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    // Obtener todos los items del grupo
+    const groupItems = await getGroupItems(groupId, userId);
+    
+    if (groupItems.length === 0) {
+      throw new Error('Grupo no encontrado o no tienes permisos');
+    }
+
+    // Eliminar todos los items del grupo
+    const { error: deleteError } = await supabase
+      .from('codex_items')
+      .delete()
+      .eq('group_id', groupId)
+      .eq('user_id', userId); // Solo items del usuario
+
+    if (deleteError) throw deleteError;
+
+    return true;
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    throw error;
+  }
+}
+
+/**
+ * Actualizar información del grupo (solo desde el parent)
+ */
+export async function updateGroupInfo(
+  groupId: string,
+  userId: string,
+  updates: {
+    group_name?: string;
+    group_description?: string;
+  }
+) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .update(updates)
+      .eq('group_id', groupId)
+      .eq('is_group_parent', true)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error updating group info:', error);
+    throw error;
+  }
+}
+
+/**
+ * Función auxiliar para actualizar el total_parts del grupo
+ */
+async function updateGroupTotalParts(groupId: string) {
+  try {
+    // Contar todos los items del grupo (incluyendo parent)
+    const { count, error: countError } = await supabase
+      .from('codex_items')
+      .select('*', { count: 'exact', head: true })
+      .eq('group_id', groupId);
+
+    if (countError) throw countError;
+
+    // Actualizar el parent con el total actual
+    const { error: updateError } = await supabase
+      .from('codex_items')
+      .update({ total_parts: count })
+      .eq('group_id', groupId)
+      .eq('is_group_parent', true);
+
+    if (updateError) throw updateError;
+  } catch (error) {
+    console.error('Error updating group total_parts:', error);
+  }
+}
+
+/**
+ * Obtener todos los grupos del usuario (solo parents)
+ */
+export async function getUserGroups(userId: string) {
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error('Supabase not configured');
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('codex_items')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_group_parent', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching user groups:', error);
+    throw error;
+  }
+}
+
 /**
  * Create digitalstorage bucket if it doesn't exist (or verify it exists)
  */

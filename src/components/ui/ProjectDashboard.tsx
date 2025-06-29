@@ -1043,12 +1043,7 @@ export function ProjectDashboard({
                             Gestiona las coberturas mediáticas y análisis de cobertura para este proyecto.
                           </p>
                         </div>
-                        <button
-                          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                        >
-                          <FiPlus className="w-4 h-4" />
-                          Nueva Cobertura
-                        </button>
+                        {/* Botón "Nueva Cobertura" removido según nueva lógica: las coberturas se generan automáticamente */}
                       </div>
                       
                       {/* Componente real de coberturas */}

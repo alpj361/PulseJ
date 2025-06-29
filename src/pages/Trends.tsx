@@ -7,6 +7,8 @@ import KeywordListCard from '../components/ui/KeywordListCard';
 import AboutCard from '../components/ui/AboutCard';
 import StatisticsCard from '../components/ui/StatisticsCard';
 import TrendingTweetsSection from '../components/ui/TrendingTweetsSection';
+import NitterTweetsSection from '../components/ui/NitterTweetsSection';
+
 import { wordCloudData as mockWordCloudData, topKeywords as mockTopKeywords, categoryData as mockCategoryData } from '../data/mockData';
 import { fetchAndStoreTrends, getLatestTrends, AboutInfo, Statistics } from '../services/api';
 import { LanguageContext } from '../context/LanguageContext';
@@ -112,6 +114,8 @@ export const Trends = () => {
   const [lastProcessingTimestamp, setLastProcessingTimestamp] = useState<string | null>(null);
   const [aboutExpanded, setAboutExpanded] = useState(false);
   const [tweetsExpanded, setTweetsExpanded] = useState(false);
+  const [nitterTweetsExpanded, setNitterTweetsExpanded] = useState(false);
+
   const [statisticsExpanded, setStatisticsExpanded] = useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -1406,6 +1410,8 @@ export const Trends = () => {
           <TrendingTweetsSection />
         </AccordionDetails>
       </Accordion>
+
+
 
       {/* Error Dialog */}
       <Dialog 

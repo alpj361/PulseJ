@@ -46,7 +46,7 @@ export interface Statistics {
 // This will come from Netlify environment variables in production
 const VPS_API_URL = import.meta.env.VITE_VPS_API_URL || '';
 
-// ExtractorW Backend URL - ACTUALIZADO PARA USAR VPS PROPIO
+// ExtractorW Backend URL - Siempre usar servidor de producción
 export const EXTRACTORW_API_URL = 'https://server.standatpd.com/api';
 
 console.log('🔧 Configuración de APIs:');

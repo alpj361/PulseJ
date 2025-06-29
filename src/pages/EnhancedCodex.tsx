@@ -17,37 +17,81 @@ import {
 } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import {
-  Search,
-  Plus,
-  FileText,
-  Headphones,
-  Video,
-  Link,
-  Filter,
-  Calendar,
-  Tag,
-  Folder,
-  MoreVertical,
-  Eye,
-  Edit,
-  Trash2,
-  Download,
-  Share2,
-  Archive,
-  RefreshCw,
-  AlertCircle,
-  Upload,
-  Cloud,
-  StickyNote as NoteIcon,
-  ChevronDown,
-  ChevronUp,
-  Mic,
-} from "lucide-react"
+// import {
+//   Search,
+//   Folder,
+//   MoreVertical,
+//   Edit,
+//   Trash2,
+//   FolderPlus,
+//   FileText,
+//   Headphones,
+//   Video,
+//   Link,
+//   Plus,
+//   Filter,
+//   Calendar,
+//   Tag,
+//   Eye,
+//   Download,
+//   Share2,
+//   Archive,
+//   RefreshCw,
+//   AlertCircle,
+//   Upload,
+//   Cloud,
+//   ChevronDown,
+//   ChevronUp,
+//   Mic,
+//   Users,
+// } from "lucide-react"
+
+// Iconos temporales que pueden recibir props
+const Search = (props: any) => <span {...props}>🔍</span>
+const Folder = (props: any) => <span {...props}>📁</span>
+const MoreVertical = (props: any) => <span {...props}>⋮</span>
+const Edit = (props: any) => <span {...props}>✏️</span>
+const Trash2 = (props: any) => <span {...props}>🗑️</span>
+const FolderPlus = (props: any) => <span {...props}>📁+</span>
+const FileText = (props: any) => <span {...props}>📄</span>
+const Headphones = (props: any) => <span {...props}>🎧</span>
+const Video = (props: any) => <span {...props}>🎥</span>
+const Link = (props: any) => <span {...props}>🔗</span>
+const Plus = (props: any) => <span {...props}>➕</span>
+const Filter = (props: any) => <span {...props}>🔽</span>
+const Calendar = (props: any) => <span {...props}>📅</span>
+const Tag = (props: any) => <span {...props}>🏷️</span>
+const Eye = (props: any) => <span {...props}>👁️</span>
+const Download = (props: any) => <span {...props}>⬇️</span>
+const Share2 = (props: any) => <span {...props}>↗️</span>
+const Archive = (props: any) => <span {...props}>📦</span>
+const RefreshCw = (props: any) => <span {...props}>🔄</span>
+const AlertCircle = (props: any) => <span {...props}>⚠️</span>
+const Upload = (props: any) => <span {...props}>⬆️</span>
+const Cloud = (props: any) => <span {...props}>☁️</span>
+const ChevronDown = (props: any) => <span {...props}>▼</span>
+const ChevronUp = (props: any) => <span {...props}>▲</span>
+const Mic = (props: any) => <span {...props}>🎤</span>
+const Users = (props: any) => <span {...props}>👥</span>
+const NoteIcon = (props: any) => <span {...props}>📝</span>
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "../context/AuthContext"
 import { useGoogleDrive } from "../hooks/useGoogleDrive"
-import { supabase, getCodexItemsByUser, createCodexBucket, getUserProjects, Project } from "../services/supabase.ts"
+import { 
+  supabase, 
+  getCodexItemsByUser, 
+  createCodexBucket, 
+  getUserProjects, 
+  Project,
+  createCodexGroup,
+  addItemToGroup,
+  removeItemFromGroup,
+  getGroupItems,
+  getGroupStats,
+  deleteGroup,
+  updateGroupInfo,
+  getUserGroups
+} from "../services/supabase.ts"
 
 interface CodexItem {
   id: string
@@ -67,6 +111,13 @@ interface CodexItem {
   is_drive?: boolean
   drive_file_id?: string
   audio_transcription?: string // NUEVO: transcripción guardada en la BD
+  // NUEVO: Campos para agrupamiento
+  group_id?: string
+  is_group_parent?: boolean
+  group_name?: string
+  group_description?: string
+  part_number?: number
+  total_parts?: number
 }
 
 interface CodexStats {
@@ -76,6 +127,147 @@ interface CodexStats {
   enlaces: number
   notas: number
 }
+
+// NUEVO: Componente para renderizar carpetas/grupos
+const CodexFolderCard: React.FC<{
+  item: CodexItem;
+  onEdit: (item: CodexItem) => void;
+  onDelete: (groupId: string) => void;
+  onAddItem: (group: CodexItem) => void;
+  // Pasamos estas funciones para que el folder pueda interactuar con el resto de la UI
+  onViewItem: (item: CodexItem) => void;
+  onDownloadItem: (item: CodexItem) => void;
+  onTranscribeItem: (item: CodexItem) => void;
+}> = ({ item, onEdit, onDelete, onAddItem, onViewItem, onDownloadItem, onTranscribeItem }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [children, setChildren] = useState<CodexItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [stats, setStats] = useState({ count: 0, size: 0 });
+
+  const getTypeIcon = (type: string) => {
+    const iconMap: { [key: string]: React.ElementType } = {
+      documento: FileText,
+      audio: Headphones,
+      video: Video,
+      enlace: Link,
+      nota: NoteIcon,
+      default: FileText,
+    };
+    return iconMap[type] || iconMap.default;
+  };
+  
+  const groupUuid = item.group_id || item.id
+
+  const fetchGroupData = async () => {
+    if (!groupUuid) return;
+    setIsLoading(true);
+    try {
+      const [groupItems, groupStats] = await Promise.all([
+        getGroupItems(groupUuid, item.user_id),
+        getGroupStats(groupUuid)
+      ]);
+      setChildren(groupItems);
+      setStats({ count: groupStats.item_count, size: groupStats.total_size });
+    } catch (error) {
+      console.error("Error fetching group data:", error);
+    }
+    setIsLoading(false);
+  };
+
+  const toggleExpansion = () => {
+    const newExpansionState = !isExpanded;
+    setIsExpanded(newExpansionState);
+    if (newExpansionState && children.length === 0) {
+      fetchGroupData();
+    }
+  };
+  
+  useEffect(() => {
+    if (groupUuid) getGroupStats(groupUuid).then(gs => setStats({ count: gs?.item_count || 0, size: gs?.total_size || 0 }));
+  }, [groupUuid])
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes || bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const dm = 2;
+    const sizes = ["Bytes", "KB", "MB", "GB", "TB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  };
+
+  const canTranscribe = (item: CodexItem) => {
+    const supportedAudio = ['mp3', 'wav', 'aac', 'ogg', 'flac', 'm4a'];
+    const supportedVideo = ['mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v'];
+    const extension = item.nombre_archivo?.split('.').pop()?.toLowerCase() || '';
+    return item.tipo === 'audio' || item.tipo === 'video' 
+      ? [...supportedAudio, ...supportedVideo].includes(extension)
+      : false;
+  };
+
+
+  return (
+    <Card className="bg-white shadow-md hover:shadow-lg transition-shadow duration-300 rounded-lg overflow-hidden w-full col-span-1 lg:col-span-2 xl:col-span-3">
+       <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-row items-center justify-between">
+        <div className="flex items-center gap-4 flex-1 cursor-pointer" onClick={toggleExpansion}>
+            <Folder className="h-8 w-8 text-blue-600" />
+            <div className="flex-1">
+              <CardTitle className="text-lg font-bold text-slate-800">{item.group_name || "Grupo sin nombre"}</CardTitle>
+              <CardDescription className="text-sm text-slate-500 mt-1">{item.group_description || "Sin descripción."}</CardDescription>
+            </div>
+        </div>
+        <div className="flex items-center gap-4 ml-4">
+          <Badge variant="secondary" className="hidden sm:inline-flex">{stats.count} elementos</Badge>
+          <Badge variant="secondary" className="hidden md:inline-flex">{formatFileSize(stats.size)}</Badge>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon"><MoreVertical className="h-5 w-5" /></Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => onAddItem(item)}><FolderPlus className="h-4 w-4 mr-2" />Añadir a este grupo</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(item)}><Edit className="h-4 w-4 mr-2" />Editar grupo</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onDelete(item.id)} className="text-red-600"><Trash2 className="h-4 w-4 mr-2" />Eliminar grupo</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button variant="ghost" size="icon" onClick={toggleExpansion}>
+            {isExpanded ? <ChevronUp className="h-6 w-6 text-slate-600" /> : <ChevronDown className="h-6 w-6 text-slate-600" />}
+          </Button>
+        </div>
+      </div>
+      {isExpanded && (
+        <CardContent className="p-4 bg-slate-25">
+          {isLoading ? <p className="text-center p-4 text-slate-500">Cargando elementos...</p> : (
+            <div className="space-y-2">
+              {children.length > 0 ? children.map(child => {
+                const IconComponent = getTypeIcon(child.tipo);
+                return (
+                  <div key={child.id} className="flex items-center justify-between p-2 pl-4 rounded-md bg-white hover:bg-slate-100 border border-slate-200">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <IconComponent className="h-5 w-5 text-slate-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <span className="font-medium text-slate-700 truncate block" title={child.titulo}>{child.titulo}</span>
+                        {child.audio_transcription && (
+                          <span className="text-xs text-green-600 cursor-pointer hover:underline" onClick={() => onViewItem(child)} title="Tiene transcripción - click para ver">
+                            🎤 Transcripción disponible
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {child.audio_transcription && <Button variant="ghost" size="icon" onClick={() => onViewItem(child)} title="Ver Transcripción" className="text-green-600"><Mic className="h-4 w-4"/></Button>}
+                      {canTranscribe(child) && !child.audio_transcription && <Button variant="ghost" size="icon" onClick={() => onTranscribeItem(child)} title="Transcribir"><Mic className="h-4 w-4"/></Button>}
+                      {child.storage_path && <Button variant="ghost" size="icon" onClick={() => onDownloadItem(child)} title="Descargar"><Download className="h-4 w-4"/></Button>}
+                      <Button variant="ghost" size="icon" onClick={() => onViewItem(child)} title="Ver Detalles"><Eye className="h-4 w-4"/></Button>
+                    </div>
+                  </div>
+                )
+              }) : <p className="text-center p-4 text-slate-500 text-sm">Este grupo está vacío.</p>}
+            </div>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+};
 
 export default function EnhancedCodex() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -124,6 +316,7 @@ export default function EnhancedCodex() {
   const [uploadDescription, setUploadDescription] = useState("")
   const [uploadTags, setUploadTags] = useState("")
   const [uploadProject, setUploadProject] = useState("")
+  const [isPartOfSeries, setIsPartOfSeries] = useState(false)
   
   const [driveTitle, setDriveTitle] = useState("")
   const [driveDescription, setDriveDescription] = useState("")
@@ -153,6 +346,28 @@ export default function EnhancedCodex() {
   // Estados para transcripción
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionProgress, setTranscriptionProgress] = useState(0)
+  const [transcriptionModalItem, setTranscriptionModalItem] = useState<CodexItem | null>(null)
+  
+  // Estados para el sistema de agrupamiento
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false)
+  const [groupForm, setGroupForm] = useState({
+    group_name: '',
+    group_description: '',
+    parent_item_id: ''
+  })
+  const [selectedItemForGroup, setSelectedItemForGroup] = useState<CodexItem | null>(null)
+  const [showAddToGroupModal, setShowAddToGroupModal] = useState(false)
+  const [availableGroups, setAvailableGroups] = useState<CodexItem[]>([])
+  const [selectedGroup, setSelectedGroup] = useState('')
+  const [partNumber, setPartNumber] = useState(1)
+  const [showGroupDetails, setShowGroupDetails] = useState<string | null>(null)
+  
+  // Estados para el modal de edición de grupo
+  const [isEditGroupModalOpen, setIsEditGroupModalOpen] = useState(false)
+  const [groupToEdit, setGroupToEdit] = useState<CodexItem | null>(null)
+  
+  // NUEVO: Estado para los items que se mostrarán en el nivel superior (grupos y archivos no agrupados)
+  const [topLevelItems, setTopLevelItems] = useState<CodexItem[]>([])
   
   const { user, session } = useAuth()
   const [googleDriveToken, setGoogleDriveToken] = useState<string | null>(null)
@@ -468,42 +683,35 @@ export default function EnhancedCodex() {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
+    return new Date(dateString).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })
   }
 
-  const getFilteredItems = () => {
-    let filtered = codexItems
-
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (item) =>
+  // NUEVO: useEffect para estructurar los datos para la vista de carpetas
+  useEffect(() => {
+    const filtered = codexItems
+      .filter(item => {
+        const queryMatch =
+          searchQuery === "" ||
           item.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.proyecto.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          item.etiquetas.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (item.descripcion && item.descripcion.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    }
+          item.descripcion?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.etiquetas?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (item.is_group_parent && item.group_name?.toLowerCase().includes(searchQuery.toLowerCase())) // Search group names
+        
+        const typeMatch = selectedType === "all" || item.tipo === selectedType
+        
+        return queryMatch && typeMatch
+      })
 
-    if (selectedType !== "all") {
-      filtered = filtered.filter((item) => item.tipo === selectedType)
-    }
+    const topLevel = filtered.filter(item => item.is_group_parent || !item.group_id)
+    
+    topLevel.sort((a, b) => {
+      if (a.is_group_parent && !b.is_group_parent) return -1
+      if (!a.is_group_parent && b.is_group_parent) return 1
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
 
-    // Para el filtro de estado, usamos las etiquetas como proxy del estado
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter((item) => 
-        item.etiquetas.some(tag => tag.toLowerCase().includes(selectedStatus.toLowerCase()))
-      )
-    }
-
-    return showAllItems ? filtered : filtered.slice(0, itemsToShow)
-  }
-
-  const filteredItems = getFilteredItems()
-  const hasMoreItems = codexItems.length > itemsToShow && !showAllItems
+    setTopLevelItems(topLevel)
+  }, [codexItems, searchQuery, selectedType])
 
   const handleDeleteItem = async (itemId: string) => {
     if (!confirm('¿Estás seguro de que quieres eliminar este elemento?')) return
@@ -530,7 +738,6 @@ export default function EnhancedCodex() {
   // ------------------------------
   // Modal de transcripción
   // ------------------------------
-  const [transcriptionModalItem, setTranscriptionModalItem] = useState<CodexItem | null>(null)
 
   const handleShowTranscription = (item: CodexItem) => {
     if (item.audio_transcription && item.audio_transcription.trim().length > 0) {
@@ -1323,7 +1530,34 @@ export default function EnhancedCodex() {
       setCodexItems(updatedItems)
       calculateStats(updatedItems)
 
-      // Clear form and close modal
+      // Si el usuario marcó "es parte de una serie" y subió audio/video, abrir modal de grupo
+      if (isPartOfSeries && results.length > 0) {
+        const uploadedItem = results[0] // Tomar el primer archivo subido
+        if (canBeGrouped(uploadedItem)) {
+          // Limpiar formulario pero mantener modal principal abierto temporalmente
+          setSelectedFiles([])
+          setUploadProgress({})
+          
+          // Abrir modal de grupo con el item recién subido
+          setSelectedItemForGroup(uploadedItem)
+          setGroupForm({
+            group_name: uploadedItem.titulo || 'Nuevo Grupo',
+            group_description: '',
+            parent_item_id: uploadedItem.id
+          })
+          setIsGroupModalOpen(true)
+          
+          // Cerrar el modal principal después de un momento
+          setTimeout(() => {
+            setIsModalOpen(false)
+            setSelectedSourceType(null)
+          }, 500)
+          
+          return // No limpiar completamente el formulario aún
+        }
+      }
+
+      // Clear form and close modal (solo si no se está creando grupo)
       clearForm()
       setSelectedFiles([])
       setUploadProgress({})
@@ -1349,6 +1583,7 @@ export default function EnhancedCodex() {
     setUploadDescription("")
     setUploadTags("")
     setUploadProject("")
+    setIsPartOfSeries(false)
     setDriveTitle("")
     setDriveDescription("")
     setDriveTags("")
@@ -1375,8 +1610,190 @@ export default function EnhancedCodex() {
       etiquetas: '',
       proyecto: ''
     })
+    // Reset group states
+    setIsGroupModalOpen(false)
+    setGroupForm({
+      group_name: '',
+      group_description: '',
+      parent_item_id: ''
+    })
+    setSelectedItemForGroup(null)
+    setShowAddToGroupModal(false)
+    setSelectedGroup('')
+    setPartNumber(1)
+    setShowGroupDetails(null)
     // No limpiamos el token del hook useGoogleDrive para mantener la sesión activa
     // El hook maneja su propio estado y limpieza cuando es necesario
+  }
+
+  // ===================================================================
+  // FUNCIONES DE AGRUPAMIENTO
+  // ===================================================================
+
+  /**
+   * Verificar si un item puede ser agrupado (audio o video)
+   */
+  const canBeGrouped = (item: CodexItem) => {
+    return item.tipo === 'audio' || item.tipo === 'video'
+  }
+
+  /**
+   * Crear un nuevo grupo a partir de un item existente
+   */
+  const handleCreateGroup = async (item: CodexItem) => {
+    try {
+      if (!user?.id) {
+        setError('No se pudo identificar al usuario')
+        return
+      }
+
+      const result = await createCodexGroup(user.id, {
+        group_name: groupForm.group_name,
+        group_description: groupForm.group_description,
+        parent_item_id: item.id
+      })
+
+      // Actualizar el item en el estado local
+      const updatedItems = codexItems.map(i => 
+        i.id === item.id ? { ...i, ...result } : i
+      )
+      setCodexItems(updatedItems)
+
+      setIsGroupModalOpen(false)
+      setGroupForm({ group_name: '', group_description: '', parent_item_id: '' })
+      setSelectedItemForGroup(null)
+
+      // Recargar datos para asegurar consistencia
+      await loadCodexData()
+
+    } catch (error) {
+      console.error('Error creando grupo:', error)
+      setError(`Error al crear grupo: ${error.message}`)
+    }
+  }
+
+  /**
+   * Agregar item a un grupo existente
+   */
+  const handleAddToGroup = async () => {
+    try {
+      if (!user?.id || !selectedItemForGroup || !selectedGroup) {
+        setError('Faltan datos para agregar al grupo')
+        return
+      }
+
+      // Si partNumber no se especifica correctamente, usar la siguiente parte disponible
+      let finalPartNumber = partNumber
+      if (!finalPartNumber || finalPartNumber < 1) {
+        const grp = availableGroups.find(g => (g.group_id || g.id) === selectedGroup)
+        finalPartNumber = (grp?.total_parts || 0) + 1
+      }
+
+      await addItemToGroup(
+        selectedItemForGroup.id,
+        selectedGroup,
+        finalPartNumber,
+        user.id
+      )
+
+      setShowAddToGroupModal(false)
+      setSelectedItemForGroup(null)
+      setSelectedGroup('')
+      setPartNumber(1)
+
+      // Recargar datos
+      await loadCodexData()
+
+    } catch (error) {
+      console.error('Error agregando al grupo:', error)
+      setError(`Error al agregar al grupo: ${error.message}`)
+    }
+  }
+
+  /**
+   * Remover item de su grupo actual
+   */
+  const handleRemoveFromGroup = async (item: CodexItem) => {
+    try {
+      if (!user?.id) {
+        setError('No se pudo identificar al usuario')
+        return
+      }
+
+      await removeItemFromGroup(item.id, user.id)
+      
+      // Recargar datos
+      await loadCodexData()
+
+    } catch (error) {
+      console.error('Error removiendo del grupo:', error)
+      setError(`Error al remover del grupo: ${error.message}`)
+    }
+  }
+
+  /**
+   * Eliminar grupo completo
+   */
+  const handleDeleteGroup = async (groupId: string) => {
+    try {
+      if (!user?.id) {
+        setError('No se pudo identificar al usuario')
+        return
+      }
+
+      if (confirm('¿Estás seguro de que quieres eliminar todo el grupo? Esta acción no se puede deshacer.')) {
+        await deleteGroup(groupId, user.id)
+        
+        // Recargar datos
+        await loadCodexData()
+      }
+
+    } catch (error) {
+      console.error('Error eliminando grupo:', error)
+      setError(`Error al eliminar grupo: ${error.message}`)
+    }
+  }
+
+  /**
+   * Cargar grupos disponibles para agregar items
+   */
+  const loadAvailableGroups = async () => {
+    try {
+      if (!user?.id) return
+
+      const groups = await getUserGroups(user.id)
+      // Normalizar group_id para grupos antiguos que puedan no tenerlo (usar id como fallback)
+      const normalizedGroups = groups.map((g: any) => ({
+        ...g,
+        group_id: g.group_id || g.id,
+        total_parts: g.total_parts || 0
+      }))
+      setAvailableGroups(normalizedGroups)
+
+    } catch (error) {
+      console.error('Error cargando grupos:', error)
+    }
+  }
+
+  /**
+   * Manejar apertura del modal para crear grupo
+   */
+  const handleOpenGroupModal = (item: CodexItem) => {
+    setSelectedItemForGroup(item)
+    setGroupForm({
+      ...groupForm,
+      parent_item_id: item.id
+    })
+    setIsGroupModalOpen(true)
+  }
+
+  /**
+   * Manejar apertura del modal para agregar a grupo existente
+   */
+  const handleOpenAddToGroupModal = async (item: CodexItem) => {
+    setSelectedItemForGroup(item)
+    await loadAvailableGroups()
+    setShowAddToGroupModal(true)
   }
 
   // Predefined content types for suggestions
@@ -1702,6 +2119,29 @@ export default function EnhancedCodex() {
                                     </SelectContent>
                                   </Select>
                                 </div>
+                                
+                                {/* Checkbox para agrupar en series */}
+                                {selectedFiles.some(file => 
+                                  file.type.startsWith('audio/') || file.type.startsWith('video/')
+                                ) && (
+                                  <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <input
+                                      type="checkbox"
+                                      id="is-part-of-series"
+                                      checked={isPartOfSeries}
+                                      onChange={(e) => setIsPartOfSeries(e.target.checked)}
+                                      className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                      <Label htmlFor="is-part-of-series" className="text-blue-900 font-medium cursor-pointer">
+                                        Es parte de una serie
+                                      </Label>
+                                      <p className="text-xs text-blue-700 mt-1">
+                                        Marcar si este audio/video forma parte de una serie o grupo (ej: entrevista en varias partes)
+                                      </p>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2248,10 +2688,10 @@ export default function EnhancedCodex() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-slate-900">
                 {isLoading ? 'Cargando...' : showAllItems
-                  ? `Todos los elementos (${filteredItems.length})`
-                  : `Elementos recientes (${filteredItems.length})`}
+                  ? `Todos los elementos (${topLevelItems.length})`
+                  : `Elementos recientes (${topLevelItems.length})`}
               </h3>
-              {!showAllItems && filteredItems.length > 0 && (
+              {!showAllItems && topLevelItems.length > 0 && (
                 <Button
                   variant="outline"
                   onClick={() => setShowAllItems(true)}
@@ -2267,7 +2707,7 @@ export default function EnhancedCodex() {
                 <RefreshCw className="h-8 w-8 animate-spin text-slate-400" />
                 <span className="ml-2 text-slate-600">Cargando elementos del Codex...</span>
               </div>
-            ) : filteredItems.length === 0 ? (
+            ) : topLevelItems.length === 0 ? (
               <div className="text-center py-12">
                 <Archive className="h-12 w-12 text-slate-400 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">No hay elementos</h3>
@@ -2287,85 +2727,110 @@ export default function EnhancedCodex() {
               </div>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredItems.map((item) => {
-                  const IconComponent = getTypeIcon(item.tipo)
-                  return (
-                    <Card
-                      key={item.id}
-                      className="group hover:shadow-lg transition-all duration-200 border-0 shadow-md overflow-hidden"
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-slate-100 p-2 rounded-lg group-hover:bg-blue-100 transition-colors">
-                              <IconComponent className="h-5 w-5 text-slate-600 group-hover:text-blue-600" />
-                            </div>
-                            <div>
-                              <CardTitle className="text-lg font-semibold text-slate-900 line-clamp-1">
-                                {item.titulo}
-                              </CardTitle>
-                              <CardDescription className="text-sm text-slate-500">
-                                {formatFileSize(item.tamano)}
-                              </CardDescription>
-                            </div>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="opacity-60 hover:opacity-100 transition-opacity"
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewItem(item)}>
-                                <Eye className="h-4 w-4 mr-2" />
-                                Ver
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleEditItem(item)}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Editar
-                              </DropdownMenuItem>
-                              {(item.storage_path || item.url) && (
-                                <DropdownMenuItem onClick={() => handleDownloadItem(item)}>
-                                  <Download className="h-4 w-4 mr-2" />
-                                  Descargar
+                {topLevelItems.map((item) => {
+                  if (item.is_group_parent) {
+                    return <CodexFolderCard 
+                      key={item.id} 
+                      item={item} 
+                      onEdit={(group) => {
+                        setGroupToEdit(group)
+                        setIsEditGroupModalOpen(true)
+                      }}
+                      onDelete={() => handleDeleteGroup(item.id)}
+                      onAddItem={() => handleOpenAddToGroupModal(item)}
+                      onViewItem={handleViewItem}
+                      onDownloadItem={handleDownloadItem}
+                      onTranscribeItem={handleTranscribeItem}
+                    />
+                  } else {
+                    const IconComponent = getTypeIcon(item.tipo)
+                    return (
+                      <Card key={item.id} className="bg-white shadow-md hover:shadow-lg transition-shadow duration-300 rounded-lg overflow-hidden flex flex-col">
+                        <CardHeader className="p-4 border-b border-slate-200">
+                          {/* Title and menu in the same row */}
+                          <div className="flex items-center justify-between gap-2 min-w-0">
+                            <CardTitle className="text-lg font-semibold text-slate-900 truncate min-w-0" title={item.titulo}>
+                              {item.titulo}
+                            </CardTitle>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm" className="-mr-2 -mt-2 opacity-60 hover:opacity-100">
+                                  <MoreVertical className="h-5 w-5" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleViewItem(item)}>
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Ver
                                 </DropdownMenuItem>
-                              )}
-                              {canTranscribe(item) && !item.audio_transcription && (
+                                <DropdownMenuItem onClick={() => handleEditItem(item)}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Editar
+                                </DropdownMenuItem>
+                                {(item.storage_path || item.url) && (
+                                  <DropdownMenuItem onClick={() => handleDownloadItem(item)}>
+                                    <Download className="h-4 w-4 mr-2" />
+                                    Descargar
+                                  </DropdownMenuItem>
+                                )}
+                                {canTranscribe(item) && !item.audio_transcription && (
+                                  <DropdownMenuItem 
+                                    onClick={() => handleTranscribeItem(item)}
+                                    disabled={isTranscribing}
+                                  >
+                                    <Mic className="h-4 w-4 mr-2" />
+                                    {isTranscribing ? 'Transcribiendo...' : 'Transcribir'}
+                                  </DropdownMenuItem>
+                                )}
+                                {item.audio_transcription && (
+                                  <DropdownMenuItem onClick={() => handleShowTranscription(item)}>
+                                    <Mic className="h-4 w-4 mr-2" />
+                                    Transcripción
+                                  </DropdownMenuItem>
+                                )}
+                                {canBeGrouped(item) && !item.group_id && (
+                                  <>
+                                    <DropdownMenuItem onClick={() => handleOpenGroupModal(item)}>
+                                      <FolderPlus className="h-4 w-4 mr-2" />
+                                      Crear Grupo
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleOpenAddToGroupModal(item)}>
+                                      <Users className="h-4 w-4 mr-2" />
+                                      Agregar a Grupo
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                                {item.group_id && !item.is_group_parent && (
+                                  <DropdownMenuItem onClick={() => handleRemoveFromGroup(item)} className="text-orange-600">
+                                    <Users className="h-4 w-4 mr-2" />
+                                    Remover del Grupo
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem>
+                                  <Share2 className="h-4 w-4 mr-2" />
+                                  Compartir
+                                </DropdownMenuItem>
                                 <DropdownMenuItem 
-                                  onClick={() => handleTranscribeItem(item)}
-                                  disabled={isTranscribing}
+                                  className="text-red-600"
+                                  onClick={() => handleDeleteItemConfirm(item)}
                                 >
-                                  <Mic className="h-4 w-4 mr-2" />
-                                  {isTranscribing ? 'Transcribiendo...' : 'Transcribir'}
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  Eliminar
                                 </DropdownMenuItem>
-                              )}
-                              {item.audio_transcription && (
-                                <DropdownMenuItem onClick={() => handleShowTranscription(item)}>
-                                  <Mic className="h-4 w-4 mr-2" />
-                                  Transcripción
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem>
-                                <Share2 className="h-4 w-4 mr-2" />
-                                Compartir
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-red-600"
-                                onClick={() => handleDeleteItemConfirm(item)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="space-y-3">
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                          {/* Icon and file size below title */}
+                          <div className="flex items-center gap-2 mt-2">
+                            <div className="bg-slate-100 p-2 rounded-lg flex-shrink-0">
+                              <IconComponent className="h-5 w-5 text-slate-600" />
+                            </div>
+                            <CardDescription className="text-sm text-slate-500">
+                              {formatFileSize(item.tamano)}
+                            </CardDescription>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-3 space-y-3">
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-600 capitalize">
                               {item.tipo}
@@ -2373,6 +2838,21 @@ export default function EnhancedCodex() {
                             {item.is_drive && (
                               <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
                                 Google Drive
+                              </Badge>
+                            )}
+                            {item.is_group_parent && (
+                              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                📁 Grupo: {item.group_name} ({item.total_parts} partes)
+                              </Badge>
+                            )}
+                            {item.group_id && !item.is_group_parent && (
+                              <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700">
+                                🔗 Parte {item.part_number}
+                              </Badge>
+                            )}
+                            {item.audio_transcription && (
+                              <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 cursor-pointer" onClick={() => handleShowTranscription(item)}>
+                                🎤 Transcripción
                               </Badge>
                             )}
                           </div>
@@ -2409,55 +2889,52 @@ export default function EnhancedCodex() {
                               {item.descripcion}
                             </p>
                           )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )
+                        </CardContent>
+                      </Card>
+                    )
+                  }
                 })}
               </div>
             )}
 
             {/* Load More / Show Less Section */}
-            {(hasMoreItems || showAllItems) && filteredItems.length > 0 && (
+            {(topLevelItems.length > itemsToShow && !showAllItems) && (
               <div className="flex flex-col items-center gap-4 pt-8 border-t border-slate-200">
-                {hasMoreItems && !showAllItems && (
-                  <div className="text-center">
-                    <p className="text-slate-600 mb-4">
-                      Mostrando {itemsToShow} de {codexItems.length} elementos
-                    </p>
-                    <div className="flex gap-3">
-                      <Button
-                        onClick={() => setItemsToShow((prev) => Math.min(prev + 6, codexItems.length))}
-                        variant="outline"
-                        className="border-blue-200 text-blue-600 hover:bg-blue-50"
-                      >
-                        Cargar 6 más
-                      </Button>
-                      <Button
-                        onClick={() => setShowAllItems(true)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        Ver todos ({codexItems.length})
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                {showAllItems && (
-                  <div className="text-center">
-                    <p className="text-slate-600 mb-4">Mostrando todos los {filteredItems.length} elementos</p>
+                <div className="text-center">
+                  <p className="text-slate-600 mb-4">
+                    Mostrando {itemsToShow} de {topLevelItems.length} elementos
+                  </p>
+                  <div className="flex gap-3">
                     <Button
-                      onClick={() => {
-                        setShowAllItems(false)
-                        setItemsToShow(6)
-                      }}
+                      onClick={() => setItemsToShow((prev) => Math.min(prev + 6, topLevelItems.length))}
                       variant="outline"
-                      className="border-slate-200 text-slate-600 hover:bg-slate-50"
+                      className="border-blue-200 text-blue-600 hover:bg-blue-50"
                     >
-                      Mostrar menos
+                      Cargar 6 más
+                    </Button>
+                    <Button
+                      onClick={() => setShowAllItems(true)}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Ver todos ({topLevelItems.length})
                     </Button>
                   </div>
-                )}
+                </div>
+              </div>
+            )}
+
+            {showAllItems && topLevelItems.length > 0 && (
+               <div className="flex flex-col items-center gap-4 pt-8 border-t border-slate-200">
+                  <p className="text-slate-600 mb-4">Mostrando todos los {topLevelItems.length} elementos</p>
+                  <Button
+                    onClick={() => {
+                      setShowAllItems(false)
+                      setItemsToShow(6)
+                    }}
+                    variant="outline"
+                  >
+                    Mostrar menos
+                  </Button>
               </div>
             )}
           </TabsContent>
@@ -2614,6 +3091,244 @@ export default function EnhancedCodex() {
             </DialogFooter>
           </DialogContent>
         )}
+      </Dialog>
+
+      {/* Modal para Crear Grupo */}
+      <Dialog open={isGroupModalOpen} onOpenChange={setIsGroupModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-blue-600" />
+              Crear Nuevo Grupo
+            </DialogTitle>
+            <DialogDescription>
+              Convierte este elemento en el contenedor principal de un grupo de partes relacionadas
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Nombre del Grupo *
+              </label>
+              <Input
+                value={groupForm.group_name}
+                onChange={(e) => setGroupForm({ ...groupForm, group_name: e.target.value })}
+                placeholder="ej: Entrevista con Alcalde - Serie completa"
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Descripción del Grupo
+              </label>
+              <Textarea
+                value={groupForm.group_description}
+                onChange={(e) => setGroupForm({ ...groupForm, group_description: e.target.value })}
+                placeholder="Describe el contenido del grupo y la relación entre las partes"
+                rows={3}
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
+              />
+            </div>
+
+            {selectedItemForGroup && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="font-medium text-blue-900 mb-2">Elemento Principal:</h4>
+                <p className="text-sm text-blue-800">{selectedItemForGroup.titulo}</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Este será el contenedor principal del grupo
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsGroupModalOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => selectedItemForGroup && handleCreateGroup(selectedItemForGroup)}
+              disabled={!groupForm.group_name.trim() || isSubmitting}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                'Crear Grupo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Agregar a Grupo Existente */}
+      <Dialog open={showAddToGroupModal} onOpenChange={setShowAddToGroupModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              Agregar a Grupo Existente
+            </DialogTitle>
+            <DialogDescription>
+              Selecciona un grupo existente y el número de parte para este elemento
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Grupo Existente *
+              </label>
+              <Select
+                value={selectedGroup}
+                onValueChange={(value) => {
+                  setSelectedGroup(value)
+                  // Establecer número de parte sugerido automáticamente = total_parts + 1
+                  const grp = availableGroups.find(g => (g.group_id || g.id) === value)
+                  if (grp) {
+                    setPartNumber((grp.total_parts || 0) + 1)
+                  }
+                }}
+              >
+                <SelectTrigger className="border-slate-200 focus:border-blue-500">
+                  <SelectValue placeholder="Selecciona un grupo" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableGroups.map((group) => (
+                    <SelectItem key={group.id} value={group.group_id || group.id}>
+                      {group.group_name} ({group.total_parts ?? 0} partes)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {availableGroups.length === 0 && (
+                <p className="text-xs text-slate-500 mt-1">
+                  No hay grupos disponibles. Crea uno primero.
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Número de Parte *
+              </label>
+              <Input
+                type="number"
+                min="1"
+                value={partNumber}
+                onChange={(e) => setPartNumber(parseInt(e.target.value) || 1)}
+                placeholder="1"
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Número que identifica esta parte dentro del grupo
+              </p>
+            </div>
+
+            {selectedItemForGroup && (
+              <div className="bg-purple-50 p-4 rounded-lg">
+                <h4 className="font-medium text-purple-900 mb-2">Elemento a Agregar:</h4>
+                <p className="text-sm text-purple-800">{selectedItemForGroup.titulo}</p>
+                <p className="text-xs text-purple-600 mt-1">
+                  Se agregará como parte {partNumber} del grupo seleccionado
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setShowAddToGroupModal(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleAddToGroup}
+              disabled={!selectedGroup || !partNumber || isSubmitting}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {isSubmitting ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Agregando...
+                </>
+              ) : (
+                'Agregar al Grupo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Editar Grupo */}
+      <Dialog open={isEditGroupModalOpen} onOpenChange={setIsEditGroupModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5 text-blue-600" />
+              Editar Grupo
+            </DialogTitle>
+            <DialogDescription>
+              Modifica el nombre y la descripción del grupo
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Nombre del Grupo *
+              </label>
+              <Input
+                value={groupToEdit?.group_name || ''}
+                onChange={e => setGroupToEdit(g => g ? { ...g, group_name: e.target.value } : g)}
+                placeholder="ej: Entrevista con Alcalde - Serie completa"
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Descripción del Grupo
+              </label>
+              <Textarea
+                value={groupToEdit?.group_description || ''}
+                onChange={e => setGroupToEdit(g => g ? { ...g, group_description: e.target.value } : g)}
+                placeholder="Describe el contenido del grupo y la relación entre las partes"
+                rows={3}
+                className="border-slate-200 focus:border-blue-500 focus:ring-blue-500 resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-3">
+            <Button variant="outline" onClick={() => setIsEditGroupModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!groupToEdit) return;
+                await updateGroupInfo(groupToEdit.group_id || groupToEdit.id, groupToEdit.user_id, {
+                  group_name: groupToEdit.group_name,
+                  group_description: groupToEdit.group_description
+                })
+                setIsEditGroupModalOpen(false)
+                setGroupToEdit(null)
+                await loadCodexData()
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+              disabled={!groupToEdit?.group_name?.trim()}
+            >
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
       </Dialog>
     </div>
   )
