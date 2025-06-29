@@ -41,7 +41,7 @@ const LogRocketConfig = () => {
 };
 
 // Componente para proteger rutas
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -63,7 +63,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 // Componente para rutas que requieren usuario verificado (acceso directo desde AuthVerification)
-const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
+export const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
   
   if (loading) {
@@ -102,7 +102,7 @@ const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-function RootRedirect() {
+export function RootRedirect() {
   const { user, loading } = useAuth();
   if (loading) return null;
   if (user) return <Navigate to="/dashboard" replace />;
