@@ -22,6 +22,7 @@ import Projects from './pages/Projects';
 import { DecisionTimelineDemo } from './pages/DecisionTimelineDemo';
 import SidebarDemoPage from './pages/SidebarDemo';
 import DesignSettingsDemo from './pages/DesignSettingsDemo';
+import CreatedWithBoltBadge from './components/ui/CreatedWithBoltBadge';
 
 // Componente para configurar LogRocket automáticamente
 const LogRocketConfig = () => {
@@ -208,6 +209,9 @@ function App() {
           {/* Redirección para rutas no encontradas */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
+        {/* Created with Bolt Badge */}
+        <CreatedWithBoltBadge position="bottom-right" />
       </BrowserRouter>
     </AuthProvider>
   );

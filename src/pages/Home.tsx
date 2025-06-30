@@ -23,6 +23,7 @@ import { motion } from 'framer-motion';
 import { BackgroundPaths } from '@/components/ui/BackgroundPaths';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import Logo from '../components/common/Logo';
+import CreatedWithBoltBadge from '../components/ui/CreatedWithBoltBadge';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -410,11 +411,9 @@ const Home: React.FC = () => {
             </motion.div>
           </Container>
         </Box>
-
-
       </Box>
     </BackgroundPaths>
   );
 };
 
-export default Home; 
+export default Home;
