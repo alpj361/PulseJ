@@ -4,8 +4,6 @@ import {
   BarChart3, 
   TrendingUp,
   ActivitySquare,
-  Search,
-  Database,
   Bookmark,
   Layers
 } from 'lucide-react';
@@ -96,31 +94,14 @@ const Sidebar: React.FC<SidebarProps> = ({ closeSidebar }) => {
       path: '/recent'
     },
     {
-      icon: <Database size={20} />,
-      label: t.library,
-      path: '/codex'
-    },
-    {
       icon: <Bookmark size={20} />,
       label: 'News',
       path: '/news'
     },
     {
-      icon: <BarChart3 size={20} style={{ color: 'grey' }} />,
-      label: 'Sondeos',
-      path: '#', // Cambiamos la ruta para que no vaya a ningún lado
-      disabled: true
-    },
-    {
       icon: <Layers size={20} />,
       label: language === 'es' ? 'Proyectos' : 'Projects',
       path: '/projects'
-    },
-    {
-      icon: <Search size={20} />,
-      label: t.sources,
-      path: '/sources',
-      disabled: true
     },
     {
       icon: <TrendingUp size={20} />,

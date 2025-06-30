@@ -4,7 +4,6 @@ import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import { Trends } from './pages/Trends';
 import RecentActivity from './pages/RecentActivity';
-import Sources from './pages/Sources';
 import Analytics from './pages/Analytics';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -18,9 +17,7 @@ import TestHashtagCard from './components/test/TestHashtagCard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useUserProfile } from './hooks/useUserProfile';
 import { Box, CircularProgress } from '@mui/material';
-import EnhancedCodex from './pages/EnhancedCodex';
 import News from './pages/News';
-import Sondeos from './pages/Sondeos';
 import Projects from './pages/Projects';
 import { DecisionTimelineDemo } from './pages/DecisionTimelineDemo';
 import SidebarDemoPage from './pages/SidebarDemo';
@@ -87,7 +84,7 @@ export const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
   // Si hay usuario, verificar que venga desde AuthVerification
   // Para esto, verificamos si estamos en una ruta protegida sin haber pasado por verificación
   const currentPath = window.location.pathname;
-  const isProtectedPath = ['/dashboard', '/recent', '/sources', '/analytics', '/settings', '/admin', '/library', '/codex', '/news', '/sondeos'].includes(currentPath);
+  const isProtectedPath = ['/dashboard', '/recent', '/analytics', '/settings', '/admin', '/news', '/projects', '/projectos', '/timeline-demo', '/sidebar-demo', '/design-settings-demo'].includes(currentPath);
   
   if (isProtectedPath) {
     // Verificar si el usuario viene directamente sin verificación
@@ -149,13 +146,6 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
-          <Route path="/sources" element={
-            <VerifiedRoute>
-              <Layout>
-                <Sources />
-              </Layout>
-            </VerifiedRoute>
-          } />
           <Route path="/analytics" element={
             <VerifiedRoute>
               <Layout>
@@ -175,24 +165,10 @@ function App() {
               </Layout>
             </VerifiedRoute>
           } />
-          <Route path="/codex" element={
-            <VerifiedRoute>
-              <Layout>
-                <EnhancedCodex />
-              </Layout>
-            </VerifiedRoute>
-          } />
           <Route path="/news" element={
             <VerifiedRoute>
               <Layout>
                 <News />
-              </Layout>
-            </VerifiedRoute>
-          } />
-          <Route path="/sondeos" element={
-            <VerifiedRoute>
-              <Layout>
-                <Sondeos />
               </Layout>
             </VerifiedRoute>
           } />
