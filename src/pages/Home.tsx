@@ -23,6 +23,7 @@ import { motion } from 'framer-motion';
 import { BackgroundPaths } from '@/components/ui/BackgroundPaths';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import Logo from '../components/common/Logo';
+import { BoltNewBadge } from '@/components/ui/BoltNewBadge';
 
 const Home: React.FC = () => {
   const navigate = useNavigate();
@@ -411,7 +412,8 @@ const Home: React.FC = () => {
           </Container>
         </Box>
 
-
+        {/* Bolt badge */}
+        <BoltNewBadge position="bottom-right" variant="auto" size="medium" />
       </Box>
     </BackgroundPaths>
   );
