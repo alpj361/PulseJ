@@ -74,6 +74,79 @@ export const getProjectsByUser = async (
   try {
     console.log('📂 Obteniendo proyectos para usuario:', userId);
 
+    // Verificar si estamos en modo demo
+    const isDemoMode = userId === 'demo-user-id' || new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      console.log('🎭 getProjectsByUser - Modo demo: retornando proyectos simulados');
+      
+      // Proyectos de muestra para demo
+      const demoProjects: Project[] = [
+        {
+          id: 'demo-project-1',
+          title: 'Investigación Elecciones 2024',
+          description: 'Análisis del proceso electoral guatemalteco y sus principales candidatos',
+          status: 'active',
+          priority: 'high',
+          category: 'Política',
+          visibility: 'private',
+          user_id: 'demo-user-id',
+          created_at: new Date(Date.now() - 86400000 * 7).toISOString(),
+          updated_at: new Date(Date.now() - 86400000 * 1).toISOString(),
+          start_date: new Date(Date.now() - 86400000 * 30).toISOString(),
+          target_date: new Date(Date.now() + 86400000 * 60).toISOString(),
+          tags: ['elecciones', 'guatemala', 'política', 'investigación'],
+          collaborators: [],
+          tasks: {
+            tasks: [],
+            updatedAt: new Date().toISOString()
+          }
+        },
+        {
+          id: 'demo-project-2',
+          title: 'Cobertura Crisis Migratoria',
+          description: 'Seguimiento de la situación migratoria en la frontera sur',
+          status: 'completed',
+          priority: 'medium',
+          category: 'Social',
+          visibility: 'public',
+          user_id: 'demo-user-id',
+          created_at: new Date(Date.now() - 86400000 * 15).toISOString(),
+          updated_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+          start_date: new Date(Date.now() - 86400000 * 45).toISOString(),
+          target_date: new Date(Date.now() - 86400000 * 5).toISOString(),
+          tags: ['migración', 'frontera', 'crisis', 'social'],
+          collaborators: [],
+          tasks: {
+            tasks: [],
+            updatedAt: new Date().toISOString()
+          }
+        },
+        {
+          id: 'demo-project-3',
+          title: 'Tendencias Económicas 2024',
+          description: 'Análisis de indicadores económicos y su impacto en Guatemala',
+          status: 'active',
+          priority: 'medium',
+          category: 'Economía',
+          visibility: 'private',
+          user_id: 'demo-user-id',
+          created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+          updated_at: new Date(Date.now() - 86400000 * 2).toISOString(),
+          start_date: new Date(Date.now() - 86400000 * 20).toISOString(),
+          target_date: new Date(Date.now() + 86400000 * 40).toISOString(),
+          tags: ['economía', 'indicadores', 'guatemala', 'análisis'],
+          collaborators: [],
+          tasks: {
+            tasks: [],
+            updatedAt: new Date().toISOString()
+          }
+        }
+      ];
+
+      return demoProjects;
+    }
+
     let query = supabase
       .from('projects')
       .select('*')
@@ -383,6 +456,14 @@ export const verifyProjectAccess = async (
   userId: string
 ): Promise<boolean> => {
   try {
+    // Verificar si estamos en modo demo
+    const isDemoMode = userId === 'demo-user-id' || new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      console.log('🎭 verifyProjectAccess - Modo demo: permitiendo acceso total');
+      return true; // En modo demo, permitir acceso a todos los proyectos
+    }
+
     const { data, error } = await supabase
       .from('projects')
       .select('user_id, collaborators, visibility')

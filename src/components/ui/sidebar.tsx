@@ -30,6 +30,24 @@ import { useAdmin } from "../../hooks/useAdmin";
 import { useAuth } from "../../context/AuthContext";
 import { Tooltip } from "@mui/material";
 
+// Helper function para preservar el parámetro demo en los enlaces
+const usePreserveDemoParam = () => {
+  const location = useLocation();
+  
+  const getPathWithDemo = (path: string) => {
+    const searchParams = new URLSearchParams(location.search);
+    const isDemoActive = searchParams.get('demo') === 'true';
+    
+    if (isDemoActive) {
+      return `${path}?demo=true`;
+    }
+    
+    return path;
+  };
+  
+  return { getPathWithDemo };
+};
+
 const sidebarVariants = {
   open: {
     width: "15rem",
@@ -132,6 +150,7 @@ export function SessionNavBar() {
   const { language, setLanguage } = useContext(LanguageContext);
   const { isAdmin } = useAdmin();
   const { user, signOut } = useAuth();
+  const { getPathWithDemo } = usePreserveDemoParam();
 
   const t = translations[language];
 
@@ -249,7 +268,7 @@ export function SessionNavBar() {
                     <DropdownMenuContent align="start">
                       <DropdownMenuItem asChild>
                         <NavLink
-                          to="/admin"
+                          to={getPathWithDemo("/admin")}
                           className="flex items-center gap-2"
                         >
                           <span className="h-4 w-4">👨‍💼</span>
@@ -322,7 +341,7 @@ export function SessionNavBar() {
                               </div>
                             ) : (
                               <NavLink
-                                to={item.path}
+                                to={getPathWithDemo(item.path)}
                                 className={({ isActive }) => cn(
                                   "flex h-8 w-full flex-row items-center rounded-md px-2 py-1.5 transition hover:bg-muted hover:text-primary",
                                   isActive && "bg-muted text-blue-600",
@@ -400,7 +419,7 @@ export function SessionNavBar() {
                         asChild
                         className="flex items-center gap-2"
                       >
-                         <NavLink to="/profile">
+                         <NavLink to={getPathWithDemo("/profile")}>
                            <span className="h-4 w-4">👤</span> Perfil
                          </NavLink>
                       </DropdownMenuItem>
@@ -408,7 +427,7 @@ export function SessionNavBar() {
                         asChild
                         className="flex items-center gap-2"
                       >
-                         <NavLink to="/settings">
+                         <NavLink to={getPathWithDemo("/settings")}>
                            <span className="h-4 w-4">⚙️</span> {t.settings}
                          </NavLink>
                       </DropdownMenuItem>

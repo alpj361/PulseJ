@@ -34,6 +34,10 @@ const Home: React.FC = () => {
     navigate('/login');
   };
 
+  const handleDemo = () => {
+    navigate('/dashboard?demo=true');
+  };
+
   // Usando el logo original de login
 
   const features = [
@@ -99,7 +103,22 @@ const Home: React.FC = () => {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.6 }}
+                style={{ display: 'flex', gap: 12 }}
               >
+                <Button 
+                  variant="contained" 
+                  size="small"
+                  onClick={handleDemo}
+                  sx={{ 
+                    textTransform: 'none',
+                    backgroundColor: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'primary.dark'
+                    }
+                  }}
+                >
+                  Explorar Demo
+                </Button>
                 <Button 
                   variant="outlined" 
                   size="small"
@@ -233,31 +252,59 @@ const Home: React.FC = () => {
                     boxShadow: theme.shadows[8]
                   }}
                 >
-                  <Button
-                    onClick={handleStart}
-                    variant="contained"
-                    size="large"
-                    fullWidth
-                    endIcon={<ArrowForward />}
-                    sx={{
-                      py: 2,
-                      fontSize: '1.1rem',
-                      fontWeight: 'semibold',
-                      borderRadius: 3,
-                      textTransform: 'none',
-                      transition: 'all 0.2s',
-                      '&:hover': {
-                        transform: 'translateY(-2px)',
-                        boxShadow: theme.shadows[12]
-                      }
-                    }}
-                  >
-                    Empezar ahora
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 2, flexDirection: { xs: 'column', sm: 'row' } }}>
+                    <Button
+                      onClick={handleDemo}
+                      variant="contained"
+                      size="large"
+                      fullWidth
+                      endIcon={<ArrowForward />}
+                      sx={{
+                        py: 2,
+                        fontSize: '1.1rem',
+                        fontWeight: 'semibold',
+                        borderRadius: 3,
+                        textTransform: 'none',
+                        transition: 'all 0.2s',
+                        backgroundColor: 'primary.main',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: theme.shadows[12],
+                          backgroundColor: 'primary.dark'
+                        }
+                      }}
+                    >
+                      Explorar Demo
+                    </Button>
+
+                    <Button
+                      onClick={handleStart}
+                      variant="outlined"
+                      size="large"
+                      fullWidth
+                      sx={{
+                        py: 2,
+                        fontSize: '1.1rem',
+                        fontWeight: 'semibold',
+                        borderRadius: 3,
+                        textTransform: 'none',
+                        transition: 'all 0.2s',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: theme.shadows[8]
+                        }
+                      }}
+                    >
+                      Empezar ahora
+                    </Button>
+                  </Box>
 
                   <Box sx={{ mt: 3, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      ¿Ya tienes una cuenta?{' '}
+                      <Box component="span" sx={{ color: 'primary.main', fontWeight: 'medium' }}>
+                        Demo sin registro
+                      </Box>
+                      {' '} • {' '}
                       <Button
                         variant="text"
                         size="small"
@@ -269,7 +316,7 @@ const Home: React.FC = () => {
                           textTransform: 'none'
                         }}
                       >
-                        Inicia sesión aquí
+                        ¿Ya tienes cuenta?
                       </Button>
                     </Typography>
                     

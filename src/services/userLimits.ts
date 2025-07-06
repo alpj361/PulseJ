@@ -8,6 +8,14 @@ export async function getUserLayersLimit(): Promise<number> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return 3; // Valor por defecto si no hay usuario
 
+    // Verificar si estamos en modo demo
+    const isDemoMode = user.id === 'demo-user-id' || new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      console.log('🎭 getUserLayersLimit - Modo demo: límite generoso');
+      return 50; // Límite generoso para modo demo
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('layerslimit')
@@ -34,6 +42,20 @@ export async function countUserLayersByType(
   decisionType: 'enfoque' | 'alcance' | 'configuracion'
 ): Promise<number> {
   try {
+    // Verificar si estamos en modo demo
+    const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      console.log('🎭 countUserLayersByType - Modo demo: simulando capas existentes');
+      // Simular datos realistas para demo
+      const demoCounts = {
+        'enfoque': 2,
+        'alcance': 1,
+        'configuracion': 3
+      };
+      return demoCounts[decisionType] || 0;
+    }
+
     const { data, error } = await supabase
       .from('project_decisions')
       .select('id')
@@ -91,6 +113,14 @@ export async function canCreateNewLayer(
  */
 export async function updateUserLayersLimit(userId: string, newLimit: number): Promise<boolean> {
   try {
+    // Verificar si estamos en modo demo
+    const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+    
+    if (isDemoMode) {
+      console.log('🎭 updateUserLayersLimit - Modo demo: simulando actualización exitosa');
+      return true; // Simular operación exitosa en modo demo
+    }
+
     const { error } = await supabase
       .from('profiles')
       .update({ layerslimit: newLimit })

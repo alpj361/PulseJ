@@ -4,9 +4,6 @@
 			"path": "../../../ExtractorT"
 		},
 		{
-			"path": "../.."
-		},
-		{
 			"path": "../../../NewsCron"
 		},
 		{
@@ -14,6 +11,12 @@
 		},
 		{
 			"path": "../../../N8N"
+		},
+		{
+			"path": "../../../../Downloads/PulseJ"
+		},
+		{
+			"path": "../.."
 		}
 	],
 	"settings": {}

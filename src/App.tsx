@@ -38,9 +38,14 @@ const LogRocketConfig = () => {
   return null;
 };
 
-// Componente para proteger rutas
+// Componente para proteger rutas (solo en modo autenticado)
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isDemo } = useAuth();
+  
+  // En modo demo, permitir acceso directo
+  if (isDemo) {
+    return <>{children}</>;
+  }
   
   if (loading) {
     return (
@@ -62,7 +67,25 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
 // Componente para rutas que requieren usuario verificado (acceso directo desde AuthVerification)
 export const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading } = useAuth();
+  const { user, loading, isDemo } = useAuth();
+  
+  // Debug temporal
+  console.log('🛡️ VerifiedRoute:', {
+    isDemo,
+    hasUser: !!user,
+    loading,
+    url: window.location.href,
+    search: window.location.search
+  });
+  
+  // Verificar si estamos intentando activar modo demo
+  const isDemoParam = new URLSearchParams(window.location.search).get('demo') === 'true';
+  
+  // En modo demo O si detectamos parámetro demo, permitir acceso directo
+  if (isDemo || isDemoParam) {
+    console.log('🎭 VerifiedRoute: Permitiendo acceso en modo demo');
+    return <>{children}</>;
+  }
   
   if (loading) {
     return (
@@ -77,17 +100,18 @@ export const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
   
-  // Si no hay usuario, redirigir a login
+  // Si no hay usuario Y no estamos en modo demo, redirigir a login
   if (!user) {
+    console.log('🔒 VerifiedRoute: No hay usuario, redirigiendo a login');
     return <Navigate to="/login" />;
   }
   
-  // Si hay usuario, verificar que venga desde AuthVerification
+  // Si hay usuario, verificar que venga desde AuthVerification (solo en modo autenticado)
   // Para esto, verificamos si estamos en una ruta protegida sin haber pasado por verificación
   const currentPath = window.location.pathname;
   const isProtectedPath = ['/dashboard', '/recent', '/analytics', '/settings', '/admin', '/news', '/projects', '/projectos', '/timeline-demo', '/sidebar-demo', '/design-settings-demo'].includes(currentPath);
   
-  if (isProtectedPath) {
+  if (isProtectedPath && !isDemo) {
     // Verificar si el usuario viene directamente sin verificación
     // Esto se puede hacer verificando si hay un flag en sessionStorage
     const isVerified = sessionStorage.getItem('user_verified') === 'true';
@@ -101,8 +125,15 @@ export const VerifiedRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 export function RootRedirect() {
-  const { user, loading } = useAuth();
+  const { user, loading, isDemo } = useAuth();
+  
   if (loading) return null;
+  
+  // En modo demo, ir directamente al dashboard
+  if (isDemo) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
   if (user) return <Navigate to="/dashboard" replace />;
   return <Home />;
 }
@@ -132,7 +163,7 @@ function App() {
             </Layout>
           } />
           
-          {/* Rutas protegidas */}
+          {/* Rutas principales - ahora accesibles en modo demo */}
           <Route path="/dashboard" element={
             <VerifiedRoute>
               <Layout>
@@ -205,13 +236,12 @@ function App() {
             </VerifiedRoute>
           } />
           
-
-          {/* Redirección para rutas no encontradas */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Ruta demo directa para fácil acceso */}
+          <Route path="/demo" element={<Navigate to="/dashboard?demo=true" replace />} />
+          
+          {/* Badge de Bolt */}
+          <Route path="*" element={<CreatedWithBoltBadge />} />
         </Routes>
-        
-        {/* Created with Bolt Badge */}
-        <CreatedWithBoltBadge position="bottom-right" />
       </BrowserRouter>
     </AuthProvider>
   );

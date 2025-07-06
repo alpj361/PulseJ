@@ -5,12 +5,20 @@ import { supabase } from '../services/supabase';
 export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
 
   useEffect(() => {
     async function checkAdminRole() {
       if (!user) {
         setIsAdmin(false);
+        setLoading(false);
+        return;
+      }
+
+      // En modo demo, dar permisos de admin para que puedan probar todas las funcionalidades
+      if (isDemo) {
+        console.log('🎭 useAdmin - Modo demo: otorgando permisos de admin');
+        setIsAdmin(true);
         setLoading(false);
         return;
       }
@@ -37,7 +45,7 @@ export function useAdmin() {
     }
 
     checkAdminRole();
-  }, [user]);
+  }, [user, isDemo]);
 
   return { isAdmin, loading };
 } 

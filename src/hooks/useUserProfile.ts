@@ -13,8 +13,19 @@ export interface UserProfile {
   updated_at: string;
 }
 
+// Perfil demo simulado
+const DEMO_PROFILE: UserProfile = {
+  id: 'demo-user-id',
+  email: 'demo@pulsej.com',
+  credits: 500,
+  layerslimit: 10,
+  role: 'user',
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString()
+};
+
 export function useUserProfile() {
-  const { user } = useAuth();
+  const { user, isDemo } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +35,32 @@ export function useUserProfile() {
       if (!user) {
         setProfile(null);
         setLoading(false);
+        return;
+      }
+
+      // En modo demo, usar perfil simulado
+      if (isDemo) {
+        console.log('🎭 useUserProfile - Usando perfil demo');
+        setProfile(DEMO_PROFILE);
+        setLoading(false);
+        
+        // Configurar LogRocket para demo (opcional)
+        try {
+          LogRocket.identify(DEMO_PROFILE.id, {
+            name: 'Demo User',
+            email: DEMO_PROFILE.email,
+            credits: DEMO_PROFILE.credits,
+            layersLimit: DEMO_PROFILE.layerslimit,
+            role: DEMO_PROFILE.role,
+            accountType: 'demo',
+            creditsStatus: 'high',
+            hasUnlimitedAccess: true,
+            isDemoMode: true
+          });
+        } catch (logRocketError) {
+          console.warn('LogRocket no disponible en modo demo:', logRocketError);
+        }
+        
         return;
       }
 
@@ -71,7 +108,8 @@ export function useUserProfile() {
           // Metadatos adicionales
           registrationDate: userProfile.created_at,
           lastUpdate: userProfile.updated_at,
-          userId: userProfile.id
+          userId: userProfile.id,
+          isDemoMode: false
         });
 
         console.log('✅ LogRocket configured for user:', userProfile.email, {
@@ -89,7 +127,7 @@ export function useUserProfile() {
     }
 
     fetchProfile();
-  }, [user]);
+  }, [user, isDemo]);
 
   // Función para actualizar créditos localmente (para cuando se consumen)
   const updateCredits = (newCredits: number) => {
@@ -97,11 +135,21 @@ export function useUserProfile() {
       const updatedProfile = { ...profile, credits: newCredits };
       setProfile(updatedProfile);
       
+      // En modo demo, no actualizar LogRocket
+      if (isDemo) {
+        console.log('🎭 Demo mode: Credits updated locally to', newCredits);
+        return;
+      }
+      
       // Actualizar LogRocket con nuevos créditos
-      LogRocket.identify(profile.id, {
-        credits: newCredits,
-        creditsStatus: newCredits > 50 ? 'high' : newCredits > 20 ? 'medium' : 'low'
-      });
+      try {
+        LogRocket.identify(profile.id, {
+          credits: newCredits,
+          creditsStatus: newCredits > 50 ? 'high' : newCredits > 20 ? 'medium' : 'low'
+        });
+      } catch (logRocketError) {
+        console.warn('Error actualizando LogRocket:', logRocketError);
+      }
     }
   };
 
