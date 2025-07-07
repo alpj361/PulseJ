@@ -10,6 +10,7 @@ import { useLocation } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Box, Typography, Chip } from '@mui/material';
 import { PlayArrow } from '@mui/icons-material';
+import CreatedWithBoltBadge from '../ui/CreatedWithBoltBadge';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -70,7 +71,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
               <PlayArrow sx={{ fontSize: 16 }} />
               <Typography variant="body2" fontWeight="medium">
-                🎭 MODO DEMO - Todas las funcionalidades habilitadas para evaluación (Admin activado)
+                🎭 MODO DEMO - Todas las funcionalidades habilitadas para evaluación
               </Typography>
               <Chip 
                 label="EVALUACIÓN" 
@@ -105,6 +106,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         
         {/* Vizta Chat */}
         <ViztaChatUI />
+        
+        {/* Badge de Bolt - flotante en todas las páginas */}
+        <CreatedWithBoltBadge />
       </div>
     </LanguageProvider>
   );

@@ -238,9 +238,6 @@ function App() {
           
           {/* Ruta demo directa para fácil acceso */}
           <Route path="/demo" element={<Navigate to="/dashboard?demo=true" replace />} />
-          
-          {/* Badge de Bolt */}
-          <Route path="*" element={<CreatedWithBoltBadge />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

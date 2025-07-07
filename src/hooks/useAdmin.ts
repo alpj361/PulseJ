@@ -15,10 +15,10 @@ export function useAdmin() {
         return;
       }
 
-      // En modo demo, dar permisos de admin para que puedan probar todas las funcionalidades
+      // En modo demo, NO dar permisos de admin - funcionar como usuario regular
       if (isDemo) {
-        console.log('🎭 useAdmin - Modo demo: otorgando permisos de admin');
-        setIsAdmin(true);
+        console.log('🎭 useAdmin - Modo demo: funcionando como usuario regular (sin admin)');
+        setIsAdmin(false);
         setLoading(false);
         return;
       }
